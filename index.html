@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>NBA Doomscroll — HoopsMatic</title>
+  <meta name="description" content="An endless feed of NBA trades, rumors from history, player battles, quizzes and vault finds. Personalized entirely in your browser — your data never leaves it.">
+  <meta name="theme-color" content="#0c0d10">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-row">
+        <a class="brand" href="https://hoopsmatic.com">
+          <span class="brand-hm">Hoops<b>Matic</b></span>
+          <span class="brand-doom">Doomscroll</span>
+        </a>
+        <div class="top-actions">
+          <button class="privacy-badge" id="privacyBadge" type="button">
+            <span class="dot"></span> data stays in your browser
+          </button>
+          <button class="icon-btn" id="profileBtn" type="button" aria-label="Your profile and stats">&#9776;</button>
+        </div>
+      </div>
+      <div class="privacy-pop" id="privacyPop" hidden>
+        <b>Your data never leaves your browser.</b> Likes, saves and the
+        personalization weights live only in this device&rsquo;s localStorage.
+        There is no account, no server, no tracking. Export your profile as a
+        file from the menu, or wipe everything with one tap.
+      </div>
+      <nav class="tabs" id="tabs" aria-label="Feed sections"></nav>
+    </div>
+  </header>
+
+  <main class="feed" id="feed" aria-live="polite"></main>
+  <div class="sentinel" id="sentinel"></div>
+
+  <footer class="foot">
+    An <a href="https://hoopsmatic.com">HoopsMatic</a> experiment ·
+    step-2 build running on sample data
+  </footer>
+
+  <!-- onboarding -->
+  <div class="modal" id="onboard" hidden>
+    <div class="modal-card">
+      <h2>Tune your feed</h2>
+      <p class="lede">Pick a few things you care about. This only seeds the
+        starting mix — everything you like, save or skip keeps re-tuning it.
+        All of it stays on this device.</p>
+      <h3>Teams</h3>
+      <div class="ob-teams"></div>
+      <h3>Eras</h3>
+      <div class="ob-eras"></div>
+      <div class="modal-actions">
+        <button class="btn" data-ob="skip" type="button">Skip, surprise me</button>
+        <button class="btn primary" data-ob="start" type="button">Start scrolling</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- profile / stats panel -->
+  <div class="modal" id="panel" hidden>
+    <div class="modal-card">
+      <div class="panel-head">
+        <h2>Your algorithm</h2>
+        <button class="icon-btn" data-panel="close" type="button" aria-label="Close">&#10005;</button>
+      </div>
+      <p class="lede">Fully local, fully yours. This is everything the feed
+        knows about you.</p>
+      <div class="panel-body" id="panelBody"></div>
+      <div class="panel-danger">
+        <button class="btn" data-panel="export" type="button">Export profile</button>
+        <button class="btn" data-panel="import" type="button">Import profile</button>
+      </div>
+      <div class="panel-danger">
+        <button class="btn danger" data-panel="reset" type="button">Reset algorithm</button>
+        <button class="btn danger" data-panel="delete" type="button">Delete all data</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="js/engine.js"></script>
+  <script src="js/cards.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
