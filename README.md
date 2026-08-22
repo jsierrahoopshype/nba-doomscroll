@@ -15,6 +15,18 @@ For You (algorithmic mix) · Trades (community Trade Machine feed) · Rumors
 (guess the player, ballot trivia) · Vault (salary history, ballot oddities,
 on-this-day games, bar chart races).
 
+## Look and feel
+
+Deliberately matches **NBA Content Stream**, which inherits the HoopsMatic /
+Media Vote Tracker visual system: light `#f5f5f7` background, white rounded
+cards, DM Sans body with JetBrains Mono meta rows, `#3b82f6` accent, boxed nav
+tabs. Tokens in `css/styles.css` are copied from
+`nba-content-stream/assets/styles.css` so the two features read as one product.
+Per-card-type badges use the same treatment Content Stream gives its per-source
+badges (colored dot, 10% tint). The one intentional divergence: Content Stream
+is a 1100px browsing surface, this is a centered ~46rem reading column, because
+it is a scroll feed.
+
 ## Repo layout
 
 - `index.html` + `css/` + `js/` — the app (no framework, vanilla JS)

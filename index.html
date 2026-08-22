@@ -1,97 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>NBA Doomscroll — HoopsMatic</title>
-  <meta name="description" content="An endless feed of NBA trades, rumors from history, player battles, quizzes and vault finds. Personalized entirely in your browser — your data never leaves it.">
-  <meta name="theme-color" content="#0c0d10">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>NBA Doomscroll — trades, rumors, battles &amp; quizzes · HoopsMatic</title>
+<meta name="description" content="An endless, personalized NBA feed: community trades, rumors from this day in history, player battles, quizzes and vault oddities. Tuned entirely in your browser — your data never leaves it.">
+<meta property="og:title" content="NBA Doomscroll · HoopsMatic">
+<meta property="og:description" content="An endless NBA feed of trades, rumor history, player battles, quizzes and vault finds. Personalized in your browser, with no account and no tracking.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+<div class="container">
 
-  <header class="topbar">
-    <div class="topbar-inner">
-      <div class="topbar-row">
-        <a class="brand" href="https://hoopsmatic.com">
-          <span class="brand-hm">Hoops<b>Matic</b></span>
-          <span class="brand-doom">Doomscroll</span>
-        </a>
-        <div class="top-actions">
-          <button class="privacy-badge" id="privacyBadge" type="button">
-            <span class="dot"></span> data stays in your browser
-          </button>
-          <button class="icon-btn" id="profileBtn" type="button" aria-label="Your profile and stats">&#9776;</button>
-        </div>
-      </div>
-      <div class="privacy-pop" id="privacyPop" hidden>
-        <b>Your data never leaves your browser.</b> Likes, saves and the
-        personalization weights live only in this device&rsquo;s localStorage.
-        There is no account, no server, no tracking. Export your profile as a
-        file from the menu, or wipe everything with one tap.
-      </div>
-      <nav class="tabs" id="tabs" aria-label="Feed sections"></nav>
-      <div class="tab-extra" id="tabExtra" hidden></div>
+  <div class="hdr">
+    <h1>NBA Doomscroll</h1>
+    <span class="brand">HoopsMatic · NBA Doomscroll</span>
+  </div>
+  <p class="subtitle">
+    An endless NBA feed: trades other people built, rumors from this day in
+    history, player battles, quizzes and vault oddities. The mix retunes itself
+    from what you like, save and skip, and all of that stays on this device.
+  </p>
+
+  <div class="controls">
+    <nav class="tabs" id="tabs" aria-label="Feed sections"></nav>
+    <div class="controls-row" id="tabExtra" hidden></div>
+    <div class="controls-row">
+      <button class="privacy-badge" id="privacyBadge" type="button">
+        <span class="dot"></span> data stays in your browser
+      </button>
+      <button class="icon-btn" id="profileBtn" type="button">Your algorithm</button>
     </div>
-  </header>
+    <div class="privacy-pop" id="privacyPop" hidden>
+      <b>Your data never leaves your browser.</b> Likes, saves and the
+      personalization weights live only in this device&rsquo;s localStorage.
+      There is no account, no server, no tracking. Export your profile as a
+      file from the menu, or wipe everything with one tap.
+    </div>
+  </div>
+
+  <div class="summary" id="summary">loading…</div>
 
   <main class="feed" id="feed" aria-live="polite"></main>
   <div class="sentinel" id="sentinel"></div>
 
-  <footer class="foot">
-    An <a href="https://hoopsmatic.com">HoopsMatic</a> experiment ·
-    step-2 build running on sample data
-  </footer>
+  <div class="foot">
+    An <a href="https://hoopsmatic.com">HoopsMatic</a> experiment · no account, no server, no tracking.<br>
+    Personalization is a plain tag-weighting algorithm running in your browser; a quarter of every feed stays random on purpose.<br>
+    Trades, rumors and vault cards are sample data until their sources are wired in.
+  </div>
+</div>
 
-  <!-- onboarding -->
-  <div class="modal" id="onboard" hidden>
-    <div class="modal-card">
-      <h2>Tune your feed</h2>
-      <p class="lede">Pick a few things you care about. This only seeds the
-        starting mix — everything you like, save or skip keeps re-tuning it.
-        All of it stays on this device.</p>
-      <h3>Teams</h3>
-      <div class="ob-teams"></div>
-      <h3>Eras</h3>
-      <div class="ob-eras"></div>
-      <div class="modal-actions">
-        <button class="btn" data-ob="skip" type="button">Skip, surprise me</button>
-        <button class="btn primary" data-ob="start" type="button">Start scrolling</button>
-      </div>
+<!-- onboarding -->
+<div class="modal" id="onboard" hidden>
+  <div class="modal-card">
+    <h2>Tune your feed</h2>
+    <p class="lede">Pick a few things you care about. This only seeds the
+      starting mix — everything you like, save or skip keeps re-tuning it.
+      All of it stays on this device.</p>
+    <h3>Teams</h3>
+    <div class="ob-teams"></div>
+    <h3>Eras</h3>
+    <div class="ob-eras"></div>
+    <div class="modal-actions">
+      <button class="btn" data-ob="skip" type="button">Skip, surprise me</button>
+      <button class="btn primary" data-ob="start" type="button">Start scrolling</button>
     </div>
   </div>
+</div>
 
-  <!-- profile / stats panel -->
-  <div class="modal" id="panel" hidden>
-    <div class="modal-card">
-      <div class="panel-head">
-        <h2>Your algorithm</h2>
-        <button class="icon-btn" data-panel="close" type="button" aria-label="Close">&#10005;</button>
-      </div>
-      <p class="lede">Fully local, fully yours. This is everything the feed
-        knows about you.</p>
-      <div class="panel-body" id="panelBody"></div>
-      <div class="panel-danger">
-        <button class="btn" data-panel="export" type="button">Export profile</button>
-        <button class="btn" data-panel="import" type="button">Import profile</button>
-      </div>
-      <div class="panel-danger">
-        <button class="btn danger" data-panel="reset" type="button">Reset algorithm</button>
-        <button class="btn danger" data-panel="delete" type="button">Delete all data</button>
-      </div>
-      <input type="file" id="importFile" accept="application/json" hidden>
+<!-- profile / stats panel -->
+<div class="modal" id="panel" hidden>
+  <div class="modal-card">
+    <div class="panel-head">
+      <h2>Your algorithm</h2>
+      <button class="icon-btn" data-panel="close" type="button">Close</button>
     </div>
+    <p class="lede">Fully local, fully yours. This is everything the feed
+      knows about you.</p>
+    <div class="panel-body" id="panelBody"></div>
+    <div class="panel-danger">
+      <button class="btn" data-panel="export" type="button">Export profile</button>
+      <button class="btn" data-panel="import" type="button">Import profile</button>
+    </div>
+    <div class="panel-danger">
+      <button class="btn danger" data-panel="reset" type="button">Reset algorithm</button>
+      <button class="btn danger" data-panel="delete" type="button">Delete all data</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" hidden>
   </div>
+</div>
 
-  <div class="toast" id="toast" role="status"></div>
+<div class="toast" id="toast" role="status"></div>
 
-  <script src="js/engine.js"></script>
-  <script src="js/cards.js"></script>
-  <script src="js/vs-score.js"></script>
-  <script src="js/live-vs.js"></script>
-  <script src="js/app.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/cards.js"></script>
+<script src="js/vs-score.js"></script>
+<script src="js/live-vs.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

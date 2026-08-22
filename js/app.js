@@ -63,6 +63,7 @@
     var pinned = handleShareLink();
     if (E.needsOnboarding() && !pinned) showOnboarding();
     loadMore();
+    renderSummary();
     observeSentinel();
     // background: the big VS pool
     LAZY_POOLS.forEach(function (u) {
@@ -71,6 +72,7 @@
         state.exhausted = false;
         // top up a thin feed (e.g. the VS tab opened before the pool landed)
         if (feedEl.querySelectorAll(".card").length < BATCH) loadMore();
+        renderSummary();
       }).catch(function (e) { console.warn("[doomscroll] lazy pool failed:", e.message); });
     });
   }).catch(function (e) {
@@ -110,6 +112,7 @@
     feedEl.innerHTML = "";
     window.scrollTo(0, 0);
     loadMore();
+    renderSummary();
     if (state.tab === "vs" && window.LiveVs) LiveVs.ready().catch(function () {});
   });
 
@@ -132,6 +135,26 @@
       btn.disabled = false;
     });
   });
+
+  // Content Stream's monospace summary line: what this tab is showing.
+  var TAB_BLURB = {
+    foryou: "every card type, weighted by what you like",
+    trades: "trades built in the Trade Machine, balance-filtered",
+    rumors: "rumor history, legal/off-court topics filtered out",
+    vs: "career comparisons scored the same way as the full tool",
+    quiz: "guess the player, and trivia from real award ballots",
+    vault: "salary history, ballot oddities, on this day"
+  };
+
+  function renderSummary() {
+    var el = document.getElementById("summary");
+    if (!el) return;
+    var n = poolForTab(state.tab).length;
+    var sample = poolForTab(state.tab).filter(function (c) { return c.dummy; }).length;
+    el.innerHTML = "<strong>" + n.toLocaleString("en-US") + "</strong> cards · " +
+      esc(TAB_BLURB[state.tab] || "") +
+      (sample ? " · <strong>" + sample + "</strong> sample" : "");
+  }
 
   function poolForTab(tab) {
     if (tab === "foryou") return allCards;

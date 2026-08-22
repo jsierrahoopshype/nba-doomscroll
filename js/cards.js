@@ -187,6 +187,7 @@
     return '<article class="card ' + meta.cls + '" data-id="' + escAttr(c.id) + '" tabindex="-1">' +
       '<header class="card-head"><span class="chip">' + esc(meta.chip) + '</span>' +
       (c.dummy ? '<span class="chip dummy">SAMPLE</span>' : "") +
+      (c.live ? '<span class="chip dummy">LIVE</span>' : "") +
       '</header>' +
       '<div class="card-body">' + body + '</div>' +
       '<footer class="card-actions">' +
