@@ -47,12 +47,18 @@ it is a scroll feed.
 - `data/trivia-pool.json` — "two players, one stat" with real career values
 - `data/ballot-pool.json` — ballot trivia from the public media-vote-tracker
   export (2013-14 onward)
+- `data/vault-pool.json` — cap-share salary cards, auto-detected ballot
+  oddities, on-this-day games and the bar chart race clip cards
+- `data/races/*.mp4` — 12 pre-rendered bar chart race clips (720x720, ~12s,
+  ~270KB each, 3.2MB total) plus `races.json` describing them
 - `data/dummy-cards.json` — synthetic cards for the types whose sources are
-  not wired yet: trades, rumors, vault (rumor text in it is invented
-  placeholder content, never archive data)
+  not wired yet: trades and rumors (rumor text in it is invented placeholder
+  content, never archive data)
 - `data/rumor-blocklist.json` — editable keyword blocklist for the Rumors
   editorial filter
-- `tools/build_data.mjs` — rebuilds every real pool from public data
+- `tools/build_data.mjs` — rebuilds the VS / Quiz / Trivia / Ballot pools
+- `tools/build_vault.mjs` — rebuilds the Vault pool
+- `tools/render_races.py` — renders the bar chart race clips (Pillow + ffmpeg)
 - `tools/gen_dummy_cards.py` — regenerates the placeholder pool
 
 ## Rebuilding the data pools
@@ -65,6 +71,23 @@ weekly via `.github/workflows/refresh-data.yml`, or on demand from the Actions
 tab. Every build verifies the fast scorer against the real comparison engine on
 120 random matchups and fails if they ever disagree.
 
+## Rebuilding the Vault
+
+    node tools/build_vault.mjs --local <nba-player-data> <nba-headshots/players/metadata> \
+      <media-vote-tracker/docs/data> <salary_cap_info.csv> <Games.csv>
+
+On demand rather than weekly: historical games and old salaries do not change.
+Re-run after a season ends. Every figure on a Vault card is computed from those
+files — salary cards state a share of that season's actual cap (from
+salary-season-finder's cap table) rather than an inflation estimate, ballot
+cards say "tracked ballots" because the tracker does not hold every ballot ever
+cast, and game cards carry no top-performer line because no repo has player box
+scores.
+
+Clips are rendered separately, then picked up by the Vault build:
+
+    python3 tools/render_races.py --player-data <nba-player-data> --out data/races
+
 ## Local dev
 
 From the repo root: `python -m http.server 8000` then open
@@ -72,6 +95,7 @@ http://localhost:8000/ (fetch() needs a server, file:// won't load the JSON).
 
 ## Status
 
-Step 3 of 6 complete. VS, Quiz and the trivia/ballot card types run on real
-public data; Trades, Rumors and Vault still use placeholder cards pending
-their sources (steps 4-5). Share images and polish land in step 6.
+Steps 3 and 5 complete. VS, Quiz, Vault and the trivia/ballot/race card types
+all run on real data. Only Trades and Rumors are still placeholder, pending the
+trade-log field check and the rumors Worker endpoints (step 4). Share images and
+polish land in step 6.

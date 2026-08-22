@@ -167,7 +167,9 @@
      * score), then a card is drawn from within that type. Types the user
      * dislikes fade out, but nothing disappears entirely.
      */
-    sampleMixed: function (pool, n) {
+    sampleMixed: function (pool, n, opts) {
+      var caps = (opts && opts.cap) || {};
+      var used = {};
       var buckets = {};
       pool.forEach(function (c) {
         var t = (c.tags && c.tags.content_type) || c.type || "other";
@@ -181,8 +183,11 @@
       for (var i = 0; i < n && types.length; i++) {
         // weight each type by its learned score, damped so one hot type can't
         // monopolise the feed, and never twice in a row when alternatives exist
-        var choices = types.filter(function (t) { return buckets[t].length && (t !== lastType || types.length === 1); });
-        if (!choices.length) choices = types.filter(function (t) { return buckets[t].length; });
+        var free = types.filter(function (t) {
+          return buckets[t].length && !(caps[t] && (used[t] || 0) >= caps[t]);
+        });
+        var choices = free.filter(function (t) { return t !== lastType || free.length === 1; });
+        if (!choices.length) choices = free;
         if (!choices.length) break;
         var weights = choices.map(function (t) {
           var w = profile.weights["type:" + t] || 0;
@@ -200,6 +205,7 @@
         if (!picked) { buckets[type] = []; i--; continue; }
         buckets[type] = buckets[type].filter(function (c) { return c !== picked; });
         out.push(picked);
+        used[type] = (used[type] || 0) + 1;
         lastType = type;
       }
       return out;

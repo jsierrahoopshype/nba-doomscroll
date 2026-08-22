@@ -20,6 +20,12 @@
       '" alt="' + escAttr(alt || "") + '" onerror="this.onerror=null;this.src=\'' + SILHOUETTE + '\'">';
   }
 
+  function logo(src, name, cls) {
+    if (!src) return '<span class="team-logo lg logo-none" title="' + escAttr(name || "") + '"></span>';
+    return '<img class="' + (cls || "team-logo lg") + '" loading="lazy" src="' + escAttr(src) +
+      '" alt="" onerror="this.style.visibility=\'hidden\'">';
+  }
+
   var TYPE_META = {
     trade:  { chip: "TRADE",   cls: "t-trade" },
     rumor:  { chip: "RUMOR",   cls: "t-rumor" },
@@ -28,6 +34,7 @@
     quiz:   { chip: "QUIZ",    cls: "t-quiz" },
     ballot: { chip: "BALLOT",  cls: "t-quiz" },
     salary: { chip: "VAULT",   cls: "t-vault" },
+    oddity: { chip: "BALLOT ODDITY", cls: "t-vault" },
     otd:    { chip: "ON THIS DAY", cls: "t-vault" },
     race:   { chip: "RACE",    cls: "t-vault" }
   };
@@ -126,40 +133,67 @@
 
   function renderSalary(c) {
     var p = c.payload;
+    // Cap share rather than a CPI "worth $Y today" figure: it comes straight
+    // from the same salary data plus the cap table, so nothing is estimated.
+    var pctLine = p.bargain
+      ? '<span class="sal-today">just <b class="mono">' + esc(p.cap_pct) + '%</b> of that season&rsquo;s cap</span>'
+      : '<span class="sal-today"><b class="mono">' + esc(p.cap_pct) + '%</b> of the entire salary cap</span>';
     return '<div class="sal-head">' + face(p.img, p.player, "face lg") +
       '<div><div class="sal-name">' + esc(p.player) + '</div>' +
-      '<div class="card-sub">' + esc(p.team) + ' · <span class="mono">' + esc(p.year) + '</span></div></div></div>' +
-      '<div class="sal-line">made <b class="mono">' + esc(p.salary) + '</b>' +
-      '<span class="sal-today">that&rsquo;s <b class="mono">' + esc(p.today) + '</b> today</span></div>' +
-      '<p class="rumor-text">' + esc(p.blurb) + '</p>';
+      '<div class="card-sub">' + esc(p.team) + ' · <span class="mono">' + esc(p.season) + '</span></div></div></div>' +
+      '<div class="sal-line">made <b class="mono">' + esc(p.salary) + '</b>' + pctLine + '</div>' +
+      (p.note ? '<p class="rumor-text sal-note">' + esc(p.note) + '</p>' : "") +
+      '<div class="card-sub">Cap that season: <span class="mono">' + esc(p.cap) + '</span></div>';
+  }
+
+  function renderOddity(c) {
+    var p = c.payload;
+    return '<div class="quiz-diff mono">' + esc(p.season) + ' · ' + esc(p.award) + '</div>' +
+      '<div class="trivia-q">' + esc(p.headline) + '</div>' +
+      '<p class="oddity-detail">' + esc(p.detail) + '</p>' +
+      '<div class="card-sub">' + esc(p.scope) + '</div>';
   }
 
   function renderOtd(c) {
     var p = c.payload;
     var homeWin = p.home_score > p.away_score;
+    // arena + attendance exist only on the 2024-25 and 2025-26 rows of the
+    // source data, so the sub-line is built from whatever is actually there.
+    var bits = [];
+    if (p.arena) bits.push(esc(p.arena));
+    if (p.attendance) bits.push('<span class="mono">' + esc(p.attendance) + '</span> in the building');
     return '<div class="otd-label mono">' + esc(p.year) + ' · ' + esc(p.label) + '</div>' +
       '<div class="otd-score">' +
-      '<div class="otd-team"><img class="team-logo lg" loading="lazy" src="' + escAttr(p.away_logo) + '" alt="">' +
+      '<div class="otd-team">' + logo(p.away_logo, p.away_name) +
       '<span>' + esc(p.away) + '</span><b class="mono ' + (!homeWin ? "win" : "") + '">' + esc(p.away_score) + '</b></div>' +
       '<div class="otd-at mono">@</div>' +
-      '<div class="otd-team"><img class="team-logo lg" loading="lazy" src="' + escAttr(p.home_logo) + '" alt="">' +
+      '<div class="otd-team">' + logo(p.home_logo, p.home_name) +
       '<span>' + esc(p.home) + '</span><b class="mono ' + (homeWin ? "win" : "") + '">' + esc(p.home_score) + '</b></div>' +
       '</div>' +
-      '<p class="rumor-text">' + esc(p.story) + '</p>' +
-      '<div class="card-sub">' + esc(p.arena) + '</div>';
+      '<p class="rumor-text otd-story">' + esc(p.story) + '</p>' +
+      (bits.length ? '<div class="card-sub">' + bits.join(" · ") + '</div>' : "");
   }
 
   function renderRace(c) {
     var p = c.payload;
+    // Muted, looping and autoplaying: a feed card should never make noise, and
+    // playsinline keeps iOS from taking over the screen.
+    // No autoplay attribute and preload="none": app.js starts a clip when it
+    // scrolls into view and pauses it when it leaves, so a feed with a dozen
+    // clips downloads only the one being watched.
     var media = p.mp4
-      ? '<video class="race-video" src="' + escAttr(p.mp4) + '" muted loop playsinline autoplay></video>'
-      : '<div class="race-placeholder"><span class="mono">MP4 pending</span><p>' + esc(p.note || "") + '</p></div>';
-    return '<div class="vs-headline">' + esc(p.title) + '</div>' + media;
+      ? '<video class="race-video" src="' + escAttr(p.mp4) + '" muted loop playsinline preload="none"></video>'
+      : '<div class="race-placeholder"><span class="mono">clip pending</span><p>' + esc(p.note || "") + '</p></div>';
+    return '<div class="vs-headline race-title">' + esc(p.title) + '</div>' +
+      (p.subtitle ? '<div class="card-sub race-sub">' + esc(p.subtitle) +
+        (p.span ? ' · <span class="mono">' + esc(p.span) + '</span>' : "") + '</div>' : "") +
+      media;
   }
 
   var RENDERERS = {
     trade: renderTrade, rumor: renderRumor, vs: renderVs, trivia: renderTrivia,
-    quiz: renderQuiz, ballot: renderBallot, salary: renderSalary, otd: renderOtd, race: renderRace
+    quiz: renderQuiz, ballot: renderBallot, salary: renderSalary, otd: renderOtd,
+    race: renderRace, oddity: renderOddity
   };
 
   /* ---------------- card frame ---------------- */
@@ -171,6 +205,7 @@
       case "rumor": return { url: c.payload.source_url || "https://hoopshype.com/rumors/", label: "Read on HoopsHype" };
       case "vs":    return { url: c.payload.compare_url, label: "Full comparison" };
       case "salary": return { url: "https://hoopsmatic.com/salary-season-finder", label: "Salary Season Finder" };
+      case "oddity": return { url: "https://jsierrahoopshype.github.io/media-vote-tracker/", label: "Media Vote Tracker" };
       case "race":  return { url: "https://hoopsmatic.com", label: "HoopsMatic tools" };
       default: return null;
     }

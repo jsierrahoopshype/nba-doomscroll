@@ -326,13 +326,22 @@ a:hover{ text-decoration:underline }
 .otd-team b.win{ color:var(--text); font-weight:700 }
 .otd-at{ color:var(--text-secondary); font-size:.7rem; font-family:'JetBrains Mono',monospace }
 
+.sal-note{ margin-top:.5rem; font-size:.9rem; font-weight:500; line-height:1.45 }
+.otd-story{ margin-top:.6rem; font-size:.95rem; font-weight:600; text-align:center }
+.oddity-detail{ margin-top:.4rem; font-size:.85rem; color:var(--text-secondary); line-height:1.5 }
+/* 11 relocated/defunct franchises in the game data have no current logo file;
+   the slot is held so the two teams stay aligned. */
+.logo-none{ display:inline-block; background:var(--surface-hover); border-radius:4px }
+
 .race-placeholder{
   margin-top:.5rem; border:1px dashed var(--border); border-radius:10px;
   padding:1.5rem .8rem; text-align:center; color:var(--text-secondary); font-size:.8rem;
   background:var(--bg);
 }
 .race-placeholder .mono{ color:var(--t-vault); letter-spacing:.06em; font-weight:600 }
-.race-video{ width:100%; border-radius:8px; margin-top:.5rem }
+.race-video{ width:100%; border-radius:8px; margin-top:.5rem; display:block; background:var(--bg) }
+.race-title{ text-align:left }
+.race-sub{ margin-top:.2rem; margin-bottom:.1rem }
 
 /* -------- card actions -------- */
 .card-actions{

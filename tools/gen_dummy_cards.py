@@ -259,10 +259,11 @@ for title, cat in [("All-time scoring leaders, 1950-2026", "points"),
          "note": "Clip renders in step 5 — this is a placeholder card."})
 
 # Only card types whose real data source is not wired yet stay in the dummy
-# pool. vs / trivia / quiz / ballot are real as of step 3 (tools/build_data.mjs),
-# so their synthetic versions are dropped to avoid mixing sample cards into
-# tabs that now run on real data.
-KEEP_TYPES = {"trade", "rumor", "salary", "otd", "race"}
+# pool. vs / trivia / quiz / ballot went real in step 3 (tools/build_data.mjs);
+# salary / otd went real in step 5 (tools/build_vault.mjs). Their synthetic
+# versions are dropped so no sample card mixes into a tab running on real data.
+# Bar chart race clips still need a render pipeline, so "race" stays here.
+KEEP_TYPES = {"trade", "rumor", "race"}
 cards = [c for c in cards if c["type"] in KEEP_TYPES]
 
 out_path = os.path.join(os.path.dirname(__file__), "..", "data", "dummy-cards.json")

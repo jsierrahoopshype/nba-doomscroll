@@ -1,8 +1,9 @@
 /* NBA Doomscroll — app shell
  * Tabs, infinite feed, interactions, onboarding, profile panel, share links.
- * VS / Quiz / Trivia / Ballot run on real data built by tools/build_data.mjs.
- * Trades / Rumors / Vault still run on data/dummy-cards.json until their
- * sources are wired in (steps 4-5).
+ * VS / Quiz / Trivia / Ballot come from tools/build_data.mjs; the Vault pools
+ * (cap-share salaries, ballot oddities, on this day) from tools/build_vault.mjs.
+ * Trades and Rumors still run on data/dummy-cards.json until their sources are
+ * wired in (step 4).
  */
 (function () {
   "use strict";
@@ -36,11 +37,36 @@
   // so it streams in behind the first paint and joins the mix on arrival.
   var EAGER_POOLS = ["data/dummy-cards.json", "data/quiz-pool.json",
                      "data/trivia-pool.json", "data/ballot-pool.json"];
-  var LAZY_POOLS = ["data/vs-pool.json"];
+  var LAZY_POOLS = ["data/vs-pool.json", "data/vault-pool.json"];
+
+  /* "On this day" has to mean today, so the 2,000-card vault pool is filtered
+   * down to the current calendar date on load. Roughly 50 dates in the year
+   * have no NBA game in 80 seasons of history (deep summer), so when today is
+   * empty the nearest date that does have games is used instead. */
+  function todayMd(offsetDays) {
+    var d = new Date();
+    if (offsetDays) d.setDate(d.getDate() + offsetDays);
+    return ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+
+  function pickOtdDate(list) {
+    var have = {};
+    list.forEach(function (c) { if (c.type === "otd" && c.payload.date) have[c.payload.date] = 1; });
+    for (var off = 0; off <= 7; off++) {
+      if (have[todayMd(-off)]) return todayMd(-off);
+      if (off && have[todayMd(off)]) return todayMd(off);
+    }
+    return null;
+  }
 
   function addCards(list) {
+    var otdDate = null;
+    if ((list || []).some(function (c) { return c.type === "otd"; })) {
+      otdDate = pickOtdDate(list);
+    }
     (list || []).forEach(function (c) {
       if (byId[c.id]) return;
+      if (c.type === "otd" && c.payload.date && otdDate && c.payload.date !== otdDate) return;
       byId[c.id] = c;
       allCards.push(c);
     });
@@ -143,7 +169,7 @@
     rumors: "rumor history, legal/off-court topics filtered out",
     vs: "career comparisons scored the same way as the full tool",
     quiz: "guess the player, and trivia from real award ballots",
-    vault: "salary history, ballot oddities, on this day"
+    vault: "cap-share salaries, ballot oddities, on this day"
   };
 
   function renderSummary() {
@@ -154,6 +180,16 @@
     el.innerHTML = "<strong>" + n.toLocaleString("en-US") + "</strong> cards · " +
       esc(TAB_BLURB[state.tab] || "") +
       (sample ? " · <strong>" + sample + "</strong> sample" : "");
+  }
+
+  function hasMixedTypes(pool) {
+    var seen = null;
+    for (var i = 0; i < pool.length; i++) {
+      var t = pool[i].tags && pool[i].tags.content_type;
+      if (seen === null) seen = t;
+      else if (t !== seen) return true;
+    }
+    return false;
   }
 
   function poolForTab(tab) {
@@ -167,9 +203,15 @@
     if (state.loading || state.exhausted) return;
     state.loading = true;
     var pool = poolForTab(state.tab);
-    // For You balances across card types; a single tab already is one type
-    // family, so it uses the plain weighted draw.
-    var batch = state.tab === "foryou" ? E.sampleMixed(pool, BATCH) : E.sample(pool, BATCH);
+    // Any tab holding more than one card type gets the type-balanced draw.
+    // Vault is the reason: its ~8 on-this-day cards for the current date would
+    // otherwise be buried under 120 salary and 54 ballot-oddity cards, and
+    // "on this day" is the whole point of having them.
+    // Cap the media-heavy card type: a run of autoplaying clips stacked in one
+    // batch is both visually noisy and the one thing here that costs real data.
+    var batch = hasMixedTypes(pool)
+      ? E.sampleMixed(pool, BATCH, { cap: { race: 1 } })
+      : E.sample(pool, BATCH);
     if (!batch.length) {
       state.exhausted = true;
       state.loading = false;
@@ -219,7 +261,21 @@
     });
   }, { threshold: 0.4 });
 
-  function watchCard(el) { skimObserver.observe(el); }
+  function watchCard(el) {
+    skimObserver.observe(el);
+    var vid = el.querySelector("video");
+    if (vid) videoObserver.observe(vid);
+  }
+
+  // Clips play only while on screen. preload="none" in the markup means a clip
+  // is not fetched at all until it gets here.
+  var videoObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      var v = en.target;
+      if (en.isIntersecting) { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); }
+      else v.pause();
+    });
+  }, { threshold: 0.35 });
 
   /* ---------------- interactions ---------------- */
 
@@ -487,7 +543,8 @@
       case "trivia": return p.question;
       case "quiz": return "Guess the player (" + p.difficulty + ")";
       case "ballot": return p.question;
-      case "salary": return p.player + ", " + p.year;
+      case "salary": return p.player + ", " + (p.season || p.year);
+      case "oddity": return p.headline;
       case "otd": return p.away + " @ " + p.home + ", " + p.year;
       case "race": return p.title;
       default: return c.id;

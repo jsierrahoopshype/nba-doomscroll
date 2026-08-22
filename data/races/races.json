@@ -1,0 +1,124 @@
+{
+ "clips": [
+  {
+   "slug": "points",
+   "title": "All-time scoring leaders",
+   "subtitle": "Career points, cumulative",
+   "mp4": "data/races/points.mp4",
+   "seasons": [
+    1950,
+    2026
+   ]
+  },
+  {
+   "slug": "threes",
+   "title": "All-time 3-pointers made",
+   "subtitle": "Career 3PM, cumulative",
+   "mp4": "data/races/threes.mp4",
+   "seasons": [
+    1980,
+    2026
+   ]
+  },
+  {
+   "slug": "rebounds",
+   "title": "All-time rebounding leaders",
+   "subtitle": "Career rebounds, cumulative",
+   "mp4": "data/races/rebounds.mp4",
+   "seasons": [
+    1951,
+    2026
+   ]
+  },
+  {
+   "slug": "assists",
+   "title": "All-time assist leaders",
+   "subtitle": "Career assists, cumulative",
+   "mp4": "data/races/assists.mp4",
+   "seasons": [
+    1950,
+    2026
+   ]
+  },
+  {
+   "slug": "steals",
+   "title": "All-time steals leaders",
+   "subtitle": "Career steals, cumulative",
+   "mp4": "data/races/steals.mp4",
+   "seasons": [
+    1974,
+    2026
+   ]
+  },
+  {
+   "slug": "blocks",
+   "title": "All-time blocks leaders",
+   "subtitle": "Career blocks, cumulative",
+   "mp4": "data/races/blocks.mp4",
+   "seasons": [
+    1974,
+    2026
+   ]
+  },
+  {
+   "slug": "games",
+   "title": "Most games played, all time",
+   "subtitle": "Career games, cumulative",
+   "mp4": "data/races/games.mp4",
+   "seasons": [
+    1950,
+    2026
+   ]
+  },
+  {
+   "slug": "minutes",
+   "title": "Most minutes played, all time",
+   "subtitle": "Career minutes, cumulative",
+   "mp4": "data/races/minutes.mp4",
+   "seasons": [
+    1952,
+    2026
+   ]
+  },
+  {
+   "slug": "fgm",
+   "title": "All-time field goals made",
+   "subtitle": "Career FGM, cumulative",
+   "mp4": "data/races/fgm.mp4",
+   "seasons": [
+    1950,
+    2026
+   ]
+  },
+  {
+   "slug": "ftm",
+   "title": "All-time free throws made",
+   "subtitle": "Career FTM, cumulative",
+   "mp4": "data/races/ftm.mp4",
+   "seasons": [
+    1950,
+    2026
+   ]
+  },
+  {
+   "slug": "turnovers",
+   "title": "All-time turnovers",
+   "subtitle": "Career turnovers, cumulative",
+   "mp4": "data/races/turnovers.mp4",
+   "seasons": [
+    1978,
+    2026
+   ]
+  },
+  {
+   "slug": "earnings",
+   "title": "Highest career earnings",
+   "subtitle": "Cumulative salary, 1991 onward",
+   "mp4": "data/races/earnings.mp4",
+   "seasons": [
+    1991,
+    2026
+   ]
+  }
+ ]
+}
