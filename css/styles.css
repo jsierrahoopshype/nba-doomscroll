@@ -443,6 +443,12 @@ a:hover{ text-decoration:underline }
   font-family:'JetBrains Mono',monospace; line-height:1.6;
 }
 
+.share-url{
+  background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  padding:.55rem .7rem; font-size:.68rem; color:var(--text-secondary);
+  word-break:break-all; line-height:1.5;
+}
+
 /* -------- toast + footer -------- */
 .toast{
   position:fixed; left:50%; bottom:1.5rem; transform:translate(-50%,1rem);

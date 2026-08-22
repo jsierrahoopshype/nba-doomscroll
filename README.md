@@ -38,6 +38,7 @@ it is a scroll feed.
   - `js/vs-score.js` — shared scorer replaying those rules over pre-resolved
     values; used by the pool builder AND the browser's live matchup
   - `js/live-vs.js` — the VS tab's "Random matchup" button
+  - `js/share-image.js` — renders any card to a branded PNG on a canvas
 - `data/vs-pool.json` — 2,000 pre-scored matchups (1,000 same-era, 1,000
   cross-era), filtered to competitive ones
 - `data/vs-values.json` — per-player metric values for live scoring (~740KB
@@ -95,7 +96,8 @@ http://localhost:8000/ (fetch() needs a server, file:// won't load the JSON).
 
 ## Status
 
-Steps 3 and 5 complete. VS, Quiz, Vault and the trivia/ballot/race card types
-all run on real data. Only Trades and Rumors are still placeholder, pending the
-trade-log field check and the rumors Worker endpoints (step 4). Share images and
-polish land in step 6.
+Steps 3, 5 and 6 complete. VS, Quiz, Vault and the trivia/ballot/race card
+types all run on real data, and every card can be shared as a link or as a
+branded PNG rendered in the browser. Only Trades and Rumors are still
+placeholder, pending the trade-log field check and the rumors Worker endpoints
+(step 4).

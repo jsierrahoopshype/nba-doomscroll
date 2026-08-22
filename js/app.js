@@ -367,16 +367,86 @@
     return u.toString();
   }
 
+  /* Share offers both things the brief asks for: the card's own URL, and a
+   * branded PNG. On phones that support sharing files, one tap hands both to
+   * the native sheet; everywhere else the image downloads and the link copies.
+   */
   function shareCard(card) {
     var url = cardUrl(card);
-    if (navigator.share) {
-      navigator.share({ title: "NBA Doomscroll — HoopsMatic", url: url }).catch(function () {});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(function () { toast("Link copied"); });
-    } else {
-      window.prompt("Copy this link:", url);
+    var sheet = document.getElementById("shareSheet");
+    sheet.dataset.cardId = card.id;
+    sheet.querySelector(".share-url").textContent = url;
+    var nativeBtn = sheet.querySelector('[data-share="native"]');
+    nativeBtn.hidden = !navigator.share;
+    sheet.hidden = false;
+    document.body.classList.add("modal-open");
+  }
+
+  function currentShareCard() {
+    return byId[document.getElementById("shareSheet").dataset.cardId];
+  }
+
+  document.getElementById("shareSheet").addEventListener("click", function (ev) {
+    var sheet = this;
+    if (ev.target === sheet || ev.target.closest('[data-share="close"]')) {
+      sheet.hidden = true;
+      document.body.classList.remove("modal-open");
+      return;
     }
-    // Shareable image render lands in step 6.
+    var btn = ev.target.closest("[data-share]");
+    if (!btn) return;
+    var kind = btn.dataset.share;
+    var card = currentShareCard();
+    if (!card) return;
+    var url = cardUrl(card);
+
+    if (kind === "link") {
+      copyText(url);
+      closeShare();
+    } else if (kind === "image" || kind === "native") {
+      btn.disabled = true;
+      var was = btn.textContent;
+      btn.textContent = "Rendering…";
+      ShareImage.render(card).then(function (blob) {
+        if (kind === "native" && navigator.canShare &&
+            navigator.canShare({ files: [new File([blob], "card.png", { type: "image/png" })] })) {
+          return navigator.share({
+            files: [new File([blob], ShareImage.filename(card), { type: "image/png" })],
+            text: "NBA Doomscroll — HoopsMatic",
+            url: url
+          });
+        }
+        if (kind === "native") return navigator.share({ title: "NBA Doomscroll — HoopsMatic", url: url });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = ShareImage.filename(card);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+        toast("Image saved");
+      }).catch(function (e) {
+        if (e && e.name === "AbortError") return;  // user dismissed the sheet
+        toast("Could not make the image: " + e.message);
+      }).then(function () {
+        btn.disabled = false;
+        btn.textContent = was;
+        closeShare();
+      });
+    }
+  });
+
+  function closeShare() {
+    var s = document.getElementById("shareSheet");
+    s.hidden = true;
+    document.body.classList.remove("modal-open");
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast("Link copied"); },
+        function () { window.prompt("Copy this link:", text); });
+    } else {
+      window.prompt("Copy this link:", text);
+    }
   }
 
   function handleShareLink() {
@@ -550,6 +620,18 @@
       default: return c.id;
     }
   }
+
+  /* Escape closes whichever sheet is open. */
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Escape") return;
+    ["shareSheet", "panel", "onboard"].some(function (id) {
+      var el = document.getElementById(id);
+      if (el.hidden) return false;
+      if (id === "onboard") { E.skipOnboarding(); closeOnboarding(false); }
+      else { el.hidden = true; document.body.classList.remove("modal-open"); }
+      return true;
+    });
+  });
 
   /* ---------------- privacy badge ---------------- */
 

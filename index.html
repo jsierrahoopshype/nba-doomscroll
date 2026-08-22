@@ -52,12 +52,12 @@
   <div class="foot">
     An <a href="https://hoopsmatic.com">HoopsMatic</a> experiment · no account, no server, no tracking.<br>
     Personalization is a plain tag-weighting algorithm running in your browser; a quarter of every feed stays random on purpose.<br>
-    Trades, rumors and vault cards are sample data until their sources are wired in.
+    Trades and rumors are sample cards until their sources are wired in; everything else is real data.
   </div>
 </div>
 
 <!-- onboarding -->
-<div class="modal" id="onboard" hidden>
+<div class="modal" id="onboard" hidden role="dialog" aria-modal="true">
   <div class="modal-card">
     <h2>Tune your feed</h2>
     <p class="lede">Pick a few things you care about. This only seeds the
@@ -75,7 +75,7 @@
 </div>
 
 <!-- profile / stats panel -->
-<div class="modal" id="panel" hidden>
+<div class="modal" id="panel" hidden role="dialog" aria-modal="true">
   <div class="modal-card">
     <div class="panel-head">
       <h2>Your algorithm</h2>
@@ -96,11 +96,32 @@
   </div>
 </div>
 
+<!-- share sheet -->
+<div class="modal" id="shareSheet" hidden role="dialog" aria-modal="true">
+  <div class="modal-card share-card">
+    <div class="panel-head">
+      <h2>Share this card</h2>
+      <button class="icon-btn" data-share="close" type="button">Close</button>
+    </div>
+    <p class="lede">The link opens the feed on this exact card. The image is a
+      branded PNG rendered in your browser.</p>
+    <div class="share-url mono"></div>
+    <div class="panel-danger">
+      <button class="btn" data-share="link" type="button">Copy link</button>
+      <button class="btn" data-share="image" type="button">Save image</button>
+    </div>
+    <div class="panel-danger">
+      <button class="btn primary" data-share="native" type="button" hidden>Share…</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status"></div>
 
 <script src="js/engine.js"></script>
 <script src="js/cards.js"></script>
 <script src="js/vs-score.js"></script>
+<script src="js/share-image.js"></script>
 <script src="js/live-vs.js"></script>
 <script src="js/app.js"></script>
 </body>
