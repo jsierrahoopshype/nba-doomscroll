@@ -1,0 +1,37 @@
+name: Refresh card pools
+
+# Weekly rebuild of the VS / Quiz / Trivia / Ballot pools from the public
+# GitHub Pages data of nba-player-data, nba-headshots and media-vote-tracker.
+# Reads those repos over https only — it never pushes to them.
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # Mondays 06:00 UTC (08:00 Madrid in summer)
+  workflow_dispatch:       # manual run button in the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Rebuild pools from public data
+        run: node tools/build_data.mjs --pages
+
+      - name: Commit if the pools changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -z "$(git status --porcelain data/)" ]; then
+            echo "No data changes."
+            exit 0
+          fi
+          git add data/
+          git commit -m "Weekly data refresh: VS / Quiz / Trivia / Ballot pools"
+          git push

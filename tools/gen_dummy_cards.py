@@ -258,7 +258,14 @@ for title, cat in [("All-time scoring leaders, 1950-2026", "points"),
         {"title": title, "category": cat, "mp4": None,
          "note": "Clip renders in step 5 — this is a placeholder card."})
 
+# Only card types whose real data source is not wired yet stay in the dummy
+# pool. vs / trivia / quiz / ballot are real as of step 3 (tools/build_data.mjs),
+# so their synthetic versions are dropped to avoid mixing sample cards into
+# tabs that now run on real data.
+KEEP_TYPES = {"trade", "rumor", "salary", "otd", "race"}
+cards = [c for c in cards if c["type"] in KEEP_TYPES]
+
 out_path = os.path.join(os.path.dirname(__file__), "..", "data", "dummy-cards.json")
 with open(out_path, "w", encoding="utf-8") as f:
-    json.dump({"generated": "step-2 dummy pool", "cards": cards}, f, ensure_ascii=False, indent=1)
+    json.dump({"generated": "dummy pool (types pending real data)", "cards": cards}, f, ensure_ascii=False, indent=1)
 print(f"wrote {len(cards)} cards -> {os.path.abspath(out_path)}")

@@ -160,6 +160,51 @@
     skipOnboarding: function () { profile.onboarded = true; persist(); },
 
     /* ------------- feed sampling ------------- */
+    /* Type-balanced sampling for the For You mix.
+     * Sampling the whole pool uniformly lets the biggest pools dominate — with
+     * ~2,000 VS cards against ~40 trades, a plain draw is nearly all VS. So a
+     * content_type is chosen per slot first (weighted by that type's learned
+     * score), then a card is drawn from within that type. Types the user
+     * dislikes fade out, but nothing disappears entirely.
+     */
+    sampleMixed: function (pool, n) {
+      var buckets = {};
+      pool.forEach(function (c) {
+        var t = (c.tags && c.tags.content_type) || c.type || "other";
+        (buckets[t] || (buckets[t] = [])).push(c);
+      });
+      var types = Object.keys(buckets);
+      if (types.length < 2) return api.sample(pool, n);
+
+      var out = [];
+      var lastType = null;
+      for (var i = 0; i < n && types.length; i++) {
+        // weight each type by its learned score, damped so one hot type can't
+        // monopolise the feed, and never twice in a row when alternatives exist
+        var choices = types.filter(function (t) { return buckets[t].length && (t !== lastType || types.length === 1); });
+        if (!choices.length) choices = types.filter(function (t) { return buckets[t].length; });
+        if (!choices.length) break;
+        var weights = choices.map(function (t) {
+          var w = profile.weights["type:" + t] || 0;
+          var learned = Math.exp(Math.max(-2, Math.min(2, w / 8)));
+          // A type with only a handful of cards cannot carry a full 1/N share
+          // without repeating itself, so thin pools are damped until they grow.
+          var depth = Math.min(1, buckets[t].length / 12);
+          return learned * depth;
+        });
+        var total = weights.reduce(function (a, b) { return a + b; }, 0);
+        var r = Math.random() * total, idx = 0;
+        while (idx < choices.length - 1 && (r -= weights[idx]) > 0) idx++;
+        var type = choices[idx];
+        var picked = api.sample(buckets[type], 1)[0];
+        if (!picked) { buckets[type] = []; i--; continue; }
+        buckets[type] = buckets[type].filter(function (c) { return c !== picked; });
+        out.push(picked);
+        lastType = type;
+      }
+      return out;
+    },
+
     // pool: candidate cards. n: how many to return. Weighted random without
     // replacement, EXPLORATION share fully random, recently-seen demoted.
     sample: function (pool, n) {

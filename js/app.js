@@ -1,6 +1,8 @@
 /* NBA Doomscroll — app shell
  * Tabs, infinite feed, interactions, onboarding, profile panel, share links.
- * Step 2: every tab runs on the dummy pool in data/dummy-cards.json.
+ * VS / Quiz / Trivia / Ballot run on real data built by tools/build_data.mjs.
+ * Trades / Rumors / Vault still run on data/dummy-cards.json until their
+ * sources are wired in (steps 4-5).
  */
 (function () {
   "use strict";
@@ -30,21 +32,51 @@
 
   /* ---------------- boot ---------------- */
 
-  fetch("data/dummy-cards.json")
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      allCards = data.cards || [];
-      allCards.forEach(function (c) { byId[c.id] = c; });
-      E.startSession();
-      renderTabs();
-      var pinned = handleShareLink();
-      if (E.needsOnboarding() && !pinned) showOnboarding();
-      loadMore();
-      observeSentinel();
-    })
-    .catch(function (e) {
-      feedEl.innerHTML = '<div class="feed-msg">Could not load the card pool (' + esc(e.message) + '). If you opened index.html from disk, serve it instead: python -m http.server</div>';
+  // Eager pools are small and cover every tab's first screen. vs-pool is ~1.9MB
+  // so it streams in behind the first paint and joins the mix on arrival.
+  var EAGER_POOLS = ["data/dummy-cards.json", "data/quiz-pool.json",
+                     "data/trivia-pool.json", "data/ballot-pool.json"];
+  var LAZY_POOLS = ["data/vs-pool.json"];
+
+  function addCards(list) {
+    (list || []).forEach(function (c) {
+      if (byId[c.id]) return;
+      byId[c.id] = c;
+      allCards.push(c);
     });
+  }
+
+  function fetchPool(url) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error(url + " " + r.status);
+      return r.json();
+    }).then(function (d) { return d.cards || []; });
+  }
+
+  Promise.all(EAGER_POOLS.map(function (u) {
+    return fetchPool(u).catch(function (e) { console.warn("[doomscroll] pool failed:", e.message); return []; });
+  })).then(function (lists) {
+    lists.forEach(addCards);
+    if (!allCards.length) throw new Error("no cards loaded");
+    E.startSession();
+    renderTabs();
+    var pinned = handleShareLink();
+    if (E.needsOnboarding() && !pinned) showOnboarding();
+    loadMore();
+    observeSentinel();
+    // background: the big VS pool
+    LAZY_POOLS.forEach(function (u) {
+      fetchPool(u).then(function (list) {
+        addCards(list);
+        state.exhausted = false;
+        // top up a thin feed (e.g. the VS tab opened before the pool landed)
+        if (feedEl.querySelectorAll(".card").length < BATCH) loadMore();
+      }).catch(function (e) { console.warn("[doomscroll] lazy pool failed:", e.message); });
+    });
+  }).catch(function (e) {
+    feedEl.innerHTML = '<div class="feed-msg">Could not load the card pools (' + esc(e.message) +
+      '). If you opened index.html from disk, serve it over http instead: python -m http.server</div>';
+  });
 
   /* ---------------- tabs ---------------- */
 
@@ -52,7 +84,23 @@
     tabsEl.innerHTML = TABS.map(function (t) {
       return '<button class="tab' + (t.key === state.tab ? " active" : "") + '" data-tab="' + t.key + '">' + t.label + "</button>";
     }).join("");
+    renderTabExtra();
   }
+
+  // Per-tab action strip. VS gets the live random-matchup generator.
+  function renderTabExtra() {
+    var el = document.getElementById("tabExtra");
+    if (state.tab === "vs") {
+      el.innerHTML = '<button class="tab-action" id="randomVs" type="button">' +
+        '<span aria-hidden="true">&#9861;</span> Random matchup</button>' +
+        '<span class="tab-note">scored live in your browser</span>';
+      el.hidden = false;
+    } else {
+      el.innerHTML = "";
+      el.hidden = true;
+    }
+  }
+
   tabsEl.addEventListener("click", function (ev) {
     var b = ev.target.closest("[data-tab]");
     if (!b || b.dataset.tab === state.tab) return;
@@ -62,6 +110,27 @@
     feedEl.innerHTML = "";
     window.scrollTo(0, 0);
     loadMore();
+    if (state.tab === "vs" && window.LiveVs) LiveVs.ready().catch(function () {});
+  });
+
+  document.getElementById("tabExtra").addEventListener("click", function (ev) {
+    if (!ev.target.closest("#randomVs")) return;
+    var btn = ev.target.closest("#randomVs");
+    btn.disabled = true;
+    LiveVs.random().then(function (card) {
+      byId[card.id] = card;
+      var holder = document.createElement("div");
+      holder.innerHTML = C.render(card);
+      var el = holder.firstChild;
+      el.classList.add("pinned");
+      watchCard(el);
+      feedEl.insertBefore(el, feedEl.firstChild);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      btn.disabled = false;
+    }).catch(function (e) {
+      toast("Could not build a matchup: " + e.message);
+      btn.disabled = false;
+    });
   });
 
   function poolForTab(tab) {
@@ -75,7 +144,9 @@
     if (state.loading || state.exhausted) return;
     state.loading = true;
     var pool = poolForTab(state.tab);
-    var batch = E.sample(pool, BATCH);
+    // For You balances across card types; a single tab already is one type
+    // family, so it uses the plain weighted draw.
+    var batch = state.tab === "foryou" ? E.sampleMixed(pool, BATCH) : E.sample(pool, BATCH);
     if (!batch.length) {
       state.exhausted = true;
       state.loading = false;
@@ -183,7 +254,9 @@
     if (!correct) btn.classList.add("wrong");
     var res = cardEl.querySelector(".quiz-result");
     res.hidden = false;
-    res.textContent = correct ? "Correct." : "Nope.";
+    var detail = card.payload.detail;
+    res.innerHTML = '<span>' + (correct ? "Correct." : "Nope.") + '</span>' +
+      (detail ? '<span class="quiz-detail">' + esc(detail) + '</span>' : "");
     res.className = "quiz-result " + (correct ? "good" : "bad");
     E.quizAnswered(card);
   }
