@@ -200,7 +200,7 @@
 
   function bodyOtd(ctx, p, imgs, x, y, w) {
     ctx.fillStyle = C.teal; ctx.font = f(600, 24, MONO);
-    ctx.fillText((p.year + " · " + p.label).toUpperCase(), x, y);
+    ctx.fillText(((p.approx ? "Around this date in " + p.year : p.year) + " · " + p.label).toUpperCase(), x, y);
     var yy = y + 80;
     var cx1 = x + w * 0.28, cx2 = x + w * 0.72;
     if (imgs[0]) ctx.drawImage(imgs[0], cx1 - 48, yy, 96, 96);

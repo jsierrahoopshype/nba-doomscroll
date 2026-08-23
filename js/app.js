@@ -71,9 +71,14 @@
     if ((list || []).some(function (c) { return c.type === "otd"; })) {
       otdDate = pickOtdDate(list);
     }
+    // When the fallback picks a nearby date, the card must stop claiming
+    // "on this day" — it is a different day, and saying otherwise is just
+    // wrong. Those cards say "Around this date" instead.
+    var otdExact = otdDate === todayMd(0);
     (list || []).forEach(function (c) {
       if (byId[c.id]) return;
       if (c.type === "otd" && c.payload.date && otdDate && c.payload.date !== otdDate) return;
+      if (c.type === "otd" && !otdExact) c.payload.approx = true;
       byId[c.id] = c;
       allCards.push(c);
     });
@@ -93,7 +98,7 @@
     if (!allCards.length) throw new Error("no cards loaded");
     E.startSession();
     renderTabs();
-    var pinned = handleShareLink();
+    var pinned = handleShareLink();   // may miss: VS/Vault pools load later
     if (E.needsOnboarding() && !pinned) showOnboarding();
     loadMore();
     renderSummary();
@@ -130,6 +135,10 @@
         state.exhausted = false;
         // top up a thin feed (e.g. the VS tab opened before the pool landed)
         if (feedEl.querySelectorAll(".card").length < BATCH) loadMore();
+        // A shared link to a VS or Vault card arrives before its pool does.
+        // handleShareLink() gave up in that case and never ran again, so the
+        // link opened the right tab without the card it pointed at.
+        if (pendingShareId && byId[pendingShareId]) handleShareLink();
         renderSummary();
       }).catch(function (e) { console.warn("[doomscroll] lazy pool failed:", e.message); });
     });
@@ -500,12 +509,16 @@
     }
   }
 
+  var pendingShareId = null;
+
   function handleShareLink() {
     var params = new URLSearchParams(window.location.search);
     var id = params.get("card");
     var tab = params.get("tab");
     if (tab && TABS.some(function (t) { return t.key === tab; })) { state.tab = tab; renderTabs(); }
-    if (!id || !byId[id]) return false;
+    if (!id) return false;
+    if (!byId[id]) { pendingShareId = id; return false; }   // retried on pool arrival
+    pendingShareId = null;
     var holder = document.createElement("div");
     holder.innerHTML = C.render(byId[id]);
     var el = holder.firstChild;

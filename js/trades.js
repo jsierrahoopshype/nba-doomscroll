@@ -137,11 +137,15 @@
     };
   }
 
+  /* Describes the salary match and nothing more. An earlier version said
+   * things like "close enough to work under the rules", which is a claim about
+   * CBA legality that a salary ratio cannot support: real matching depends on
+   * apron status, exceptions, aggregation limits and more. The Trade Machine
+   * itself has that logic; this feed does not, so it does not pretend to. */
   function verdict(balance) {
-    if (balance >= 98) return "Salaries match almost to the dollar.";
-    if (balance >= 95) return "Money lines up cleanly.";
-    if (balance >= 90) return "Close enough to work under the rules.";
-    return "Tight, but it fits inside the 15% rule.";
+    if (balance >= 99) return "Salaries match almost to the dollar.";
+    if (balance >= 95) return "Salaries within " + (100 - balance) + "%.";
+    return "Salaries within " + (100 - balance) + "% — inside the 15% band.";
   }
 
   function ago(ts) {

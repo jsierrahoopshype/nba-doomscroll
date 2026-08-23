@@ -35,7 +35,7 @@
     ballot: { chip: "BALLOT",  cls: "t-quiz" },
     salary: { chip: "VAULT",   cls: "t-vault" },
     oddity: { chip: "BALLOT ODDITY", cls: "t-vault" },
-    otd:    { chip: "ON THIS DAY", cls: "t-vault" },
+    otd:    { chip: "ON THIS DAY", cls: "t-vault" },   // chip swapped below when approximate
     race:   { chip: "RACE",    cls: "t-vault" }
   };
 
@@ -162,7 +162,9 @@
     var bits = [];
     if (p.arena) bits.push(esc(p.arena));
     if (p.attendance) bits.push('<span class="mono">' + esc(p.attendance) + '</span> in the building');
-    return '<div class="otd-label mono">' + esc(p.year) + ' · ' + esc(p.label) + '</div>' +
+    return '<div class="otd-label mono">' +
+      (p.approx ? "Around this date in " + esc(p.year) : esc(p.year)) +
+      ' · ' + esc(p.label) + '</div>' +
       '<div class="otd-score">' +
       '<div class="otd-team">' + logo(p.away_logo, p.away_name) +
       '<span>' + esc(p.away) + '</span><b class="mono ' + (!homeWin ? "win" : "") + '">' + esc(p.away_score) + '</b></div>' +
@@ -213,6 +215,9 @@
 
   function render(c) {
     var meta = TYPE_META[c.type] || { chip: c.type, cls: "" };
+    if (c.type === "otd" && c.payload && c.payload.approx) {
+      meta = { chip: "AROUND THIS DATE", cls: meta.cls };
+    }
     var body = (RENDERERS[c.type] || function () { return ""; })(c);
     var tap = tapTarget(c);
     var tapBtn = tap && tap.url

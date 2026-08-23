@@ -54,9 +54,9 @@ it is a scroll feed.
   oddities, on-this-day games and the bar chart race clip cards
 - `data/races/*.mp4` — 12 pre-rendered bar chart race clips (720x720, ~12s,
   ~270KB each, 3.2MB total) plus `races.json` describing them
-- `data/dummy-cards.json` — synthetic cards for the types whose sources are
-  not wired yet: trades and rumors (rumor text in it is invented placeholder
-  content, never archive data)
+- `data/dummy-cards.json` — fallback cards shown only when a live source is
+  unreachable (rumor text in it is invented placeholder content, never archive
+  data)
 - `data/rumor-blocklist.json` — editable keyword blocklist for the Rumors
   editorial filter
 - `tools/build_data.mjs` — rebuilds the VS / Quiz / Trivia / Ballot pools
@@ -98,8 +98,11 @@ http://localhost:8000/ (fetch() needs a server, file:// won't load the JSON).
 
 ## Status
 
-Steps 3, 5 and 6 complete. VS, Quiz, Vault and the trivia/ballot/race card
-types all run on real data, and every card can be shared as a link or as a
-branded PNG rendered in the browser. Only Trades and Rumors are still
-placeholder, pending the trade-log field check and the rumors Worker endpoints
-(step 4).
+All six steps built. Trades run live off the Trade Machine log; VS, Quiz and
+Vault run on real data; every card shares as a link or a branded PNG. Rumors
+have their client written and waiting on the Worker endpoints in
+`proposals/rumors-endpoints/`.
+
+Known next: the bar chart races want a rewrite (see the notes in that
+proposal folder) — 90-second runtimes, headshots, and far more race
+categories than the 12 pre-rendered clips currently cover.
