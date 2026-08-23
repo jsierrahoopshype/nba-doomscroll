@@ -39,6 +39,8 @@ it is a scroll feed.
     values; used by the pool builder AND the browser's live matchup
   - `js/live-vs.js` — the VS tab's "Random matchup" button
   - `js/share-image.js` — renders any card to a branded PNG on a canvas
+  - `js/trades.js` — live Trade Machine feed: dedupes re-logged builds, keeps
+    two-team deals, applies the 15% balance rule
 - `data/vs-pool.json` — 2,000 pre-scored matchups (1,000 same-era, 1,000
   cross-era), filtered to competitive ones
 - `data/vs-values.json` — per-player metric values for live scoring (~740KB

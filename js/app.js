@@ -2,10 +2,11 @@
  * Tabs, infinite feed, interactions, onboarding, profile panel, share links.
  * VS / Quiz / Trivia / Ballot come from tools/build_data.mjs; the Vault pools
  * (cap-share salaries, ballot oddities, on this day) from tools/build_vault.mjs.
- * Trades and Rumors still run on data/dummy-cards.json until their sources are
- * wired in (step 4).
+ * Rumors and trades load live in the reader's browser (js/rumors.js,
+ * js/trades.js);
+ * falling back to sample cards when those endpoints are not reachable.
  */
-(function () {
+(function (root) {
   "use strict";
 
   var E = window.DoomEngine;
@@ -21,10 +22,16 @@
     { key: "vault", label: "Vault" }
   ];
   var BATCH = 8;
+  var TAB_FOR_TYPE = { rumor: "rumors", trade: "trades" };
   var SKIM_MS = 1200; // visible less than this while scrolling past = skim
 
   var allCards = [];
   var byId = {};
+  // Ids currently rendered in the feed. Sampling draws without replacement
+  // within one batch, but nothing stopped a LATER batch re-drawing a card that
+  // is already on screen — invisible with a 2,000-card pool, glaring with the
+  // handful of live trades. Cleared whenever the feed is cleared.
+  var rendered = {};
   var state = { tab: "foryou", exhausted: false, loading: false };
 
   var feedEl = document.getElementById("feed");
@@ -91,6 +98,31 @@
     loadMore();
     renderSummary();
     observeSentinel();
+    // Live sources, fetched in the reader's browser. When real cards arrive
+    // the sample cards of that type are dropped, so a tab never mixes real and
+    // invented content. When they do not, the samples stay and the tab works.
+    function swapInLive(loader, type) {
+      if (!loader) return;
+      loader.load().then(function (live) {
+        if (!live || !live.length) return;
+        allCards = allCards.filter(function (c) {
+          if (c.type === type && c.dummy) { delete byId[c.id]; return false; }
+          return true;
+        });
+        addCards(live);
+        state.exhausted = false;
+        if (state.tab === TAB_FOR_TYPE[type] || state.tab === "foryou") {
+          clearFeed();
+          loadMore();
+        }
+        renderSummary();
+      }).catch(function (e) {
+        console.warn("[doomscroll] live " + type + " failed:", e.message);
+      });
+    }
+    swapInLive(root.LiveRumors, "rumor");
+    swapInLive(root.DoomTrades, "trade");
+
     // background: the big VS pool
     LAZY_POOLS.forEach(function (u) {
       fetchPool(u).then(function (list) {
@@ -135,7 +167,7 @@
     state.tab = b.dataset.tab;
     state.exhausted = false;
     renderTabs();
-    feedEl.innerHTML = "";
+    clearFeed();
     window.scrollTo(0, 0);
     loadMore();
     renderSummary();
@@ -165,7 +197,7 @@
   // Content Stream's monospace summary line: what this tab is showing.
   var TAB_BLURB = {
     foryou: "every card type, weighted by what you like",
-    trades: "trades built in the Trade Machine, balance-filtered",
+    trades: "real Trade Machine builds, deduped and balance-filtered",
     rumors: "rumor history, legal/off-court topics filtered out",
     vs: "career comparisons scored the same way as the full tool",
     quiz: "guess the player, and trivia from real award ballots",
@@ -192,9 +224,19 @@
     return false;
   }
 
-  function poolForTab(tab) {
-    if (tab === "foryou") return allCards;
-    return allCards.filter(function (c) { return (c.tab || []).indexOf(tab) >= 0; });
+  function poolForTab(tab, excludeRendered) {
+    var pool = tab === "foryou" ? allCards
+      : allCards.filter(function (c) { return (c.tab || []).indexOf(tab) >= 0; });
+    if (!excludeRendered) return pool;
+    // No repeat fallback: re-drawing an exhausted pool just prints the same
+    // five cards over and over, which reads as broken. An honest end-of-feed
+    // note is better. The big pools never reach it.
+    return pool.filter(function (c) { return !rendered[c.id]; });
+  }
+
+  function clearFeed() {
+    feedEl.innerHTML = "";
+    rendered = {};
   }
 
   /* ---------------- feed ---------------- */
@@ -202,7 +244,7 @@
   function loadMore() {
     if (state.loading || state.exhausted) return;
     state.loading = true;
-    var pool = poolForTab(state.tab);
+    var pool = poolForTab(state.tab, true);
     // Any tab holding more than one card type gets the type-balanced draw.
     // Vault is the reason: its ~8 on-this-day cards for the current date would
     // otherwise be buried under 120 salary and 54 ballot-oddity cards, and
@@ -215,14 +257,23 @@
     if (!batch.length) {
       state.exhausted = true;
       state.loading = false;
-      if (!feedEl.children.length) feedEl.innerHTML = '<div class="feed-msg">Nothing here yet.</div>';
+      if (!feedEl.querySelector(".card")) {
+        feedEl.innerHTML = '<div class="feed-msg">Nothing here yet.</div>';
+      } else if (!feedEl.querySelector(".feed-end")) {
+        var end = document.createElement("div");
+        end.className = "feed-msg feed-end";
+        end.textContent = state.tab === "trades"
+          ? "That is every trade that cleared the balance filter. Build one in the Trade Machine and it shows up here."
+          : "You have seen everything here for now.";
+        feedEl.appendChild(end);
+      }
       return;
     }
     var frag = document.createElement("div");
     frag.innerHTML = batch.map(C.render).join("");
     while (frag.firstChild) {
       var node = frag.firstChild;
-      if (node.nodeType === 1) { decorate(node); watchCard(node); }
+      if (node.nodeType === 1) { decorate(node); watchCard(node); rendered[node.dataset.id] = 1; }
       feedEl.appendChild(node);
     }
     state.loading = false;
@@ -638,4 +689,4 @@
   document.getElementById("privacyBadge").addEventListener("click", function () {
     document.getElementById("privacyPop").hidden ^= 1;
   });
-})();
+})(window);

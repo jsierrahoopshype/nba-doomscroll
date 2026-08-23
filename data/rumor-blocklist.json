@@ -1,5 +1,5 @@
 {
-  "_comment": "Keyword blocklist for the Rumors tab editorial filter. Any rumor whose text, quote, or tags contain one of these terms (case-insensitive, whole-word where marked) is excluded from the feed. Edit freely; the site picks up changes on next deploy.",
+  "_comment": "Keyword blocklist for the Rumors tab editorial filter. Any rumor whose text, quote, or tags contain one of these terms (case-insensitive, whole-word where marked) is excluded from the feed. Edit freely; the site picks up changes on next deploy. NOTE: every term in whole_word_only must ALSO appear in blocked_keywords — whole_word_only only changes HOW a term is matched, it does not add the term.",
   "blocked_keywords": [
     "arrest",
     "arrested",
@@ -33,6 +33,7 @@
     "guilty plea",
     "convicted",
     "conviction",
+    "trial",
     "trial date",
     "court appearance",
     "grand jury",

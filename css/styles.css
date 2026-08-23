@@ -172,6 +172,8 @@ a:hover{ text-decoration:underline }
 .t-vs    .card-head .chip:first-child{ color:var(--t-vs);    background:rgba(59,130,246,.10) }
 .t-quiz  .card-head .chip:first-child{ color:var(--t-quiz);  background:rgba(124,58,237,.10) }
 .t-vault .card-head .chip:first-child{ color:var(--t-vault); background:rgba(15,118,110,.10) }
+.chip.live{ background:var(--green-dim); color:var(--green) }
+.chip.live::before{ background:currentColor }
 .chip.dummy{ background:transparent; border:1px dashed var(--border); color:var(--text-secondary) }
 .chip.dummy::before{ display:none }
 
