@@ -1,0 +1,1154 @@
+{
+ "built": "2026-08-23",
+ "count": 30,
+ "cards": [
+  {
+   "id": "race-career-points",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Kareem Abdul-Jabbar",
+     "Karl Malone",
+     "Kobe Bryant",
+     "Kevin Durant"
+    ],
+    "teams": [
+     "CLE",
+     "LAL",
+     "UTA",
+     "OKC",
+     "CHI",
+     "DAL",
+     "GSW"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-points",
+    "title": "All-time scoring leaders",
+    "subtitle": "Regular-season pts, cumulative by season",
+    "span": "1947-2026",
+    "group": "Career",
+    "unit": "pts",
+    "kind": "player",
+    "tier": 1,
+    "note": "",
+    "steps": 80,
+    "leader": "LeBron James",
+    "file": "data/races/r/career-points.json"
+   }
+  },
+  {
+   "id": "race-career-rebounds",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Wilt Chamberlain",
+     "Bill Russell",
+     "Kareem Abdul-Jabbar",
+     "Elvin Hayes",
+     "Moses Malone"
+    ],
+    "teams": [
+     "GSW",
+     "BOS",
+     "LAL",
+     "WAS",
+     "HOU",
+     "SAS",
+     "UTA"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-rebounds",
+    "title": "All-time rebounding leaders",
+    "subtitle": "Regular-season reb, cumulative by season",
+    "span": "1951-2026",
+    "group": "Career",
+    "unit": "reb",
+    "kind": "player",
+    "tier": 1,
+    "note": "",
+    "steps": 76,
+    "leader": "Wilt Chamberlain",
+    "file": "data/races/r/career-rebounds.json"
+   }
+  },
+  {
+   "id": "race-career-assists",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "John Stockton",
+     "Chris Paul",
+     "Jason Kidd",
+     "LeBron James",
+     "Russell Westbrook"
+    ],
+    "teams": [
+     "UTA",
+     "NOP",
+     "BKN",
+     "CLE",
+     "OKC",
+     "PHX",
+     "NYK",
+     "LAL"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-assists",
+    "title": "All-time assist leaders",
+    "subtitle": "Regular-season ast, cumulative by season",
+    "span": "1947-2026",
+    "group": "Career",
+    "unit": "ast",
+    "kind": "player",
+    "tier": 1,
+    "note": "",
+    "steps": 80,
+    "leader": "John Stockton",
+    "file": "data/races/r/career-assists.json"
+   }
+  },
+  {
+   "id": "race-career-threes",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Stephen Curry",
+     "James Harden",
+     "Ray Allen",
+     "Klay Thompson",
+     "Damian Lillard"
+    ],
+    "teams": [
+     "GSW",
+     "HOU",
+     "MIL",
+     "POR",
+     "CLE",
+     "IND",
+     "PHI"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-threes",
+    "title": "All-time 3-pointers made",
+    "subtitle": "Regular-season 3PM, cumulative by season",
+    "span": "1980-2026",
+    "group": "Career",
+    "unit": "3PM",
+    "kind": "player",
+    "tier": 1,
+    "note": "",
+    "steps": 47,
+    "leader": "Stephen Curry",
+    "file": "data/races/r/career-threes.json"
+   }
+  },
+  {
+   "id": "race-career-steals",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "John Stockton",
+     "Chris Paul",
+     "Jason Kidd",
+     "Michael Jordan",
+     "Gary Payton"
+    ],
+    "teams": [
+     "UTA",
+     "NOP",
+     "BKN",
+     "CHI",
+     "OKC",
+     "CLE",
+     "PHI"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-steals",
+    "title": "All-time steals leaders",
+    "subtitle": "Regular-season stl, cumulative by season",
+    "span": "1974-2026",
+    "group": "Career",
+    "unit": "stl",
+    "kind": "player",
+    "tier": 2,
+    "note": "",
+    "steps": 53,
+    "leader": "John Stockton",
+    "file": "data/races/r/career-steals.json"
+   }
+  },
+  {
+   "id": "race-career-blocks",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Hakeem Olajuwon",
+     "Dikembe Mutombo",
+     "Kareem Abdul-Jabbar",
+     "Mark Eaton",
+     "Tim Duncan"
+    ],
+    "teams": [
+     "HOU",
+     "DEN",
+     "LAL",
+     "UTA",
+     "SAS",
+     "NYK"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-blocks",
+    "title": "All-time blocks leaders",
+    "subtitle": "Regular-season blk, cumulative by season",
+    "span": "1974-2026",
+    "group": "Career",
+    "unit": "blk",
+    "kind": "player",
+    "tier": 2,
+    "note": "",
+    "steps": 53,
+    "leader": "Hakeem Olajuwon",
+    "file": "data/races/r/career-blocks.json"
+   }
+  },
+  {
+   "id": "race-career-games",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Robert Parish",
+     "Kareem Abdul-Jabbar",
+     "Vince Carter",
+     "Dirk Nowitzki"
+    ],
+    "teams": [
+     "CLE",
+     "BOS",
+     "LAL",
+     "TOR",
+     "DAL",
+     "UTA",
+     "MIN"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-games",
+    "title": "Most career games played",
+    "subtitle": "Regular-season games, cumulative by season",
+    "span": "1947-2026",
+    "group": "Career",
+    "unit": "games",
+    "kind": "player",
+    "tier": 3,
+    "note": "",
+    "steps": 80,
+    "leader": "LeBron James",
+    "file": "data/races/r/career-games.json"
+   }
+  },
+  {
+   "id": "race-career-minutes",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Kareem Abdul-Jabbar",
+     "Karl Malone",
+     "Dirk Nowitzki",
+     "Kevin Garnett"
+    ],
+    "teams": [
+     "CLE",
+     "LAL",
+     "UTA",
+     "DAL",
+     "MIN",
+     "BKN",
+     "WAS"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-minutes",
+    "title": "Most career minutes played",
+    "subtitle": "Regular-season min, cumulative by season",
+    "span": "1952-2026",
+    "group": "Career",
+    "unit": "min",
+    "kind": "player",
+    "tier": 3,
+    "note": "",
+    "steps": 75,
+    "leader": "LeBron James",
+    "file": "data/races/r/career-minutes.json"
+   }
+  },
+  {
+   "id": "race-career-fgm",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Kareem Abdul-Jabbar",
+     "Karl Malone",
+     "Wilt Chamberlain",
+     "Michael Jordan"
+    ],
+    "teams": [
+     "CLE",
+     "LAL",
+     "UTA",
+     "GSW",
+     "CHI",
+     "OKC"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-fgm",
+    "title": "Most career field goals made",
+    "subtitle": "Regular-season FGM, cumulative by season",
+    "span": "1947-2026",
+    "group": "Career",
+    "unit": "FGM",
+    "kind": "player",
+    "tier": 3,
+    "note": "",
+    "steps": 80,
+    "leader": "LeBron James",
+    "file": "data/races/r/career-fgm.json"
+   }
+  },
+  {
+   "id": "race-career-ftm",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Karl Malone",
+     "LeBron James",
+     "James Harden",
+     "Moses Malone",
+     "Kobe Bryant"
+    ],
+    "teams": [
+     "UTA",
+     "CLE",
+     "HOU",
+     "LAL",
+     "OKC",
+     "SAC",
+     "CHI"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-ftm",
+    "title": "Most career free throws made",
+    "subtitle": "Regular-season FTM, cumulative by season",
+    "span": "1947-2026",
+    "group": "Career",
+    "unit": "FTM",
+    "kind": "player",
+    "tier": 3,
+    "note": "",
+    "steps": 80,
+    "leader": "Karl Malone",
+    "file": "data/races/r/career-ftm.json"
+   }
+  },
+  {
+   "id": "race-career-earnings",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Kevin Durant",
+     "Stephen Curry",
+     "Paul George",
+     "Kawhi Leonard"
+    ],
+    "teams": [
+     "CLE",
+     "OKC",
+     "GSW",
+     "IND",
+     "SAS",
+     "HOU",
+     "NOP",
+     "MIL"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "career-earnings",
+    "title": "Most career earnings",
+    "subtitle": "Cumulative salary, 1991 onward",
+    "span": "1991-2026",
+    "group": "Career",
+    "unit": "",
+    "kind": "player",
+    "tier": 2,
+    "note": "Salary data starts in 1991, so players who earned before then start from zero here.",
+    "steps": 36,
+    "leader": "LeBron James",
+    "file": "data/races/r/career-earnings.json"
+   }
+  },
+  {
+   "id": "race-playoff-points",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Michael Jordan",
+     "Kareem Abdul-Jabbar",
+     "Kobe Bryant",
+     "Shaquille O'Neal"
+    ],
+    "teams": [
+     "CLE",
+     "CHI",
+     "LAL",
+     "SAS",
+     "OKC",
+     "UTA"
+    ],
+    "era": "all-time",
+    "category": "playoffs"
+   },
+   "payload": {
+    "slug": "playoff-points",
+    "title": "All-time playoff scoring leaders",
+    "subtitle": "Playoff pts, cumulative by postseason",
+    "span": "1947-2026",
+    "group": "Playoffs",
+    "unit": "pts",
+    "kind": "player",
+    "tier": 1,
+    "note": "",
+    "steps": 80,
+    "leader": "LeBron James",
+    "file": "data/races/r/playoff-points.json"
+   }
+  },
+  {
+   "id": "race-playoff-rebounds",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Bill Russell",
+     "Wilt Chamberlain",
+     "Tim Duncan",
+     "LeBron James",
+     "Shaquille O'Neal"
+    ],
+    "teams": [
+     "BOS",
+     "GSW",
+     "SAS",
+     "CLE",
+     "LAL",
+     "UTA",
+     "WAS"
+    ],
+    "era": "all-time",
+    "category": "playoffs"
+   },
+   "payload": {
+    "slug": "playoff-rebounds",
+    "title": "All-time playoff rebounding leaders",
+    "subtitle": "Playoff reb, cumulative by postseason",
+    "span": "1951-2026",
+    "group": "Playoffs",
+    "unit": "reb",
+    "kind": "player",
+    "tier": 2,
+    "note": "",
+    "steps": 76,
+    "leader": "Bill Russell",
+    "file": "data/races/r/playoff-rebounds.json"
+   }
+  },
+  {
+   "id": "race-playoff-assists",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Magic Johnson",
+     "LeBron James",
+     "John Stockton",
+     "Jason Kidd",
+     "Chris Paul"
+    ],
+    "teams": [
+     "LAL",
+     "CLE",
+     "UTA",
+     "BKN",
+     "NOP",
+     "HOU",
+     "SAS",
+     "BOS"
+    ],
+    "era": "all-time",
+    "category": "playoffs"
+   },
+   "payload": {
+    "slug": "playoff-assists",
+    "title": "All-time playoff assist leaders",
+    "subtitle": "Playoff ast, cumulative by postseason",
+    "span": "1947-2026",
+    "group": "Playoffs",
+    "unit": "ast",
+    "kind": "player",
+    "tier": 2,
+    "note": "",
+    "steps": 80,
+    "leader": "Magic Johnson",
+    "file": "data/races/r/playoff-assists.json"
+   }
+  },
+  {
+   "id": "race-playoff-threes",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Stephen Curry",
+     "Klay Thompson",
+     "LeBron James",
+     "James Harden",
+     "Ray Allen"
+    ],
+    "teams": [
+     "GSW",
+     "CLE",
+     "HOU",
+     "MIL",
+     "OKC",
+     "SAS",
+     "IND"
+    ],
+    "era": "all-time",
+    "category": "playoffs"
+   },
+   "payload": {
+    "slug": "playoff-threes",
+    "title": "All-time playoff 3-pointers made",
+    "subtitle": "Playoff 3PM, cumulative by postseason",
+    "span": "1980-2026",
+    "group": "Playoffs",
+    "unit": "3PM",
+    "kind": "player",
+    "tier": 2,
+    "note": "",
+    "steps": 47,
+    "leader": "Stephen Curry",
+    "file": "data/races/r/playoff-threes.json"
+   }
+  },
+  {
+   "id": "race-playoff-games",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Derek Fisher",
+     "Tim Duncan",
+     "Robert Horry",
+     "Kareem Abdul-Jabbar"
+    ],
+    "teams": [
+     "CLE",
+     "LAL",
+     "SAS"
+    ],
+    "era": "all-time",
+    "category": "playoffs"
+   },
+   "payload": {
+    "slug": "playoff-games",
+    "title": "Most playoff games played",
+    "subtitle": "Playoff games, cumulative by postseason",
+    "span": "1947-2026",
+    "group": "Playoffs",
+    "unit": "games",
+    "kind": "player",
+    "tier": 3,
+    "note": "",
+    "steps": 80,
+    "leader": "LeBron James",
+    "file": "data/races/r/playoff-games.json"
+   }
+  },
+  {
+   "id": "race-franchise-wins",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [
+     "BOS",
+     "LAL",
+     "PHI",
+     "NYK",
+     "GSW",
+     "ATL",
+     "DET",
+     "OKC"
+    ],
+    "era": "all-time",
+    "category": "franchise"
+   },
+   "payload": {
+    "slug": "franchise-wins",
+    "title": "All-time franchise wins",
+    "subtitle": "Regular season and playoffs, cumulative",
+    "span": "1947-2026",
+    "group": "Franchises",
+    "unit": "wins",
+    "kind": "team",
+    "tier": 1,
+    "note": "",
+    "steps": 80,
+    "leader": "Boston Celtics",
+    "file": "data/races/r/franchise-wins.json"
+   }
+  },
+  {
+   "id": "race-franchise-playoff-wins",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [
+     "LAL",
+     "BOS",
+     "PHI",
+     "SAS",
+     "NYK",
+     "GSW",
+     "DET",
+     "OKC"
+    ],
+    "era": "all-time",
+    "category": "franchise"
+   },
+   "payload": {
+    "slug": "franchise-playoff-wins",
+    "title": "All-time franchise playoff wins",
+    "subtitle": "Postseason games won, cumulative",
+    "span": "1950-2026",
+    "group": "Franchises",
+    "unit": "wins",
+    "kind": "team",
+    "tier": 2,
+    "note": "",
+    "steps": 77,
+    "leader": "Los Angeles Lakers",
+    "file": "data/races/r/franchise-playoff-wins.json"
+   }
+  },
+  {
+   "id": "race-franchise-titles",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [
+     "BOS",
+     "LAL",
+     "GSW",
+     "CHI",
+     "SAS",
+     "PHI",
+     "NYK",
+     "DET"
+    ],
+    "era": "all-time",
+    "category": "franchise"
+   },
+   "payload": {
+    "slug": "franchise-titles",
+    "title": "The championship count",
+    "subtitle": "NBA titles, cumulative by season",
+    "span": "1951-2026",
+    "group": "Franchises",
+    "unit": "titles",
+    "kind": "team",
+    "tier": 1,
+    "note": "Champion taken as the winner of the last playoff game each season played.",
+    "steps": 76,
+    "leader": "Boston Celtics",
+    "file": "data/races/r/franchise-titles.json"
+   }
+  },
+  {
+   "id": "race-country-points",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [],
+    "era": "all-time",
+    "category": "international"
+   },
+   "payload": {
+    "slug": "country-points",
+    "title": "Points scored by country",
+    "subtitle": "Every NBA point, credited to the scorer's country",
+    "span": "1947-2026",
+    "group": "Countries",
+    "unit": "pts",
+    "kind": "country",
+    "tier": 1,
+    "note": "Country is the nationality listed for the player, not necessarily where they were born.",
+    "steps": 80,
+    "leader": "United States",
+    "file": "data/races/r/country-points.json"
+   }
+  },
+  {
+   "id": "race-country-players",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [],
+    "era": "all-time",
+    "category": "international"
+   },
+   "payload": {
+    "slug": "country-players",
+    "title": "NBA players produced, by country",
+    "subtitle": "Cumulative count of players who have appeared",
+    "span": "1947-2026",
+    "group": "Countries",
+    "unit": "players",
+    "kind": "country",
+    "tier": 2,
+    "note": "",
+    "steps": 80,
+    "leader": "United States",
+    "file": "data/races/r/country-players.json"
+   }
+  },
+  {
+   "id": "race-country-allstars",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [],
+    "era": "all-time",
+    "category": "international"
+   },
+   "payload": {
+    "slug": "country-allstars",
+    "title": "All-Star selections by country",
+    "subtitle": "Cumulative All-Star nods",
+    "span": "1992-2026",
+    "group": "Countries",
+    "unit": "selections",
+    "kind": "country",
+    "tier": 2,
+    "note": "",
+    "steps": 34,
+    "leader": "United States",
+    "file": "data/races/r/country-allstars.json"
+   }
+  },
+  {
+   "id": "race-class-points",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [],
+    "era": "all-time",
+    "category": "draft"
+   },
+   "payload": {
+    "slug": "class-points",
+    "title": "Points scored by draft class",
+    "subtitle": "Career points, credited to the class that entered together",
+    "span": "1949-2026",
+    "group": "Draft classes",
+    "unit": "pts",
+    "kind": "class",
+    "tier": 1,
+    "note": "Undrafted players carry no class and are not counted.",
+    "steps": 78,
+    "leader": "Class of 1998",
+    "file": "data/races/r/class-points.json"
+   }
+  },
+  {
+   "id": "race-class-allstars",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [],
+    "era": "all-time",
+    "category": "draft"
+   },
+   "payload": {
+    "slug": "class-allstars",
+    "title": "All-Star selections by draft class",
+    "subtitle": "Cumulative All-Star nods per class",
+    "span": "1951-2026",
+    "group": "Draft classes",
+    "unit": "selections",
+    "kind": "class",
+    "tier": 2,
+    "note": "",
+    "steps": 75,
+    "leader": "Class of 1996",
+    "file": "data/races/r/class-allstars.json"
+   }
+  },
+  {
+   "id": "race-gen-points",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [],
+    "era": "all-time",
+    "category": "history"
+   },
+   "payload": {
+    "slug": "gen-points",
+    "title": "Points scored by birth decade",
+    "subtitle": "Every NBA point, credited to the decade the scorer was born in",
+    "span": "1948-2026",
+    "group": "Generations",
+    "unit": "pts",
+    "kind": "gen",
+    "tier": 2,
+    "note": "",
+    "steps": 79,
+    "leader": "Born in the 1980s",
+    "file": "data/races/r/gen-points.json"
+   }
+  },
+  {
+   "id": "race-allstar-selections",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Kareem Abdul-Jabbar",
+     "Kobe Bryant",
+     "Kevin Durant",
+     "Shaquille O'Neal"
+    ],
+    "teams": [
+     "CLE",
+     "LAL",
+     "OKC",
+     "MIN",
+     "SAS"
+    ],
+    "era": "all-time",
+    "category": "awards"
+   },
+   "payload": {
+    "slug": "allstar-selections",
+    "title": "Most All-Star selections",
+    "subtitle": "Cumulative All-Star nods",
+    "span": "1951-2026",
+    "group": "Awards",
+    "unit": "selections",
+    "kind": "player",
+    "tier": 1,
+    "note": "",
+    "steps": 75,
+    "leader": "LeBron James",
+    "file": "data/races/r/allstar-selections.json"
+   }
+  },
+  {
+   "id": "race-allnba-selections",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Kareem Abdul-Jabbar",
+     "Tim Duncan",
+     "Kobe Bryant",
+     "Karl Malone"
+    ],
+    "teams": [
+     "CLE",
+     "LAL",
+     "SAS",
+     "UTA",
+     "PHI",
+     "BOS"
+    ],
+    "era": "all-time",
+    "category": "awards"
+   },
+   "payload": {
+    "slug": "allnba-selections",
+    "title": "Most All-NBA selections",
+    "subtitle": "First, Second and Third Team, cumulative",
+    "span": "1947-2026",
+    "group": "Awards",
+    "unit": "selections",
+    "kind": "player",
+    "tier": 1,
+    "note": "",
+    "steps": 80,
+    "leader": "LeBron James",
+    "file": "data/races/r/allnba-selections.json"
+   }
+  },
+  {
+   "id": "race-alldefense-selections",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Tim Duncan",
+     "Kevin Garnett",
+     "Kobe Bryant",
+     "Kareem Abdul-Jabbar",
+     "Scottie Pippen"
+    ],
+    "teams": [
+     "SAS",
+     "MIN",
+     "LAL",
+     "CHI",
+     "PHI",
+     "BOS",
+     "HOU"
+    ],
+    "era": "all-time",
+    "category": "awards"
+   },
+   "payload": {
+    "slug": "alldefense-selections",
+    "title": "Most All-Defensive selections",
+    "subtitle": "First and Second Team, cumulative",
+    "span": "1969-2026",
+    "group": "Awards",
+    "unit": "selections",
+    "kind": "player",
+    "tier": 2,
+    "note": "",
+    "steps": 58,
+    "leader": "Tim Duncan",
+    "file": "data/races/r/alldefense-selections.json"
+   }
+  },
+  {
+   "id": "race-player-rings",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Bill Russell",
+     "Sam Jones",
+     "Tommy Heinsohn",
+     "K.C. Jones",
+     "Satch Sanders"
+    ],
+    "teams": [
+     "BOS"
+    ],
+    "era": "all-time",
+    "category": "awards"
+   },
+   "payload": {
+    "slug": "player-rings",
+    "title": "Most championships won",
+    "subtitle": "Rings, cumulative by season",
+    "span": "1947-2026",
+    "group": "Awards",
+    "unit": "rings",
+    "kind": "player",
+    "tier": 1,
+    "note": "",
+    "steps": 80,
+    "leader": "Bill Russell",
+    "file": "data/races/r/player-rings.json"
+   }
+  },
+  {
+   "id": "race-scoring-titles",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Michael Jordan",
+     "Wilt Chamberlain",
+     "George Gervin",
+     "Allen Iverson",
+     "Kevin Durant"
+    ],
+    "teams": [
+     "CHI",
+     "GSW",
+     "SAS",
+     "PHI",
+     "OKC",
+     "LAL",
+     "LAC"
+    ],
+    "era": "all-time",
+    "category": "awards"
+   },
+   "payload": {
+    "slug": "scoring-titles",
+    "title": "Most scoring titles",
+    "subtitle": "Seasons led the league in scoring, cumulative",
+    "span": "1949-2026",
+    "group": "Awards",
+    "unit": "titles",
+    "kind": "player",
+    "tier": 2,
+    "note": "",
+    "steps": 78,
+    "leader": "Michael Jordan",
+    "file": "data/races/r/scoring-titles.json"
+   }
+  }
+ ]
+}

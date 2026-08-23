@@ -19,7 +19,8 @@
     { key: "rumors", label: "Rumors" },
     { key: "vs", label: "VS" },
     { key: "quiz", label: "Quiz" },
-    { key: "vault", label: "Vault" }
+    { key: "vault", label: "Vault" },
+    { key: "races", label: "Races" }
   ];
   var BATCH = 8;
   var TAB_FOR_TYPE = { rumor: "rumors", trade: "trades" };
@@ -32,7 +33,7 @@
   // is already on screen — invisible with a 2,000-card pool, glaring with the
   // handful of live trades. Cleared whenever the feed is cleared.
   var rendered = {};
-  var state = { tab: "foryou", exhausted: false, loading: false };
+  var state = { tab: "foryou", exhausted: false, loading: false, raceGroup: null };
 
   var feedEl = document.getElementById("feed");
   var tabsEl = document.getElementById("tabs");
@@ -44,7 +45,19 @@
   // so it streams in behind the first paint and joins the mix on arrival.
   var EAGER_POOLS = ["data/dummy-cards.json", "data/quiz-pool.json",
                      "data/trivia-pool.json", "data/ballot-pool.json"];
-  var LAZY_POOLS = ["data/vs-pool.json", "data/vault-pool.json"];
+
+  // Lazy pools used to load at boot no matter which tab you were on, so a
+  // reader who only ever opened Trades still paid for the 1.9MB VS pool.
+  // They are per-tab now. For You genuinely mixes everything, so it still
+  // pulls all three — just after the first batch is on screen rather than
+  // competing with it.
+  var TAB_POOLS = {
+    vs:     ["data/vs-pool.json"],
+    vault:  ["data/vault-pool.json"],
+    races:  ["data/race-pool.json"],
+    foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json"]
+  };
+  var poolPromises = {};
 
   /* "On this day" has to mean today, so the 2,000-card vault pool is filtered
    * down to the current calendar date on load. Roughly 50 dates in the year
@@ -91,6 +104,45 @@
     }).then(function (d) { return d.cards || []; });
   }
 
+  function deferIdle(fn) {
+    if (root.requestIdleCallback) root.requestIdleCallback(fn, { timeout: 2500 });
+    else root.setTimeout(fn, 1200);
+  }
+
+  // Which tab a shared card id belongs to, from its id prefix. Used only to
+  // decide which pool to pull first when a link opens cold.
+  function tabForShareId(id) {
+    if (/^race-/.test(id)) return TAB_POOLS.races;
+    if (/^vs-/.test(id)) return TAB_POOLS.vs;
+    if (/^(salary|oddity|otd)-/.test(id)) return TAB_POOLS.vault;
+    return [];
+  }
+
+  // Loads each pool at most once and folds it into the feed on arrival.
+  function ensurePools(urls) {
+    return Promise.all((urls || []).map(function (u) {
+      if (poolPromises[u]) return poolPromises[u];
+      poolPromises[u] = fetchPool(u).then(function (list) {
+        addCards(list);
+        state.exhausted = false;
+        // Top up a feed that opened before its pool landed.
+        if (feedEl.querySelectorAll(".card").length < BATCH) loadMore();
+        // A shared link to a lazily-loaded card arrives before its pool does.
+        // handleShareLink() gave up in that case and never ran again, so the
+        // link opened the right tab without the card it pointed at.
+        if (pendingShareId && byId[pendingShareId]) handleShareLink();
+        renderSummary();
+        return list;
+      }).catch(function (e) {
+        console.warn("[doomscroll] pool failed:", e.message);
+        // Do not cache the failure: opening the tab again should retry.
+        delete poolPromises[u];
+        return [];
+      });
+      return poolPromises[u];
+    }));
+  }
+
   Promise.all(EAGER_POOLS.map(function (u) {
     return fetchPool(u).catch(function (e) { console.warn("[doomscroll] pool failed:", e.message); return []; });
   })).then(function (lists) {
@@ -128,20 +180,13 @@
     swapInLive(root.LiveRumors, "rumor");
     swapInLive(root.DoomTrades, "trade");
 
-    // background: the big VS pool
-    LAZY_POOLS.forEach(function (u) {
-      fetchPool(u).then(function (list) {
-        addCards(list);
-        state.exhausted = false;
-        // top up a thin feed (e.g. the VS tab opened before the pool landed)
-        if (feedEl.querySelectorAll(".card").length < BATCH) loadMore();
-        // A shared link to a VS or Vault card arrives before its pool does.
-        // handleShareLink() gave up in that case and never ran again, so the
-        // link opened the right tab without the card it pointed at.
-        if (pendingShareId && byId[pendingShareId]) handleShareLink();
-        renderSummary();
-      }).catch(function (e) { console.warn("[doomscroll] lazy pool failed:", e.message); });
-    });
+    // A shared link can point straight at a lazy tab's card, so ask for that
+    // tab's pool before waiting on the current one.
+    if (pendingShareId) ensurePools(tabForShareId(pendingShareId));
+    // For You needs all three, but not while the first screen is still
+    // painting. Every other tab pulls only its own pool, when it is opened.
+    if (state.tab === "foryou") deferIdle(function () { ensurePools(TAB_POOLS.foryou); });
+    else ensurePools(TAB_POOLS[state.tab] || []);
   }).catch(function (e) {
     feedEl.innerHTML = '<div class="feed-msg">Could not load the card pools (' + esc(e.message) +
       '). If you opened index.html from disk, serve it over http instead: python -m http.server</div>';
@@ -164,6 +209,24 @@
         '<span aria-hidden="true">&#9861;</span> Random matchup</button>' +
         '<span class="tab-note">scored live in your browser</span>';
       el.hidden = false;
+    } else if (state.tab === "races") {
+      // Races span several taxonomies (career, playoffs, franchises, countries,
+      // draft classes, generations, awards). Without a filter the tab is a
+      // shuffle; with one it is browsable.
+      var groups = [];
+      allCards.forEach(function (c) {
+        if (c.type === "race" && c.payload.group && groups.indexOf(c.payload.group) < 0) {
+          groups.push(c.payload.group);
+        }
+      });
+      if (!groups.length) { el.innerHTML = ""; el.hidden = true; return; }
+      el.innerHTML = ['<button class="tab-action race-group-btn' + (state.raceGroup ? "" : " on") +
+        '" data-race-group="" type="button">All</button>']
+        .concat(groups.map(function (g) {
+          return '<button class="tab-action race-group-btn' + (state.raceGroup === g ? " on" : "") +
+            '" data-race-group="' + esc(g) + '" type="button">' + esc(g) + "</button>";
+        })).join("");
+      el.hidden = false;
     } else {
       el.innerHTML = "";
       el.hidden = true;
@@ -175,15 +238,27 @@
     if (!b || b.dataset.tab === state.tab) return;
     state.tab = b.dataset.tab;
     state.exhausted = false;
+    state.raceGroup = null;
     renderTabs();
     clearFeed();
     window.scrollTo(0, 0);
+    ensurePools(TAB_POOLS[state.tab] || []);
     loadMore();
     renderSummary();
     if (state.tab === "vs" && window.LiveVs) LiveVs.ready().catch(function () {});
   });
 
   document.getElementById("tabExtra").addEventListener("click", function (ev) {
+    var g = ev.target.closest("[data-race-group]");
+    if (g) {
+      state.raceGroup = g.dataset.raceGroup || null;
+      state.exhausted = false;
+      renderTabExtra();
+      clearFeed();
+      loadMore();
+      renderSummary();
+      return;
+    }
     if (!ev.target.closest("#randomVs")) return;
     var btn = ev.target.closest("#randomVs");
     btn.disabled = true;
@@ -210,7 +285,8 @@
     rumors: "rumor history, legal/off-court topics filtered out",
     vs: "career comparisons scored the same way as the full tool",
     quiz: "guess the player, and trivia from real award ballots",
-    vault: "cap-share salaries, ballot oddities, on this day"
+    vault: "cap-share salaries, ballot oddities, on this day",
+    races: "80 seasons of NBA history, one bar chart race at a time"
   };
 
   function renderSummary() {
@@ -236,6 +312,9 @@
   function poolForTab(tab, excludeRendered) {
     var pool = tab === "foryou" ? allCards
       : allCards.filter(function (c) { return (c.tab || []).indexOf(tab) >= 0; });
+    if (tab === "races" && state.raceGroup) {
+      pool = pool.filter(function (c) { return c.payload.group === state.raceGroup; });
+    }
     if (!excludeRendered) return pool;
     // No repeat fallback: re-drawing an exhausted pool just prints the same
     // five cards over and over, which reads as broken. An honest end-of-feed
@@ -244,6 +323,10 @@
   }
 
   function clearFeed() {
+    // Race players hold a requestAnimationFrame loop and a resize listener, so
+    // wiping innerHTML without stopping them leaks a running loop per race the
+    // reader has scrolled past this session.
+    destroyRaces(feedEl);
     feedEl.innerHTML = "";
     rendered = {};
   }
@@ -323,19 +406,151 @@
 
   function watchCard(el) {
     skimObserver.observe(el);
-    var vid = el.querySelector("video");
-    if (vid) videoObserver.observe(vid);
+    var cv = el.querySelector(".race-canvas");
+    if (cv) raceObserver.observe(cv);
   }
 
-  // Clips play only while on screen. preload="none" in the markup means a clip
-  // is not fetched at all until it gets here.
-  var videoObserver = new IntersectionObserver(function (entries) {
+  /* ---------------- bar chart races ---------------- */
+
+  // One fetch per race file, shared across every card that points at it, and
+  // only issued when a race card actually reaches the viewport. A tab full of
+  // race cards therefore downloads only the races that get looked at.
+  var raceFetches = Object.create(null);
+  var racePlayers = new Map();     // canvas -> controller
+  var raceTick = 0;
+
+  function loadRaceData(url) {
+    if (!raceFetches[url]) {
+      raceFetches[url] = fetch(url).then(function (r) {
+        if (!r.ok) throw new Error(url + " " + r.status);
+        return r.json();
+      }).catch(function (e) {
+        delete raceFetches[url];      // let a later scroll-in retry
+        throw e;
+      });
+    }
+    return raceFetches[url];
+  }
+
+  function mountRace(cv) {
+    if (racePlayers.has(cv)) return Promise.resolve(racePlayers.get(cv));
+    if (cv.dataset.mounting) return Promise.resolve(null);
+    cv.dataset.mounting = "1";
+    var status = cv.parentNode.querySelector("[data-race-status]");
+    return loadRaceData(cv.dataset.race).then(function (race) {
+      delete cv.dataset.mounting;
+      if (!root.RacePlayer) throw new Error("race player missing");
+      var ctl = RacePlayer.mount(cv, race, {
+        onEnd: function () { syncRaceControls(cv); }
+      });
+      racePlayers.set(cv, ctl);
+      if (status) status.remove();
+      cv.classList.add("ready");
+      syncRaceControls(cv);
+      return ctl;
+    }).catch(function (e) {
+      delete cv.dataset.mounting;
+      console.warn("[doomscroll] race failed:", e.message);
+      if (status) status.textContent = "this race could not load";
+      return null;
+    });
+  }
+
+  function raceControls(cv) {
+    var card = cv.closest(".card");
+    return card ? {
+      btn: card.querySelector("[data-race-toggle]"),
+      scrub: card.querySelector("[data-race-scrub]")
+    } : { btn: null, scrub: null };
+  }
+
+  function syncRaceControls(cv) {
+    var ctl = racePlayers.get(cv);
+    var el = raceControls(cv);
+    if (!ctl || !el.btn) return;
+    if (ctl.reducedMotion) {
+      el.btn.textContent = "Final";
+      el.btn.disabled = true;
+    } else {
+      el.btn.textContent = ctl.playing ? "Pause" : (ctl.progress >= 1 ? "Replay" : "Play");
+    }
+    if (el.scrub && document.activeElement !== el.scrub) {
+      el.scrub.value = String(Math.round(ctl.progress * 1000));
+    }
+  }
+
+  // One timer for the whole feed rather than a callback per player: the only
+  // thing that needs syncing while a race runs is its own scrub position.
+  function ensureRaceTick() {
+    if (raceTick) return;
+    raceTick = root.setInterval(function () {
+      var any = false;
+      racePlayers.forEach(function (ctl, cv) {
+        if (ctl.playing) { any = true; syncRaceControls(cv); }
+      });
+      if (!any) { root.clearInterval(raceTick); raceTick = 0; }
+    }, 200);
+  }
+
+  // A race starts when its card is on screen and pauses when it leaves — the
+  // same contract the old muted autoplaying clips had.
+  var raceObserver = new IntersectionObserver(function (entries) {
     entries.forEach(function (en) {
-      var v = en.target;
-      if (en.isIntersecting) { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); }
-      else v.pause();
+      var cv = en.target;
+      if (en.isIntersecting) {
+        mountRace(cv).then(function (ctl) {
+          if (!ctl) return;
+          // It may have scrolled away while the JSON was in flight.
+          var r = cv.getBoundingClientRect();
+          if (r.bottom > 0 && r.top < root.innerHeight) {
+            ctl.play();
+            ensureRaceTick();
+            syncRaceControls(cv);
+          }
+        });
+      } else {
+        var c = racePlayers.get(cv);
+        if (c) { c.pause(); syncRaceControls(cv); }
+      }
     });
   }, { threshold: 0.35 });
+
+  function destroyRaces(rootEl) {
+    racePlayers.forEach(function (ctl, cv) {
+      if (!rootEl || rootEl.contains(cv)) { ctl.destroy(); racePlayers.delete(cv); }
+    });
+  }
+
+  feedEl.addEventListener("click", function (ev) {
+    var t = ev.target.closest("[data-race-toggle]") ||
+            (ev.target.classList && ev.target.classList.contains("race-canvas") ? ev.target : null);
+    if (!t) return;
+    var card = t.closest(".card");
+    var cv = card && card.querySelector(".race-canvas");
+    if (!cv) return;
+    card.dataset.engaged = "1";
+    mountRace(cv).then(function (ctl) {
+      if (!ctl) return;
+      ctl.toggle();
+      ensureRaceTick();
+      syncRaceControls(cv);
+    });
+  });
+
+  feedEl.addEventListener("input", function (ev) {
+    var s = ev.target.closest("[data-race-scrub]");
+    if (!s) return;
+    var card = s.closest(".card");
+    var cv = card && card.querySelector(".race-canvas");
+    if (!cv) return;
+    card.dataset.engaged = "1";
+    mountRace(cv).then(function (ctl) {
+      if (!ctl) return;
+      ctl.pause();
+      ctl.seek(Number(s.value) / 1000);
+      syncRaceControls(cv);
+    });
+  });
 
   /* ---------------- interactions ---------------- */
 
@@ -528,8 +743,12 @@
     var note = document.createElement("div");
     note.className = "pinned-note mono";
     note.textContent = "shared card";
-    feedEl.appendChild(note);
-    feedEl.appendChild(el);
+    // Prepend, not append. On the retry path (the card's pool arrives after the
+    // first batch has already rendered) appending put the shared card at the
+    // bottom of eight unrelated ones, so the link opened on something else.
+    feedEl.insertBefore(el, feedEl.firstChild);
+    feedEl.insertBefore(note, el);
+    window.scrollTo(0, 0);
     return true;
   }
 

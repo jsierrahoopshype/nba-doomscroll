@@ -178,18 +178,33 @@
 
   function renderRace(c) {
     var p = c.payload;
-    // Muted, looping and autoplaying: a feed card should never make noise, and
-    // playsinline keeps iOS from taking over the screen.
-    // No autoplay attribute and preload="none": app.js starts a clip when it
-    // scrolls into view and pauses it when it leaves, so a feed with a dozen
-    // clips downloads only the one being watched.
-    var media = p.mp4
-      ? '<video class="race-video" src="' + escAttr(p.mp4) + '" muted loop playsinline preload="none"></video>'
-      : '<div class="race-placeholder"><span class="mono">clip pending</span><p>' + esc(p.note || "") + '</p></div>';
+    // The race is drawn on a canvas by js/race-player.js, not played as video.
+    // app.js loads the race JSON and mounts a player when the card scrolls into
+    // view, so a feed of race cards downloads only the ones actually watched —
+    // the same contract the old <video preload="none"> had, at ~11KB a race
+    // instead of ~2MB a clip.
+    if (!p.file) {
+      return '<div class="vs-headline race-title">' + esc(p.title || "Bar chart race") + '</div>' +
+        '<div class="race-placeholder"><span class="mono">race pending</span><p>' +
+        esc(p.note || "Run tools/build_races.mjs to generate this race.") + '</p></div>';
+    }
+    var alt = p.title + ", " + (p.span || "") +
+      (p.leader ? ". Finishing leader: " + p.leader + "." : ".");
     return '<div class="vs-headline race-title">' + esc(p.title) + '</div>' +
-      (p.subtitle ? '<div class="card-sub race-sub">' + esc(p.subtitle) +
-        (p.span ? ' · <span class="mono">' + esc(p.span) + '</span>' : "") + '</div>' : "") +
-      media;
+      '<div class="card-sub race-sub">' + esc(p.subtitle || "") +
+        (p.span ? ' · <span class="mono">' + esc(p.span) + '</span>' : "") + '</div>' +
+      '<div class="race-wrap">' +
+        '<canvas class="race-canvas" data-race="' + escAttr(p.file) + '" role="img" aria-label="' +
+          escAttr(alt) + '"></canvas>' +
+        '<div class="race-status mono" data-race-status>loading race…</div>' +
+      '</div>' +
+      '<div class="race-bar">' +
+        '<button class="race-btn" type="button" data-race-toggle aria-label="Play or pause the race">Play</button>' +
+        '<input class="race-scrub" type="range" min="0" max="1000" value="0" step="1" ' +
+          'data-race-scrub aria-label="Scrub through the seasons">' +
+        '<span class="race-group mono">' + esc(p.group || "") + '</span>' +
+      '</div>' +
+      (p.note ? '<p class="race-note">' + esc(p.note) + '</p>' : "");
   }
 
   var RENDERERS = {

@@ -13,7 +13,7 @@ only, with JSON export/import.
 For You (algorithmic mix) · Trades (community Trade Machine feed) · Rumors
 (HoopsHype archive, on-this-day) · VS (player comparisons + trivia) · Quiz
 (guess the player, ballot trivia) · Vault (salary history, ballot oddities,
-on-this-day games, bar chart races).
+on-this-day games) · Races (bar chart races).
 
 ## Look and feel
 
@@ -41,6 +41,8 @@ it is a scroll feed.
   - `js/share-image.js` — renders any card to a branded PNG on a canvas
   - `js/trades.js` — live Trade Machine feed: dedupes re-logged builds, keeps
     two-team deals, applies the 15% balance rule
+  - `js/race-player.js` — canvas bar chart race player: 90-second runtime,
+    eased rank and value transitions, headshot or initials disc per bar
 - `data/vs-pool.json` — 2,000 pre-scored matchups (1,000 same-era, 1,000
   cross-era), filtered to competitive ones
 - `data/vs-values.json` — per-player metric values for live scoring (~740KB
@@ -52,8 +54,13 @@ it is a scroll feed.
   export (2013-14 onward)
 - `data/vault-pool.json` — cap-share salary cards, auto-detected ballot
   oddities, on-this-day games and the bar chart race clip cards
-- `data/races/*.mp4` — 12 pre-rendered bar chart race clips (720x720, ~12s,
-  ~270KB each, 3.2MB total) plus `races.json` describing them
+- `data/race-pool.json` — one feed card per race, tagged with the players and
+  teams that race actually puts on screen
+- `data/races/index.json` + `data/races/r/*.json` — 30 races as data, ~11KB
+  each, loaded one at a time when a card scrolls into view
+- `data/races/*.mp4` + `data/races/races.json` — the old pre-rendered clips.
+  Nothing reads them any more; left on disk rather than deleted as a
+  side-effect. Safe to remove in a deliberate commit
 - `data/dummy-cards.json` — fallback cards shown only when a live source is
   unreachable (rumor text in it is invented placeholder content, never archive
   data)
@@ -61,7 +68,10 @@ it is a scroll feed.
   editorial filter
 - `tools/build_data.mjs` — rebuilds the VS / Quiz / Trivia / Ballot pools
 - `tools/build_vault.mjs` — rebuilds the Vault pool
-- `tools/render_races.py` — renders the bar chart race clips (Pillow + ffmpeg)
+- `tools/build_races.mjs` — rebuilds the bar chart races
+- `tools/render_races.py` — the old MP4 renderer, superseded by
+  `build_races.mjs`; kept because it is the only thing that can still produce a
+  standalone video file
 - `tools/gen_dummy_cards.py` — regenerates the placeholder pool
 
 ## Rebuilding the data pools
@@ -87,9 +97,36 @@ cards say "tracked ballots" because the tracker does not hold every ballot ever
 cast, and game cards carry no top-performer line because no repo has player box
 scores.
 
-Clips are rendered separately, then picked up by the Vault build:
+## Rebuilding the races
 
-    python3 tools/render_races.py --player-data <nba-player-data> --out data/races
+    node tools/build_races.mjs --local <nba-player-data> \
+      <nba-headshots/players/metadata> <Games.csv>
+
+Thirty races across seven groups: Career, Playoffs, Franchises, Countries,
+Draft classes, Generations and Awards. Each writes `data/races/r/<slug>.json`
+(labels, entities and the top 12 per season) plus one feed card in
+`data/race-pool.json`. The browser animates them; no video is produced.
+
+Two things worth knowing about the source data, both checked every build:
+
+- **Champions** come from the winner of the last playoff game each season
+  played. `gameLabel` is blank for every Finals from 1983 to 1996, and
+  `awards.json`'s TEAM column on an "NBA Champion" row is the player's team,
+  not the champion's — either source silently loses titles.
+- **The 2020 bubble** ran July to October, so the usual "August onward belongs
+  to next season" rule pushes it into 2021 and costs the Lakers a title. It is
+  the only season in the file where that rule breaks.
+
+- **A player's team** is the one they logged the most games for, not their last
+  one. That is why LeBron's bar reads CLE. Most games keeps Jordan on CHI and
+  Karl Malone on UTA, which is worth more than getting the two split careers to
+  read the way a 2026 fan expects.
+
+The build prints headshot coverage. It is low (about 5% of bar slots) because
+nba-headshots holds active rosters only; every other bar draws an initials
+disc. Retired players do have NBA CDN ids in `player-headshots.json`, so
+re-running that repo's fetch pipeline over the full name map would raise it a
+lot — that is a change to another repo and has not been made.
 
 ## Local dev
 
@@ -103,6 +140,5 @@ Vault run on real data; every card shares as a link or a branded PNG. Rumors
 have their client written and waiting on the Worker endpoints in
 `proposals/rumors-endpoints/`.
 
-Known next: the bar chart races want a rewrite (see the notes in that
-proposal folder) — 90-second runtimes, headshots, and far more race
-categories than the 12 pre-rendered clips currently cover.
+Known next: rumors are still waiting on the Worker endpoints, and the race
+headshot coverage above is the one visible gap.

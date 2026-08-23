@@ -390,24 +390,14 @@ console.log(`on this day cards: ${otd} across ${byDate.size} calendar dates`);
 
 /* ---------------- 4. bar chart race clips ---------------- */
 
-// Rendered separately by tools/render_races.py (Pillow + ffmpeg), which writes
-// data/races/races.json alongside the MP4s. Read here so a vault rebuild never
-// drops the clips that are already on disk.
-const racesManifest = path.join(REPO, "data", "races", "races.json");
-if (fs.existsSync(racesManifest)) {
-  const clips = readJson(racesManifest).clips || [];
-  for (const c of clips) {
-    push("race", ["vault"],
-      { content_type: "race", players: [], teams: [], era: "all-time", category: "bar-chart-race" },
-      {
-        title: c.title, subtitle: c.subtitle, mp4: c.mp4,
-        span: `${c.seasons[0]}-${c.seasons[1]}`
-      });
-  }
-  console.log(`bar chart race cards: ${clips.length}`);
-} else {
-  console.log("bar chart race cards: none (run tools/render_races.py first)");
-}
+// Races moved out of the Vault and into their own tab. tools/build_races.mjs
+// owns them now and writes data/race-pool.json; emitting them here as well
+// would put the same card in two pools under two ids.
+//
+// The old path read data/races/races.json (the MP4 manifest from
+// tools/render_races.py). That renderer and its clips are left on disk
+// untouched, but nothing in the app reads them any more.
+console.log("bar chart race cards: owned by tools/build_races.mjs (data/race-pool.json)");
 
 /* ---------------- write ---------------- */
 
