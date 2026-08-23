@@ -113,9 +113,20 @@
     var opts = p.options.map(function (o) {
       return '<button class="quiz-opt" data-action="quiz" data-pick="' + escAttr(o) + '">' + esc(o) + '</button>';
     }).join("");
+    // Hints are revealed one at a time rather than all at once: a single hint
+    // was either useless or handed over the answer. Older cached cards only
+    // carry the one `hint` string, so fall back to it.
+    var hints = p.hints && p.hints.length ? p.hints : (p.hint ? [p.hint] : []);
+    var hintUi = hints.length
+      ? '<div class="quiz-hints" data-hints="' + escAttr(JSON.stringify(hints)) + '" data-shown="0">' +
+          '<button class="quiz-hint-btn" type="button" data-action="hint">Need a hint?</button>' +
+          '<ol class="quiz-hint-list"></ol>' +
+        '</div>'
+      : "";
     return '<div class="quiz-diff mono ' + esc(p.difficulty) + '">' + esc(p.difficulty) + '</div>' +
       '<div class="quiz-sil-wrap" data-action="reveal">' + face(p.img, "Mystery player", "quiz-sil") +
       '<span class="quiz-sil-hint">who is this?</span></div>' +
+      hintUi +
       '<div class="quiz-opts" data-answer="' + escAttr(p.answer) + '">' + opts + '</div>' +
       '<div class="quiz-result" hidden></div>';
   }

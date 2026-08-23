@@ -298,10 +298,33 @@ function buildQuizPool(universe) {
       type: "quiz",
       tab: ["quiz"],
       tags: { content_type: "quiz", players: [p.name], teams: p.team ? [p.team] : [], era: p.era, category: "guess-the-player" },
-      payload: { img: p.img, options, answer: p.name, difficulty: t, hint: p.team ? `Last seen on ${p.team}` : `${p.first}-${p.last}` }
+      payload: {
+        img: p.img, options, answer: p.name, difficulty: t,
+        hints: quizHints(p),
+        // kept so an older cached card still renders something
+        hint: p.team ? `Last seen on ${p.team}` : `${p.first}-${p.last}`
+      }
     };
   });
   return cards;
+}
+
+const POS_WORD = { G: "guard", F: "forward", C: "center" };
+
+/* Three hints, vague to specific, revealed one at a time in the card. A single
+ * hint was either useless or gave the answer away; the staircase lets someone
+ * take the shot early and still have a route if they miss. */
+function quizHints(p) {
+  const n = v => Number(v || 0).toLocaleString("en-US");
+  const pos = POS_WORD[p.pos] || "player";
+  const career = p.first === p.last ? `played one season, in ${p.first}` : `played from ${p.first} to ${p.last}`;
+  const two = p.allStar >= 1
+    ? `${p.allStar}-time All-Star. ${n(p.pts)} career points.`
+    : `${n(p.pts)} career points in ${n(p.gp)} games, and never an All-Star.`;
+  const parts = p.name.split(" ");
+  const inits = parts.length > 1 ? parts[0][0] + "." + parts[parts.length - 1][0] + "." : parts[0][0] + ".";
+  const three = (p.team ? `Last played for ${p.team}. ` : "") + `Initials ${inits}`;
+  return [`A ${pos} who ${career}.`, two, three];
 }
 
 /* ---------------- trivia pool ---------------- */
@@ -343,7 +366,10 @@ function buildTriviaPool(universe) {
     cards.push({
       id: `trivia-${cards.length + 1}`,
       type: "trivia",
-      tab: ["vs"],
+      // Quiz, not VS. VS is "here are two careers, read the comparison";
+      // trivia is "pick one and find out if you were right". The second thing
+      // is what the Quiz tab is for.
+      tab: ["quiz"],
       tags: { content_type: "trivia", players: [a.name, b.name], teams: [a.team, b.team].filter(Boolean), era: a.era === b.era ? a.era : "all-time", category: "trivia" },
       payload: {
         stat: label, question: `Who has more career ${label}?`,
@@ -364,7 +390,20 @@ const AWARD_LABEL = {
   CPOY: "Clutch Player", ALL_NBA: "All-NBA", ALL_DEF: "All-Defensive", ALL_ROOKIE: "All-Rookie"
 };
 
-async function buildBallotPool(db) {
+/* Season strings are "2022-23". Both ends are needed to ask whether a player
+ * was even in the league that year. */
+function seasonYears(season) {
+  const start = parseInt(String(season).slice(0, 4), 10);
+  return { start, end: start + 1 };
+}
+
+async function buildBallotPool(db, universe) {
+  // Candidates for the "who got no votes at all" format. The bar is an
+  // All-Star career, not a long one: filtering on notability alone let a
+  // 15-year journeyman be the answer to "who drew no MVP votes", which gives
+  // the question away on sight for the wrong reason. Requiring real All-Star
+  // pedigree makes the shut-out actually surprising.
+  const notable = universe.filter(p => p.allStar >= 2 && p.notability >= 25);
   // Aggregate every reporter's ballots into award+season standings
   const slugs = (db.mvtReporters.reporters || db.mvtReporters || []).map(r => r.slug || r);
   const standings = new Map(); // award|season -> Map(player -> {pts, firsts})
@@ -395,42 +434,99 @@ async function buildBallotPool(db) {
     const rows = [...m.entries()].map(([player, e]) => ({ player, ...e })).sort((a, b) => b.pts - a.pts);
     if (rows.length < 4) continue;
 
+    const label = AWARD_LABEL[award];
+    // award_key / subjects let the browser drop a Quiz question that asks about
+    // the same award-season-player a Vault oddity card already states outright.
+    const meta = subjects => ({
+      content_type: "ballot", players: subjects, teams: [],
+      era: seasonEra(season), category: "ballot-trivia"
+    });
+    const add = (subjects, payload) => cards.push({
+      id: `ballot-${cards.length + 1}`, type: "ballot", tab: ["quiz"],
+      tags: meta(subjects),
+      payload: { season, award_key: award, subjects, ...payload }
+    });
+
     // T1: who finished higher in the voting (winner vs a lower finisher)
     const hi = rows[0];
     const lo = rows[Math.min(rows.length - 1, 2 + Math.floor(rand() * 3))];
     if (hi && lo && hi.player !== lo.player) {
       const pair = rand() < 0.5 ? [hi, lo] : [lo, hi];
-      cards.push({
-        id: `ballot-${cards.length + 1}`, type: "ballot", tab: ["quiz"],
-        tags: { content_type: "ballot", players: [hi.player, lo.player], teams: [], era: seasonEra(season), category: "ballot-trivia" },
-        payload: {
-          question: `Who finished higher in the ${season} ${AWARD_LABEL[award]} voting?`,
-          options: [pair[0].player, pair[1].player],
-          answer_idx: pair[0].pts >= pair[1].pts ? 0 : 1,
-          season, detail: `${hi.player} led with ${hi.pts} points; ${lo.player} had ${lo.pts}.`
-        }
+      add([hi.player, lo.player], {
+        question: `Who finished higher in the ${season} ${label} voting?`,
+        options: [pair[0].player, pair[1].player],
+        answer_idx: pair[0].pts >= pair[1].pts ? 0 : 1,
+        detail: `${hi.player} led with ${hi.pts} points; ${lo.player} had ${lo.pts}.`
       });
     }
 
-    // T2: first-place votes for the winner (only when interesting)
-    if (hi.firsts > 0 && rows[1]) {
-      const truth = hi.firsts;
-      const opts = new Set([truth]);
-      let guard = 0;
-      while (opts.size < 4 && guard++ < 50) {
-        const jitter = Math.max(0, Math.round(truth * (0.3 + rand() * 1.6)) + Math.floor(rand() * 4) - 2);
-        if (jitter !== truth) opts.add(jitter);
-      }
-      const options = [...opts].sort((a, b) => a - b).map(String);
-      cards.push({
-        id: `ballot-${cards.length + 1}`, type: "ballot", tab: ["quiz"],
-        tags: { content_type: "ballot", players: [hi.player], teams: [], era: seasonEra(season), category: "ballot-trivia" },
-        payload: {
-          question: `How many first-place ${AWARD_LABEL[award]} votes did ${hi.player} get in ${season} (tracked ballots)?`,
-          options, answer_idx: options.indexOf(String(truth)),
-          season, detail: `Runner-up ${rows[1].player} had ${rows[1].firsts} first-place votes.`
+    // T2: the podium. Replaces "how many first-place votes did X get in 2019",
+    // which was arithmetic nobody carries around — you either looked it up or
+    // you guessed. Where a player finished is something a fan actually argues
+    // about.
+    if (rows.length >= 5) {
+      const truth = rows[1];
+      const field = rows.slice(2, 7).filter(r => r.player !== truth.player);
+      if (field.length >= 3) {
+        const picks = [truth];
+        const used = new Set([truth.player]);
+        let g2 = 0;
+        while (picks.length < 4 && g2++ < 60) {
+          const c = field[Math.floor(rand() * field.length)];
+          if (!used.has(c.player)) { used.add(c.player); picks.push(c); }
         }
-      });
+        if (picks.length === 4) {
+          for (let j = picks.length - 1; j > 0; j--) {
+            const k = Math.floor(rand() * (j + 1)); [picks[j], picks[k]] = [picks[k], picks[j]];
+          }
+          add([truth.player], {
+            question: `${hi.player} won ${label} in ${season}. Who finished second?`,
+            options: picks.map(r => r.player),
+            answer_idx: picks.findIndex(r => r.player === truth.player),
+            detail: `${truth.player} was runner-up with ${truth.pts} points, behind ${hi.player}'s ${hi.pts}.`
+          });
+        }
+      }
+    }
+
+    // T3: the one who drew nothing. Three players who got votes plus one who
+    // was in the league, was good enough to be worth naming, and got shut out.
+    //
+    // MVP and DPOY only. Every award-eligible player in the league is in the
+    // running for those two, so a shut-out is a real finding. On the gated
+    // awards the question answers itself: "which of these drew no Rookie of
+    // the Year votes in 2016-17" with DeMarcus Cousins in the options is not
+    // trivia, it is a reminder that he was in his seventh season. Sixth Man
+    // has the same problem with any starter.
+    if (rows.length >= 4 && (award === "MVP" || award === "DPOY")) {
+      const { start, end } = seasonYears(season);
+      const voted = new Set(rows.map(r => r.player));
+      // Present for the whole season and past their first two years — a rookie
+      // drawing no MVP votes is not a fact worth asking about.
+      const shutOut = notable.filter(p =>
+        p.first + 2 <= start && p.last >= end && !voted.has(p.name));
+      if (shutOut.length) {
+        const zero = shutOut[Math.floor(rand() * shutOut.length)];
+        const got = [];
+        const used = new Set();
+        let g3 = 0;
+        while (got.length < 3 && g3++ < 60) {
+          const c = rows[Math.floor(rand() * Math.min(rows.length, 8))];
+          if (!used.has(c.player)) { used.add(c.player); got.push(c.player); }
+        }
+        if (got.length === 3) {
+          const options = got.concat(zero.name);
+          for (let j = options.length - 1; j > 0; j--) {
+            const k = Math.floor(rand() * (j + 1)); [options[j], options[k]] = [options[k], options[j]];
+          }
+          add([zero.name], {
+            question: `Which of these drew no ${label} votes at all in ${season}?`,
+            options, answer_idx: options.indexOf(zero.name),
+            detail: `${zero.name} was not on a single tracked ${label} ballot that season. ` +
+                    `The other three all received votes.`
+          });
+        }
+      }
     }
   }
   // deterministic shuffle, cap
@@ -474,7 +570,7 @@ out("vs-pool.json", { generated: new Date().toISOString().slice(0, 10), cards: v
 out("quiz-pool.json", { generated: new Date().toISOString().slice(0, 10), cards: buildQuizPool(universe) });
 out("trivia-pool.json", { generated: new Date().toISOString().slice(0, 10), cards: buildTriviaPool(universe) });
 
-const ballot = await buildBallotPool(db);
+const ballot = await buildBallotPool(db, universe);
 out("ballot-pool.json", { generated: new Date().toISOString().slice(0, 10), cards: ballot });
 
 console.log("done");

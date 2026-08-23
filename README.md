@@ -11,9 +11,9 @@ only, with JSON export/import.
 ## Tabs
 
 For You (algorithmic mix) · Trades (community Trade Machine feed) · Rumors
-(HoopsHype archive, on-this-day) · VS (player comparisons + trivia) · Quiz
-(guess the player, ballot trivia) · Vault (salary history, ballot oddities,
-on-this-day games) · Races (bar chart races).
+(HoopsHype archive, on-this-day) · VS (player comparisons) · Quiz (guess the
+player, two-player trivia, ballot trivia) · Vault (salary history, ballot
+oddities, on-this-day games) · Races (bar chart races).
 
 ## Look and feel
 
@@ -49,9 +49,16 @@ it is a scroll feed.
   instead of the 27MB the full comparison dataset would need)
 - `data/quiz-pool.json` — Guess the Player, restricted to the 354 players with
   a verified headshot file, tiered easy/medium/hard by obscurity
-- `data/trivia-pool.json` — "two players, one stat" with real career values
+- `data/trivia-pool.json` — "two players, one stat" with real career values.
+  Lives on the Quiz tab: VS is for reading a comparison, Quiz is for taking a
+  shot at one
 - `data/ballot-pool.json` — ballot trivia from the public media-vote-tracker
-  export (2013-14 onward)
+  export (2013-14 onward). Three formats: who finished higher, who finished
+  second, and who drew no votes at all. That last one is built for MVP and
+  DPOY only, because every eligible player is in the running for those — asking
+  who drew no Rookie of the Year votes just surfaces whoever was not a rookie.
+  Questions that duplicate a Vault ballot-oddity card (same season, award and
+  player) are dropped in the browser once both pools have loaded
 - `data/vault-pool.json` — cap-share salary cards, auto-detected ballot
   oddities, on-this-day games and the bar chart race clip cards
 - `data/race-pool.json` — one feed card per race, tagged with the players and

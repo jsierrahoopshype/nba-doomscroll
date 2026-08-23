@@ -79,6 +79,38 @@
     return null;
   }
 
+  /* Quiz ballot questions and Vault ballot oddities are built by two different
+   * tools off the same reporter ballots, so the same award-season-player could
+   * be both stated outright in the Vault ("exactly one voter put X first") and
+   * asked about in the Quiz. Deduped here rather than at build time because the
+   * two builders run on different schedules — a claim file written by one would
+   * go stale the moment the other ran.
+   *
+   * The Vault statement wins: it is the card that carries the finding. */
+  function ballotKeys(card) {
+    var p = card.payload || {};
+    if (!p.award_key || !p.season || !p.subjects) return [];
+    return p.subjects.map(function (s) { return p.season + "|" + p.award_key + "|" + s; });
+  }
+  var claimedBallots = Object.create(null);
+
+  function dropDuplicateBallots() {
+    allCards.forEach(function (c) {
+      if (c.type === "oddity") ballotKeys(c).forEach(function (k) { claimedBallots[k] = 1; });
+    });
+    var before = allCards.length;
+    allCards = allCards.filter(function (c) {
+      if (c.type !== "ballot") return true;
+      var keys = ballotKeys(c);
+      var dup = keys.length && keys.some(function (k) { return claimedBallots[k]; });
+      if (dup) delete byId[c.id];
+      return !dup;
+    });
+    if (before !== allCards.length) {
+      console.info("[doomscroll] dropped " + (before - allCards.length) + " ballot questions already covered by a Vault card");
+    }
+  }
+
   function addCards(list) {
     var otdDate = null;
     if ((list || []).some(function (c) { return c.type === "otd"; })) {
@@ -124,6 +156,9 @@
       if (poolPromises[u]) return poolPromises[u];
       poolPromises[u] = fetchPool(u).then(function (list) {
         addCards(list);
+        // The vault pool is what carries the oddity claims, so the dedupe can
+        // only run once it has landed.
+        if (u.indexOf("vault-pool") >= 0) dropDuplicateBallots();
         state.exhausted = false;
         // Top up a feed that opened before its pool landed.
         if (feedEl.querySelectorAll(".card").length < BATCH) loadMore();
@@ -284,7 +319,7 @@
     trades: "real Trade Machine builds, deduped and balance-filtered",
     rumors: "rumor history, legal/off-court topics filtered out",
     vs: "career comparisons scored the same way as the full tool",
-    quiz: "guess the player, and trivia from real award ballots",
+    quiz: "guess the player, two-player trivia, and real award ballots",
     vault: "cap-share salaries, ballot oddities, on this day",
     races: "80 seasons of NBA history, one bar chart race at a time"
   };
@@ -579,8 +614,32 @@
       answerTrivia(cardEl, actEl, card);
     } else if (action === "reveal") {
       cardEl.querySelector(".quiz-sil").classList.add("revealed");
+    } else if (action === "hint") {
+      revealHint(cardEl, actEl);
     }
   });
+
+  // One hint per tap, vague to specific. Taking a hint counts as engagement,
+  // so a card someone worked at is not also logged as a skim.
+  function revealHint(cardEl, btn) {
+    var box = cardEl.querySelector(".quiz-hints");
+    if (!box) return;
+    var hints;
+    try { hints = JSON.parse(box.dataset.hints); } catch (e) { return; }
+    var shown = Number(box.dataset.shown || 0);
+    if (shown >= hints.length) return;
+    var li = document.createElement("li");
+    li.textContent = hints[shown];
+    cardEl.querySelector(".quiz-hint-list").appendChild(li);
+    shown++;
+    box.dataset.shown = String(shown);
+    if (shown >= hints.length) {
+      btn.disabled = true;
+      btn.textContent = "No hints left";
+    } else {
+      btn.textContent = "Another hint (" + (hints.length - shown) + " left)";
+    }
+  }
 
   function pulse(el) {
     el.classList.remove("pulse");
@@ -769,8 +828,28 @@
   var ERA_LIST = ["1960s","1970s","1980s","1990s","2000s","2010s","2020s"];
   var LOGO = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/";
 
+  /* Asked first, and before teams. A team and an era narrow WHICH cards you
+   * see; what kind of card you want is the bigger lever on whether the feed is
+   * worth scrolling at all, and it is the one question a new reader can answer
+   * without thinking. The keys match the engine's own tag keys
+   * ("type:" + content_type), so no seeding logic is needed for them. */
+  var TYPE_LIST = [
+    { key: "trade",  label: "Trades",     note: "deals other people built" },
+    { key: "rumor",  label: "Rumors",     note: "from this day in history" },
+    { key: "vs",     label: "Battles",    note: "career vs career" },
+    { key: "quiz",   label: "Quizzes",    note: "guess the player" },
+    { key: "trivia", label: "Trivia",     note: "two players, one stat" },
+    { key: "race",   label: "Races",      note: "80 seasons in 90 seconds" },
+    { key: "salary", label: "Salaries",   note: "what it cost, in cap share" },
+    { key: "otd",    label: "On this day", note: "games from this date" }
+  ];
+
   function showOnboarding() {
     var m = document.getElementById("onboard");
+    m.querySelector(".ob-types").innerHTML = TYPE_LIST.map(function (t) {
+      return '<button class="ob-pick type" data-key="type:' + t.key + '">' +
+        '<b>' + esc(t.label) + '</b><span>' + esc(t.note) + "</span></button>";
+    }).join("");
     m.querySelector(".ob-teams").innerHTML = TEAM_LIST.map(function (t) {
       return '<button class="ob-pick" data-key="team:' + t + '"><img loading="lazy" src="' + LOGO + t.toLowerCase() + '.svg" alt=""><span>' + t + "</span></button>";
     }).join("");

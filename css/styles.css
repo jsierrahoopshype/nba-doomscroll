@@ -82,23 +82,23 @@ a:hover{ text-decoration:underline }
 }
 .controls-row{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap }
 
+/* Deliberately quiet. This used to be a pulsing green pill sitting first in
+   the control row, which made "we are not tracking you" the loudest thing on a
+   page about basketball. It is now a plain text button after the primary
+   control; the popover it opens is unchanged. */
 .privacy-badge{
-  display:inline-flex; align-items:center; gap:.35rem;
-  padding:.2rem .55rem; border-radius:999px;
-  font-family:'JetBrains Mono',monospace; font-size:.6rem; font-weight:600;
-  text-transform:uppercase; letter-spacing:.05em;
-  border:1px solid var(--border); background:var(--green-dim);
-  color:var(--green); cursor:pointer; transition:.15s;
+  margin-left:auto;
+  display:inline-flex; align-items:center;
+  padding:.2rem .3rem; border-radius:6px;
+  font-family:'JetBrains Mono',monospace; font-size:.58rem; font-weight:500;
+  letter-spacing:.04em;
+  border:0; background:none; text-decoration:underline;
+  text-decoration-color:var(--border); text-underline-offset:3px;
+  color:var(--text-secondary); cursor:pointer; transition:.15s;
 }
-.privacy-badge:hover{ border-color:var(--green) }
-.privacy-badge .dot{
-  display:inline-block; width:.45rem; height:.45rem; border-radius:50%;
-  background:currentColor; animation:pulse 2s infinite;
-}
-@keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.4} }
+.privacy-badge:hover{ color:var(--text); text-decoration-color:var(--text-secondary) }
 
 .icon-btn{
-  margin-left:auto;
   font-family:'JetBrains Mono',monospace; font-size:.62rem; font-weight:600;
   padding:.25rem .6rem; border:1px solid var(--border); border-radius:999px;
   background:var(--surface); color:var(--text-secondary); cursor:pointer;
@@ -501,3 +501,36 @@ a:hover{ text-decoration:underline }
   text-align:center; font-size:.7rem; color:var(--text-secondary);
   margin-top:1.6rem; font-family:'JetBrains Mono',monospace; line-height:1.7;
 }
+
+/* -------- progressive quiz hints -------- */
+.quiz-hints{ margin:.5rem 0 .1rem }
+.quiz-hint-btn{
+  font-family:'JetBrains Mono',monospace; font-size:.6rem; font-weight:600;
+  padding:.25rem .6rem; border-radius:999px;
+  border:1px dashed var(--border); background:none; color:var(--text-secondary);
+  cursor:pointer; text-transform:uppercase; letter-spacing:.05em; transition:.15s;
+}
+.quiz-hint-btn:hover{ border-color:var(--t-quiz); color:var(--t-quiz) }
+.quiz-hint-btn:disabled{ opacity:.5; cursor:default; border-style:solid }
+.quiz-hint-list{ list-style:none; margin:.4rem 0 0; padding:0 }
+.quiz-hint-list li{
+  font-size:.8rem; line-height:1.45; color:var(--text-secondary);
+  padding:.3rem 0 .3rem .7rem; border-left:2px solid var(--t-quiz);
+  margin-bottom:.25rem;
+}
+
+/* -------- onboarding: content types -------- */
+.ob-types{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr));
+  gap:.35rem; margin-bottom:.9rem;
+}
+.ob-pick.type{
+  display:flex; flex-direction:column; align-items:flex-start; gap:.1rem;
+  padding:.45rem .55rem; text-align:left; width:auto; height:auto;
+}
+.ob-pick.type b{ font-size:.82rem; font-weight:600 }
+.ob-pick.type span{
+  font-family:'JetBrains Mono',monospace; font-size:.58rem;
+  color:var(--text-secondary); line-height:1.3;
+}
+.ob-pick.type.on span{ color:inherit; opacity:.85 }

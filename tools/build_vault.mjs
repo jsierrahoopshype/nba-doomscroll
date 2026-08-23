@@ -250,6 +250,9 @@ for (const [key, m] of standings) {
         { content_type: "oddity", players: [r.player, winner.player], teams: [], era: seasonEra(season), category: "ballot-oddity" },
         {
           season, award: AWARD_LABEL[award],
+          // Matched against the Quiz tab's ballot questions in the browser so
+          // the same award-season-player is not both stated and asked about.
+          award_key: award, subjects: [r.player],
           headline: `Exactly one voter put ${r.player} first for ${AWARD_LABEL[award]}`,
           detail: `${r.firstBy[0]} was the only tracked ballot with ${r.player} at No. 1 in ${season}. ` +
                   `${winner.player} took ${winner.firsts} of the ${totalFirsts} first-place votes.`,
@@ -266,6 +269,7 @@ for (const [key, m] of standings) {
       { content_type: "oddity", players: [winner.player], teams: [], era: seasonEra(season), category: "ballot-oddity" },
       {
         season, award: AWARD_LABEL[award],
+        award_key: award, subjects: [winner.player],
         headline: `${winner.player} was unanimous for ${AWARD_LABEL[award]} in ${season}`,
         detail: `All ${totalFirsts} tracked first-place votes went to him. ` +
                 `${rows[1].player} finished second with ${rows[1].pts} points and no first-place votes.`,
@@ -312,11 +316,15 @@ function gameScore(g) {
   if (!rank && g.gameType === "All-Star Game") rank = 35;
   if (!rank && g.gameType === "Play-in Tournament") rank = 25;
   const combined = hs + as, margin = Math.abs(hs - as);
-  // regular-season games earn their place by being extreme
+  // Regular-season games earn their place by being extreme, and the bar is
+  // deliberately high. A one-point regular-season game from 1974 used to
+  // qualify, which was 994 of the 2,073 cards — about half the pool, and every
+  // one of them a final score with no box score behind it and nothing to say
+  // beyond "someone won by one". Cutting that tier is the fix rather than
+  // showing fewer cards across the board: what is left is genuinely extreme.
   if (!rank) {
     if (combined >= 300) rank = 20 + (combined - 300) / 10;
     else if (margin >= 45) rank = 18 + (margin - 45) / 5;
-    else if (margin === 1) rank = 8;
     else rank = 0;
   } else {
     const gn = gameNo(g);
