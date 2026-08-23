@@ -21,6 +21,14 @@
   "use strict";
 
   var TRADE_LOG_URL = "https://nba-trade-calculator.thejorgesierra.workers.dev/api/trade-log";
+  // The log holds ~446K rows. If the endpoint ever returns all of them that is
+  // tens of MB over a phone connection, so ask for a slice. The param is
+  // harmless if the Worker ignores it — but then the full payload arrives, and
+  // the size check below says so loudly instead of silently costing readers
+  // their data. Only the newest rows matter: this is a "what are people
+  // building right now" feed.
+  var WANT_ROWS = 600;
+  var ROWS_WARN_AT = 20000;
   var LOGO_BASE = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/";
   var HEADSHOT_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/";
 
@@ -176,13 +184,38 @@
    *  the Trades tab keeps its sample cards on any failure. */
   function load() {
     return loadHeadshots().then(function () {
-      return fetch(TRADE_LOG_URL, { credentials: "omit" });
+      var sep = TRADE_LOG_URL.indexOf("?") >= 0 ? "&" : "?";
+      return fetch(TRADE_LOG_URL + sep + "limit=" + WANT_ROWS, { credentials: "omit" });
     }).then(function (r) {
       if (!r.ok) throw new Error("trade-log " + r.status);
+      var len = r.headers.get("content-length");
+      if (len && +len > 2000000) {
+        console.warn("[doomscroll] trade log returned " + Math.round(+len / 1048576) +
+          "MB — the endpoint appears to ignore ?limit, which is a lot to send a phone.");
+      }
       return r.json();
     }).then(function (json) {
       var rows = json && (json.rows || json.trades);
       if (!Array.isArray(rows)) throw new Error("unexpected shape: " + Object.keys(json || {}).join(","));
+      if (rows.length > ROWS_WARN_AT) {
+        console.warn("[doomscroll] trade log returned " + rows.length.toLocaleString() +
+          " rows; using the newest " + WANT_ROWS + ".");
+      }
+      // Newest first, then trim. Sorting before the cut matters: the log is not
+      // guaranteed to arrive ordered, and a feed of "what people built" is
+      // worthless if it silently keeps the oldest rows in the payload.
+      if (rows.length > WANT_ROWS) {
+        rows = rows.slice().sort(function (a, b) {
+          return String(b.ts).localeCompare(String(a.ts));
+        }).slice(0, WANT_ROWS * 4);   // *4: one trade spans several leg rows
+        // The cut lands mid-trade whenever the boundary falls inside a ts
+        // group, which would render a card missing a player — a wrong trade is
+        // worse than one fewer trade. Drop the trailing group entirely.
+        if (rows.length) {
+          var lastTs = rows[rows.length - 1].ts;
+          while (rows.length && rows[rows.length - 1].ts === lastTs) rows.pop();
+        }
+      }
 
       var byTs = groupByTs(rows);
       var seen = {}, cards = [], stats = { total: 0, dup: 0, multi: 0, unbalanced: 0 };
