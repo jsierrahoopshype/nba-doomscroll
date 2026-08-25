@@ -23,13 +23,34 @@
   /* A player name or team that filters the whole feed to that entity when
    * tapped. Rendered as a button so it is reachable by keyboard and announced
    * as interactive; app.js reads data-entity / data-entity-kind. */
-  function ent(name, kind, cls) {
+  /* `label` overrides what is printed without changing what is filtered on: a
+   * card that has room for "Cleveland Cavaliers" should not print CLE just
+   * because the filter value is an abbreviation. */
+  function ent(name, kind, cls, label) {
     if (!name) return "";
     return '<button class="ent" type="button" data-entity="' + escAttr(name) +
       '" data-entity-kind="' + escAttr(kind) + '"' +
       (cls ? ' data-cls="' + escAttr(cls) + '"' : "") +
-      ' title="Show everything about ' + escAttr(name) + '">' + esc(name) + '</button>';
+      ' title="Show everything about ' + escAttr(label || name) + '">' +
+      esc(label || name) + '</button>';
   }
+
+  /* Cards carry team abbreviations because that is what the data files use.
+   * Lives here rather than in app.js so both the cards and the filter bar read
+   * one list. Current franchises only; anything else prints as-is. */
+  var TEAM_NAME = {
+    ATL: "Atlanta Hawks", BOS: "Boston Celtics", BKN: "Brooklyn Nets",
+    CHA: "Charlotte Hornets", CHI: "Chicago Bulls", CLE: "Cleveland Cavaliers",
+    DAL: "Dallas Mavericks", DEN: "Denver Nuggets", DET: "Detroit Pistons",
+    GSW: "Golden State Warriors", HOU: "Houston Rockets", IND: "Indiana Pacers",
+    LAC: "LA Clippers", LAL: "Los Angeles Lakers", MEM: "Memphis Grizzlies",
+    MIA: "Miami Heat", MIL: "Milwaukee Bucks", MIN: "Minnesota Timberwolves",
+    NOP: "New Orleans Pelicans", NYK: "New York Knicks",
+    OKC: "Oklahoma City Thunder", ORL: "Orlando Magic",
+    PHI: "Philadelphia 76ers", PHX: "Phoenix Suns", POR: "Portland Trail Blazers",
+    SAC: "Sacramento Kings", SAS: "San Antonio Spurs", TOR: "Toronto Raptors",
+    UTA: "Utah Jazz", WAS: "Washington Wizards"
+  };
 
   function logo(src, name, cls) {
     if (!src) return '<span class="team-logo lg logo-none" title="' + escAttr(name || "") + '"></span>';
@@ -50,7 +71,8 @@
     salary: { chip: "SALARY",  cls: "t-vault", tab: "vault" },
     oddity: { chip: "BALLOT ODDITY", cls: "t-vault", tab: "vault" },
     otd:    { chip: "ON THIS DAY", cls: "t-vault", tab: "vault" },
-    race:   { chip: "RACE",    cls: "t-vault", tab: "races" }
+    race:   { chip: "RACE",    cls: "t-vault", tab: "races" },
+    buzz:   { chip: "BUZZ",    cls: "t-buzz",  tab: "buzz" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -233,10 +255,51 @@
       (p.note ? '<p class="race-note">' + esc(p.note) + '</p>' : "");
   }
 
+  /* "4h ago" beats a timestamp on a card whose whole point is recency. Computed
+   * at render time, not at load time, because a tab left open for an hour would
+   * otherwise keep claiming its cards are a minute old. */
+  function ago(iso) {
+    var t = Date.parse(iso);
+    if (isNaN(t)) return "";
+    var mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + "m ago";
+    var hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + "h ago";
+    var days = Math.round(hrs / 24);
+    return days + "d ago";
+  }
+
+  function renderBuzz(c) {
+    var p = c.payload;
+    // The thumbnail is a third-party image on a third-party host. If it 404s or
+    // is blocked, the card still reads — the headline is the card.
+    var thumb = p.thumbnail
+      ? '<div class="buzz-thumb' + (p.is_video ? " is-video" : "") + '">' +
+        '<img loading="lazy" src="' + escAttr(p.thumbnail) + '" alt="" ' +
+        'onerror="this.closest(\'.buzz-thumb\').remove()">' +
+        (p.is_video ? '<span class="buzz-play" aria-hidden="true">&#9654;</span>' : "") +
+        '</div>'
+      : "";
+    var ents = (p.teams || []).map(function (t) { return ent(t, "team", "", TEAM_NAME[t] || t); })
+      .concat((p.players || []).map(function (n) { return ent(n, "player"); }));
+    var when = ago(p.published_at);
+    return '<div class="buzz-meta mono">' +
+        '<span class="buzz-src">' + esc(p.source_label) + '</span>' +
+        (p.trending ? '<span class="buzz-hot">TRENDING</span>' : "") +
+        (when ? '<span class="buzz-time">' + esc(when) + '</span>' : "") +
+      '</div>' +
+      thumb +
+      '<h3 class="buzz-title">' + esc(p.title) + '</h3>' +
+      (p.excerpt ? '<p class="buzz-excerpt">' + esc(p.excerpt) + '</p>' : "") +
+      (ents.length ? '<div class="buzz-ents">' + ents.join("") + '</div>' : "") +
+      (p.author ? '<div class="card-sub">' + esc(p.author) + '</div>' : "");
+  }
+
   var RENDERERS = {
     trade: renderTrade, rumor: renderRumor, vs: renderVs, trivia: renderTrivia,
     quiz: renderQuiz, ballot: renderBallot, salary: renderSalary, otd: renderOtd,
-    race: renderRace, oddity: renderOddity
+    race: renderRace, oddity: renderOddity, buzz: renderBuzz
   };
 
   /* ---------------- card frame ---------------- */
@@ -252,6 +315,9 @@
       // No tap-through. The race IS the destination; sending someone to the
       // HoopsMatic homepage from it added nothing.
       case "race":  return null;
+      // The item lives somewhere else and that is the point: Buzz is a pointer
+      // to the source, never a replacement for it.
+      case "buzz":  return { url: c.payload.url, label: c.payload.cta || "Open" };
       default: return null;
     }
   }
@@ -286,5 +352,5 @@
   }
 
   root.DoomCards = {
-    ent: ent, render: render, esc: esc };
+    ent: ent, render: render, esc: esc, TEAM_NAME: TEAM_NAME };
 })(window);

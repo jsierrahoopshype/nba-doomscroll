@@ -26,6 +26,7 @@
   --t-vs:#3b82f6;
   --t-quiz:#7c3aed;
   --t-vault:#0f766e;
+  --t-buzz:#c2255c;
 
   --col:46rem;
 }
@@ -172,6 +173,7 @@ a:hover{ text-decoration:underline }
 .t-vs    .card-head .chip:first-child{ color:var(--t-vs);    background:rgba(59,130,246,.10) }
 .t-quiz  .card-head .chip:first-child{ color:var(--t-quiz);  background:rgba(124,58,237,.10) }
 .t-vault .card-head .chip:first-child{ color:var(--t-vault); background:rgba(15,118,110,.10) }
+.t-buzz  .card-head .chip:first-child{ color:var(--t-buzz);  background:rgba(194,37,92,.10) }
 .chip.live{ background:var(--green-dim); color:var(--green) }
 .chip.live::before{ background:currentColor }
 .chip.dummy{ background:transparent; border:1px dashed var(--border); color:var(--text-secondary) }
@@ -224,6 +226,37 @@ a:hover{ text-decoration:underline }
   color:var(--text-secondary); font-size:.85rem; font-style:italic;
   background:var(--orange-dim); border-radius:0 6px 6px 0;
 }
+
+/* -------- buzz cards -------- */
+.buzz-meta{
+  display:flex; align-items:center; gap:.45rem; margin-bottom:.4rem;
+  font-size:.6rem; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--text-secondary);
+}
+.buzz-src{ color:var(--t-buzz); font-weight:600 }
+.buzz-hot{
+  color:var(--t-buzz); background:rgba(194,37,92,.10);
+  padding:.05rem .3rem; border-radius:3px; font-weight:600;
+}
+.buzz-time{ margin-left:auto }
+/* 16:9 so a missing or slow image does not reflow the card under the reader's
+   thumb mid-scroll. */
+.buzz-thumb{
+  position:relative; margin:0 0 .55rem; border-radius:8px; overflow:hidden;
+  background:var(--surface-hover); aspect-ratio:16/9;
+}
+.buzz-thumb img{ width:100%; height:100%; object-fit:cover; display:block }
+.buzz-play{
+  position:absolute; inset:0; margin:auto; width:2.6rem; height:2.6rem;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:50%; background:rgba(0,0,0,.55); color:#fff; font-size:.9rem;
+  padding-left:.15rem;
+}
+.buzz-title{ font-size:1.05rem; font-weight:650; line-height:1.34; letter-spacing:-.01em }
+.buzz-excerpt{
+  margin-top:.4rem; color:var(--text-secondary); font-size:.85rem; line-height:1.45;
+}
+.buzz-ents{ display:flex; flex-wrap:wrap; gap:.15rem .55rem; margin-top:.5rem }
 
 /* -------- vs cards -------- */
 .vs-head{ display:flex; align-items:flex-start; gap:.5rem }

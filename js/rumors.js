@@ -130,5 +130,17 @@
     });
   }
 
-  root.LiveRumors = { load: load, apiBase: API };
+  /* The Buzz tab carries third-party headlines and post text, which needs the
+   * same editorial filter these rumors get. Exposed rather than copied so the
+   * two cannot drift apart: one blocklist, one matcher, two callers.
+   *
+   * Resolves to a predicate over free text; rejects when the blocklist is
+   * unreachable, so a caller fails closed the way load() already does. */
+  function editorialFilter() {
+    return loadBlocklist().then(function (bl) {
+      return function (text) { return isBlocked({ text: String(text || "") }, bl); };
+    });
+  }
+
+  root.LiveRumors = { load: load, apiBase: API, editorialFilter: editorialFilter };
 })(window);

@@ -21,7 +21,7 @@
     bg: "#f5f5f7", surface: "#ffffff", border: "#d1d1d6",
     text: "#1d1d1f", text2: "#6e6e73", accent: "#3b82f6",
     green: "#1d8a40", orange: "#b26b00", purple: "#7c3aed",
-    teal: "#0f766e", red: "#d12c2c"
+    teal: "#0f766e", red: "#d12c2c", pink: "#c2255c"
   };
   var TYPE = {
     trade:  { label: "TRADE", color: C.green },
@@ -33,7 +33,8 @@
     salary: { label: "VAULT", color: C.teal },
     oddity: { label: "BALLOT ODDITY", color: C.teal },
     otd:    { label: "ON THIS DAY", color: C.teal },
-    race:   { label: "RACE", color: C.teal }
+    race:   { label: "RACE", color: C.teal },
+    buzz:   { label: "BUZZ", color: C.pink }
   };
 
   var SANS = '"DM Sans", -apple-system, BlinkMacSystemFont, sans-serif';
@@ -405,6 +406,13 @@
         case "race":
           endY = bodyStatement(ctx, "Bar chart race", p.title,
             p.subtitle + (p.span ? " · " + p.span : ""), x, y, w, C.teal);
+          break;
+        // The excerpt is deliberately not drawn: a shared image outlives the
+        // link, and someone else's post text should travel with its source, not
+        // baked into a HoopsMatic card.
+        case "buzz":
+          endY = bodyStatement(ctx, p.source_label || "Buzz", p.title,
+            p.author || "", x, y, w, C.pink);
           break;
         default:
           endY = bodyStatement(ctx, meta.label, p.headline || p.title || p.question || "",

@@ -10,15 +10,18 @@ Last reviewed: 2026-08-25.
 
 ## Next up
 
-### Current-events content
-Jorge: *"Try hard to get actual Rumors or highly shared content from the Content
-Stream. We should really populate the Doomscroll with current events."*
+### Buzz follow-ups
+The tab ships, but three calls are Jorge's:
 
-The archive is history; the feed has nothing about today. `nba-content-stream`
-is a readable repo — first step is to find out what it actually holds (live
-headlines? share counts? a feed file?) before promising anything. If it carries
-current items with source links, it is a better answer than the rumors archive
-for a "what is happening now" tab.
+- **Reddit.** It is on, capped at 8. The items are good (statistical posts,
+  archive finds) but the author line is a Reddit username on a HoopsHype-adjacent
+  page. One flag in `data/buzz-sources.json` turns it off.
+- **Recency vs shuffle.** Buzz cards are sampled like everything else, so a
+  four-hour-old item can sit under a two-day-old one. A news tab arguably wants
+  newest-first. Would need a per-tab ordering mode in `loadMore()`.
+- **Volume.** Google News is capped at 24 of ~66 tagged items a cycle because
+  it dominates otherwise. If the tab feels thin, raise the cap; if it feels like
+  a wire feed, lower it.
 
 ---
 
@@ -103,3 +106,6 @@ Kept short so the list above stays the point.
 - Clickable players and teams: tapping a name filters the whole feed to that
   entity across every section, with `?player=` / `?team=` routing, a filter
   strip and an empty state
+- Buzz tab: today's NBA conversation, live from the Content Stream, filtered
+  three ways (editorial blocklist, other-league words, require an NBA entity)
+  and joined to the feed's own player and team names

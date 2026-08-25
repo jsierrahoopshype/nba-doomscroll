@@ -10,10 +10,11 @@ only, with JSON export/import.
 
 ## Tabs
 
-For You (algorithmic mix) · Trades (community Trade Machine feed) · Rumors
-(HoopsHype archive, on-this-day) · VS (player comparisons) · Quiz (guess the
-player, two-player trivia, ballot trivia) · Vault (salary history, ballot
-oddities, on-this-day games) · Races (bar chart races).
+For You (algorithmic mix) · Buzz (today's NBA conversation, live from the
+Content Stream) · Trades (community Trade Machine feed) · Rumors (HoopsHype
+archive, on-this-day) · VS (player comparisons) · Quiz (guess the player,
+two-player trivia, ballot trivia) · History (salary history, ballot oddities,
+on-this-day games) · Races (bar chart races).
 
 ## Look and feel
 
@@ -42,6 +43,9 @@ it is a scroll feed.
   - `js/share-image.js` — renders any card to a branded PNG on a canvas
   - `js/trades.js` — live Trade Machine feed: dedupes re-logged builds, keeps
     two-team deals, applies the 15% balance rule
+  - `js/buzz.js` — the Buzz tab: reads nba-content-stream's published
+    `trending.json` and `feed-recent.json` in the reader's browser, filters
+    them, and translates entity slugs into the names the rest of the feed uses
   - `js/race-player.js` — canvas bar chart race player: a port of the
     bar-chart-race repo's `hoopshype-official` theme, 90-second runtime, eased
     rank and value transitions
@@ -75,7 +79,13 @@ it is a scroll feed.
   HoopsHype, and a SAMPLE label does not survive a screenshot. When the rumor
   endpoint is unreachable the tab says so and links to HoopsHype instead
 - `data/rumor-blocklist.json` — editable keyword blocklist for the Rumors
-  editorial filter
+  editorial filter, applied to Buzz as well
+- `data/buzz-sources.json` — the Buzz editorial config: which sources are on,
+  their per-batch caps, whether their body text renders, the other-league word
+  list, and the require-an-NBA-entity rule. Edit this rather than `js/buzz.js`
+- `data/buzz-map.json` — Content Stream entity slug → the display name or team
+  abbreviation every other card here is tagged with, so Buzz cards personalize
+  and cross-match. Built by `tools/build_buzz_map.mjs`
 - `tools/build_data.mjs` — rebuilds the VS / Quiz / Trivia / Ballot pools
 - `tools/build_vault.mjs` — rebuilds the Vault pool
 - `tools/build_races.mjs` — rebuilds the bar chart races
@@ -83,6 +93,9 @@ it is a scroll feed.
   `build_races.mjs`. Kept because it is the only thing here that can still
   produce a standalone video file; its output is no longer committed
 - `tools/gen_dummy_cards.py` — regenerates the placeholder pool
+- `tools/build_buzz_map.mjs` — rebuilds `data/buzz-map.json` from
+  nba-content-stream's canonical files. Only needs re-running when players
+  enter the league
 
 ## Rebuilding the data pools
 

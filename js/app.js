@@ -15,6 +15,7 @@
 
   var TABS = [
     { key: "foryou", label: "For You" },
+    { key: "buzz", label: "Buzz" },
     { key: "trades", label: "Trades" },
     { key: "rumors", label: "Rumors" },
     { key: "vs", label: "VS" },
@@ -23,7 +24,7 @@
     { key: "races", label: "Races" }
   ];
   var BATCH = 8;
-  var TAB_FOR_TYPE = { rumor: "rumors", trade: "trades" };
+  var TAB_FOR_TYPE = { rumor: "rumors", trade: "trades", buzz: "buzz" };
   var SKIM_MS = 1200; // visible less than this while scrolling past = skim
 
   var allCards = [];
@@ -222,7 +223,17 @@
         // array rather than rejecting, so an empty result is the failure signal
         // — not just a rejected promise.
         if (!live || !live.length) {
+          liveFailed[type] = true;
           if (type === "rumor") dropInventedRumors();
+          // Buzz has no sample cards at all — it is live or it is nothing — so
+          // a tab already sitting on its empty state has to be told.
+          // exhausted has to be cleared first: the tab reached its empty state
+          // on the first pass, and loadMore() returns immediately while that
+          // flag is set — so clearing the feed without it would wipe the
+          // message and leave a blank section.
+          else if (state.tab === TAB_FOR_TYPE[type]) {
+            state.exhausted = false; clearFeed(); loadMore();
+          }
           return;
         }
         allCards = allCards.filter(function (c) {
@@ -238,7 +249,9 @@
         renderSummary();
       }).catch(function (e) {
         console.warn("[doomscroll] live " + type + " failed:", e.message);
+        liveFailed[type] = true;
         if (type === "rumor") dropInventedRumors();
+        else if (state.tab === TAB_FOR_TYPE[type]) { clearFeed(); loadMore(); }
       });
     }
 
@@ -258,6 +271,7 @@
     }
     swapInLive(root.LiveRumors, "rumor");
     swapInLive(root.DoomTrades, "trade");
+    swapInLive(root.LiveBuzz, "buzz");
 
     // A shared link can point straight at a lazy tab's card, so ask for that
     // tab's pool before waiting on the current one.
@@ -338,21 +352,9 @@
   var ALL_POOLS = ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json"];
 
   // Cards carry team abbreviations, which is right on a card but terse as a
-  // headline. Current franchises only — a defunct abbreviation falls through
-  // and prints as-is.
-  var TEAM_NAME = {
-    ATL: "Atlanta Hawks", BOS: "Boston Celtics", BKN: "Brooklyn Nets",
-    CHA: "Charlotte Hornets", CHI: "Chicago Bulls", CLE: "Cleveland Cavaliers",
-    DAL: "Dallas Mavericks", DEN: "Denver Nuggets", DET: "Detroit Pistons",
-    GSW: "Golden State Warriors", HOU: "Houston Rockets", IND: "Indiana Pacers",
-    LAC: "LA Clippers", LAL: "Los Angeles Lakers", MEM: "Memphis Grizzlies",
-    MIA: "Miami Heat", MIL: "Milwaukee Bucks", MIN: "Minnesota Timberwolves",
-    NOP: "New Orleans Pelicans", NYK: "New York Knicks",
-    OKC: "Oklahoma City Thunder", ORL: "Orlando Magic",
-    PHI: "Philadelphia 76ers", PHX: "Phoenix Suns", POR: "Portland Trail Blazers",
-    SAC: "Sacramento Kings", SAS: "San Antonio Spurs", TOR: "Toronto Raptors",
-    UTA: "Utah Jazz", WAS: "Washington Wizards"
-  };
+  // headline. The list lives in js/cards.js so the cards and this filter bar
+  // read the same one.
+  var TEAM_NAME = C.TEAM_NAME;
 
   function entityLabel(e) {
     return e.kind === "team" ? (TEAM_NAME[e.value] || e.value) : e.value;
@@ -472,6 +474,7 @@
   // Content Stream's monospace summary line: what this tab is showing.
   var TAB_BLURB = {
     foryou: "every card type, weighted by what you like",
+    buzz: "what the NBA world is posting today, from the HoopsMatic Content Stream",
     trades: "real Trade Machine builds, deduped and balance-filtered",
     rumors: "rumor history, legal/off-court topics filtered out",
     vs: "career comparisons scored the same way as the full tool",
@@ -551,7 +554,10 @@
     // Cap the media-heavy card type: a run of autoplaying clips stacked in one
     // batch is both visually noisy and the one thing here that costs real data.
     var batch = hasMixedTypes(pool)
-      ? E.sampleMixed(pool, BATCH, { cap: { race: 1 } })
+      // Buzz is capped too, for the opposite reason to race: there are only
+      // ~60 live items against thousands of everything else, so an uncapped
+      // type-balanced draw would burn through the day's news in two batches.
+      ? E.sampleMixed(pool, BATCH, { cap: { race: 1, buzz: 3 } })
       : E.sample(pool, BATCH);
     if (!batch.length) {
       state.exhausted = true;
@@ -561,11 +567,21 @@
           esc(entityLabel(state.entity)) + ' yet.<br><br>' +
           '<button class="btn" type="button" data-entity-clear>Back to the feed</button></div>';
       } else if (!feedEl.querySelector(".card")) {
-        feedEl.innerHTML = state.tab === "rumors" && liveFailed.rumor
-          ? '<div class="feed-msg">Rumors could not load right now. ' +
+        if (state.tab === "rumors" && liveFailed.rumor) {
+          feedEl.innerHTML = '<div class="feed-msg">Rumors could not load right now. ' +
             'They come live from the HoopsHype archive — nothing is shown here until they do.' +
-            '<br><br><a href="https://hoopshype.com/rumors/" target="_blank" rel="noopener">Read them on HoopsHype</a></div>'
-          : '<div class="feed-msg">Nothing here yet.</div>';
+            '<br><br><a href="https://hoopshype.com/rumors/" target="_blank" rel="noopener">Read them on HoopsHype</a></div>';
+        } else if (state.tab === "buzz") {
+          // Buzz is live-only by design. Nothing here means the feed is not
+          // reachable, not that the NBA had a quiet day, and saying so is
+          // better than an empty section that looks broken.
+          feedEl.innerHTML = '<div class="feed-msg">' + (liveFailed.buzz
+            ? "Today&rsquo;s feed could not load. It comes live from the HoopsMatic " +
+              "Content Stream in your browser, and nothing is shown here until it does."
+            : "Loading today&rsquo;s feed&hellip;") + '</div>';
+        } else {
+          feedEl.innerHTML = '<div class="feed-msg">Nothing here yet.</div>';
+        }
       } else if (!feedEl.querySelector(".feed-end")) {
         var end = document.createElement("div");
         end.className = "feed-msg feed-end";
