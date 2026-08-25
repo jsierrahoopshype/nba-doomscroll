@@ -31,7 +31,11 @@ it is a scroll feed.
 ## Repo layout
 
 - `index.html` + `css/` + `js/` — the app (no framework, vanilla JS)
-  - `js/engine.js` — personalization engine (weights, sampling, storage)
+  - `js/engine.js` — personalization engine (weights, sampling, storage).
+    `sampleMixed` takes a `share` option: live Buzz cards hold a reserved 40%
+    of every mixed batch, woven through it rather than stacked at the top.
+    Without the reserve the weighted draw damps thin pools, and ~40 live items
+    against thousands of archive cards is a thin pool
   - `js/cards.js` — card renderers
   - `js/app.js` — shell: tabs, entity filter, infinite feed, interactions,
     panels
@@ -45,7 +49,10 @@ it is a scroll feed.
     two-team deals, applies the 15% balance rule
   - `js/buzz.js` — the Buzz tab: reads nba-content-stream's published
     `trending.json` and `feed-recent.json` in the reader's browser, filters
-    them, and translates entity slugs into the names the rest of the feed uses
+    them, and translates entity slugs into the names the rest of the feed uses.
+    Bluesky items render as posts (avatar, author, the text as written, the
+    attached image / video poster / link card), ported from Content Stream's
+    own `renderCard`, so the two features present the same post the same way
   - `js/race-player.js` — canvas bar chart race player: a port of the
     bar-chart-race repo's `hoopshype-official` theme, 90-second runtime, eased
     rank and value transitions

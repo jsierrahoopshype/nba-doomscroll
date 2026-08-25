@@ -2,11 +2,11 @@
   "note": "Editorial config for the Buzz tab. Sources come from nba-content-stream's published feed; this file decides which of them reach a reader, how they are labelled, and whether their body text is rendered. Edit this file rather than js/buzz.js.",
   "excerpt_note": "excerpt:false means the item's body_excerpt is NOT rendered. google-news repeats the headline plus the outlet name, which adds nothing. youtube descriptions carry sportsbook affiliate links and promo codes, which must never render on a HoopsHype-adjacent page.",
   "sources": {
-    "bluesky":     { "on": true,  "label": "Bluesky",  "excerpt": true,  "cta": "Open post",      "max": 20 },
-    "reddit":      { "on": true,  "label": "r/NBA",    "excerpt": true,  "cta": "Open thread",    "max": 8 },
-    "google-news": { "on": true,  "label": "News",     "excerpt": false, "cta": "Read the story", "max": 24, "drop_truncated": true },
-    "youtube":     { "on": true,  "label": "YouTube",  "excerpt": false, "cta": "Watch",          "max": 6 },
-    "substack":    { "on": true,  "label": "Substack", "excerpt": true,  "cta": "Read the post",  "max": 6 }
+    "bluesky":     { "on": true,  "label": "Bluesky",  "excerpt": true,  "cta": "View on Bluesky", "max": 30 },
+    "reddit":      { "on": true,  "label": "r/NBA",    "excerpt": true,  "cta": "Open thread",    "max": 12 },
+    "google-news": { "on": true,  "label": "News",     "excerpt": false, "cta": "Read the story", "max": 32, "drop_truncated": true },
+    "youtube":     { "on": true,  "label": "YouTube",  "excerpt": false, "cta": "Watch",          "max": 8 },
+    "substack":    { "on": true,  "label": "Substack", "excerpt": true,  "cta": "Read the post",  "max": 10 }
   },
   "require_entity": true,
   "trending_top": 12,
@@ -14,10 +14,15 @@
   "drop_truncated_note": "Google News headlines arrive cut off at a fixed width and end in an ellipsis, and there is no body text to finish the sentence. Bluesky and Reddit posts end in an ellipsis on purpose, so the rule is per source.",
   "require_entity_note": "An item must carry at least one player or team tag. This is the single most effective quality filter: the accounts Content Stream follows post about their own lives and other sports between NBA posts, and 29 of 100 items in a sample carried no NBA entity at all — baseball chatter, podcast plugs and personal jokes. Set false on a source to let its untagged items through.",
   "max_age_days": 7,
-  "off_topic_note": "Google News tagging is name-based, so an MLB story about Spencer Jones is tagged with the Thunder rookie of the same name. An item carrying any of these words is dropped. Deliberately excludes every word that is also an NBA nickname: Kings, Hawks, Nets, Heat, Magic, Suns, Bulls and the rest.",
+  "off_topic_note": "Google News tagging is name-based, so an MLB story about Spencer Jones is tagged with the Thunder rookie of the same name. An item carrying any of these words is dropped. Two groups: other-league jargon (a word no NBA story uses, which catches a baseball column that never names its team) and other-league team names. Deliberately excludes every word that is also an NBA nickname: Kings, Hawks, Nets, Heat, Magic, Suns, Bulls and the rest, and every word both sports share: rookie, draft, trade, playoffs.",
   "off_topic": [
     "mlb", "nfl", "nhl", "mls", "ufc", "nascar", "pga tour", "formula 1", "premier league",
     "world series", "super bowl", "stanley cup", "college football", "spring training",
+    "raking", "homer", "homers", "bullpen", "innings", "inning", "rbi", "rbis",
+    "shortstop", "outfielder", "infielder", "pitcher", "pitchers", "strikeout",
+    "strikeouts", "no hitter", "grand slam", "designated hitter", "minor league",
+    "quarterback", "touchdown", "touchdowns", "wide receiver", "linebacker",
+    "puck", "power play goal",
     "yankees", "mets", "dodgers", "red sox", "cubs", "braves", "astros", "phillies",
     "padres", "orioles", "blue jays", "mariners", "marlins", "brewers", "pirates",
     "rays", "twins", "royals", "white sox", "athletics", "angels", "diamondbacks",

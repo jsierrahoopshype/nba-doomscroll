@@ -24,6 +24,8 @@
     { key: "races", label: "Races" }
   ];
   var BATCH = 8;
+  // Share of every mixed batch reserved for live Content Stream items.
+  var BUZZ_SHARE = 0.4;
   var TAB_FOR_TYPE = { rumor: "rumors", trade: "trades", buzz: "buzz" };
   var SKIM_MS = 1200; // visible less than this while scrolling past = skim
 
@@ -554,10 +556,10 @@
     // Cap the media-heavy card type: a run of autoplaying clips stacked in one
     // batch is both visually noisy and the one thing here that costs real data.
     var batch = hasMixedTypes(pool)
-      // Buzz is capped too, for the opposite reason to race: there are only
-      // ~60 live items against thousands of everything else, so an uncapped
-      // type-balanced draw would burn through the day's news in two batches.
-      ? E.sampleMixed(pool, BATCH, { cap: { race: 1, buzz: 3 } })
+      // Buzz gets a reserved 40% of every mixed batch — Jorge's call, and the
+      // type-balanced draw cannot produce it on its own: it damps thin pools,
+      // and ~50 live items is a thin pool against thousands of archive cards.
+      ? E.sampleMixed(pool, BATCH, { cap: { race: 1 }, share: { buzz: BUZZ_SHARE } })
       : E.sample(pool, BATCH);
     if (!batch.length) {
       state.exhausted = true;

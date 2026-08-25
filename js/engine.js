@@ -124,6 +124,24 @@
     return true;
   }
 
+  /* Spreads `extra` evenly through `main` rather than appending it. A batch
+   * whose reserved cards all sat at the top would read as a news block with a
+   * feed under it, which is not what a mixed feed is. */
+  function weave(main, extra) {
+    if (!extra || !extra.length) return main;
+    var total = main.length + extra.length, at = {}, out = [], mi = 0;
+    for (var k = 0; k < extra.length; k++) {
+      at[Math.floor((k + 0.5) * total / extra.length)] = extra[k];
+    }
+    for (var i = 0; i < total; i++) {
+      if (at[i] !== undefined) out.push(at[i]);
+      else if (mi < main.length) out.push(main[mi++]);
+    }
+    // Anything the placement could not fit (duplicate slot) still ships.
+    while (mi < main.length) out.push(main[mi++]);
+    return out;
+  }
+
   var api = {
     startSession: startSession,
 
@@ -184,7 +202,9 @@
      * dislikes fade out, but nothing disappears entirely.
      */
     sampleMixed: function (pool, n, opts) {
-      var caps = (opts && opts.cap) || {};
+      var caps = {}, given = (opts && opts.cap) || {};
+      Object.keys(given).forEach(function (k) { caps[k] = given[k]; });
+      var share = (opts && opts.share) || {};
       var used = {};
       var buckets = {};
       pool.forEach(function (c) {
@@ -194,9 +214,29 @@
       var types = Object.keys(buckets);
       if (types.length < 2) return api.sample(pool, n);
 
+      /* A guaranteed share of the batch, for a type that is meant to be a
+       * fixed proportion of the feed rather than one voice among many. The
+       * weighted draw below cannot deliver that on its own: it damps thin
+       * pools, and live news is a thin pool against thousands of archive
+       * cards, so news would always lose. Those slots are drawn first, then
+       * woven back through the batch so they do not arrive as a block. */
+      var reserved = [];
+      Object.keys(share).forEach(function (t) {
+        if (!buckets[t] || !buckets[t].length) return;
+        var want = Math.min(Math.round(n * share[t]), buckets[t].length);
+        if (want <= 0) return;
+        var got = api.sample(buckets[t], want);
+        buckets[t] = buckets[t].filter(function (c) { return got.indexOf(c) < 0; });
+        reserved = reserved.concat(got);
+        used[t] = got.length;
+        // The share is a floor AND a ceiling: without this the ordinary draw
+        // below could hand the same type more slots on top of its quota.
+        caps[t] = got.length;
+      });
+
       var out = [];
       var lastType = null;
-      for (var i = 0; i < n && types.length; i++) {
+      for (var i = 0; i < n - reserved.length && types.length; i++) {
         // weight each type by its learned score, damped so one hot type can't
         // monopolise the feed, and never twice in a row when alternatives exist
         var free = types.filter(function (t) {
@@ -224,7 +264,7 @@
         used[type] = (used[type] || 0) + 1;
         lastType = type;
       }
-      return out;
+      return weave(out, reserved);
     },
 
     // pool: candidate cards. n: how many to return. Weighted random without

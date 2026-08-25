@@ -270,8 +270,108 @@
     return days + "d ago";
   }
 
+  /* Initials stand in for the avatar. Content Stream fetches Bluesky avatars
+   * live from the AppView; this app has no such call and is not adding one, so
+   * the circle carries initials instead of a face. */
+  function initials(name) {
+    var t = String(name || "").replace(/[^\w\s]/g, " ").trim().split(/\s+/).filter(Boolean);
+    if (!t.length) return "·";
+    return (t.length === 1 ? t[0].slice(0, 2) : t[0][0] + t[t.length - 1][0]).toUpperCase();
+  }
+
+  var URL_RE = /https?:\/\/[^\s<>"']+/g;
+  var MENTION_RE = /@([a-z0-9](?:[a-z0-9.\-]*[a-z0-9])?\.[a-z][a-z0-9.\-]*[a-z])/gi;
+
+  /* Post text with URLs and @mentions made clickable, escaped first. The index
+   * carries no facets (those come from the live API), so this is the regex
+   * fallback Content Stream uses for its own archive cards. */
+  function richText(s) {
+    var html = esc(s).replace(URL_RE, function (m) {
+      return '<a class="inline-url" href="' + m + '" target="_blank" rel="noopener noreferrer">' +
+        m + '</a>';
+    });
+    // Only rewrite the segments that are not already inside an anchor, so an
+    // @ inside a URL's query string is left alone.
+    return html.replace(/(<a [^>]*>[\s\S]*?<\/a>)|([^<]+)/g, function (_, anchor, plain) {
+      if (anchor) return anchor;
+      return plain.replace(MENTION_RE, function (full, handle) {
+        return '<a class="inline-mention" href="https://bsky.app/profile/' + handle +
+          '" target="_blank" rel="noopener noreferrer">@' + handle + '</a>';
+      });
+    });
+  }
+
+  function host(u) {
+    var m = /^https?:\/\/([^/?#]+)/.exec(String(u || ""));
+    return m ? m[1].replace(/^www\./, "") : "";
+  }
+
+  /* The post's own attachment, in the shapes nba-content-stream publishes:
+   * an image set, a video (poster only — the stream is HLS and plays on
+   * Bluesky), or a link preview card. */
+  function bskyMedia(m, postUrl) {
+    if (!m) return "";
+    if (m.type === "image" && m.images && m.images.length) {
+      var shown = m.images.slice(0, 4);
+      return '<div class="bsky-images' + (shown.length > 1 ? " grid" : "") + '">' +
+        shown.map(function (img) {
+          return '<a href="' + escAttr(postUrl) + '" target="_blank" rel="noopener">' +
+            '<img loading="lazy" src="' + escAttr(img.url) + '" alt="' + escAttr(img.alt || "") +
+            '" onerror="this.closest(\'a\').remove()"></a>';
+        }).join("") + '</div>';
+    }
+    if (m.type === "video" && m.thumbnail) {
+      return '<a class="bsky-video" href="' + escAttr(postUrl) + '" target="_blank" rel="noopener">' +
+        '<img loading="lazy" src="' + escAttr(m.thumbnail) + '" alt="" ' +
+        'onerror="this.closest(\'.bsky-video\').remove()">' +
+        '<span class="play-hint">&#9654; Play on Bluesky</span></a>';
+    }
+    if (m.type === "link" && m.uri) {
+      return '<a class="bsky-extcard" href="' + escAttr(m.uri) + '" target="_blank" rel="noopener">' +
+        (m.thumb ? '<img loading="lazy" src="' + escAttr(m.thumb) + '" alt="" ' +
+          'onerror="this.style.display=\'none\'">' : "") +
+        '<div class="ext-meta">' +
+          '<div class="ext-title">' + esc(m.title || m.uri) + '</div>' +
+          (m.description ? '<div class="ext-desc">' + esc(m.description) + '</div>' : "") +
+          '<div class="ext-host mono">' + esc(host(m.uri)) + '</div>' +
+        '</div></a>';
+    }
+    return "";
+  }
+
   function renderBuzz(c) {
     var p = c.payload;
+    var ents = (p.teams || []).map(function (t) { return ent(t, "team", "", TEAM_NAME[t] || t); })
+      .concat((p.players || []).map(function (n) { return ent(n, "player"); }));
+    var entsHtml = ents.length ? '<div class="buzz-ents">' + ents.join("") + '</div>' : "";
+    var when = ago(p.published_at);
+    var meta = '<div class="buzz-meta mono">' +
+        '<span class="buzz-src">' + esc(p.source_label) + '</span>' +
+        (p.trending ? '<span class="buzz-hot">TRENDING</span>' : "") +
+        (when ? '<span class="buzz-time">' + esc(when) + '</span>' : "") +
+      '</div>';
+
+    /* A Bluesky item reads as the post it is — avatar, author, the text as
+     * written, then whatever was attached — the way Content Stream renders it.
+     * A headline-and-link treatment turned a post into a truncated first line
+     * and lost the point of it. */
+    if (p.post) {
+      return meta +
+        '<div class="bsky-body">' +
+          '<a class="bsky-avatar-link" href="' + escAttr(p.post.profile) +
+            '" target="_blank" rel="noopener noreferrer">' +
+            '<span class="bsky-avatar" aria-hidden="true">' + esc(initials(p.author)) + '</span></a>' +
+          '<div class="bsky-body-text">' +
+            '<a class="bsky-author" href="' + escAttr(p.post.profile) +
+              '" target="_blank" rel="noopener noreferrer">' + esc(p.author) + '</a>' +
+            '<span class="bsky-author-sep">:</span>' +
+            '<span class="bsky-text">' + richText(p.post.text) + '</span>' +
+          '</div>' +
+        '</div>' +
+        bskyMedia(p.post.media, p.url) +
+        entsHtml;
+    }
+
     // The thumbnail is a third-party image on a third-party host. If it 404s or
     // is blocked, the card still reads — the headline is the card.
     var thumb = p.thumbnail
@@ -281,18 +381,10 @@
         (p.is_video ? '<span class="buzz-play" aria-hidden="true">&#9654;</span>' : "") +
         '</div>'
       : "";
-    var ents = (p.teams || []).map(function (t) { return ent(t, "team", "", TEAM_NAME[t] || t); })
-      .concat((p.players || []).map(function (n) { return ent(n, "player"); }));
-    var when = ago(p.published_at);
-    return '<div class="buzz-meta mono">' +
-        '<span class="buzz-src">' + esc(p.source_label) + '</span>' +
-        (p.trending ? '<span class="buzz-hot">TRENDING</span>' : "") +
-        (when ? '<span class="buzz-time">' + esc(when) + '</span>' : "") +
-      '</div>' +
-      thumb +
+    return meta + thumb +
       '<h3 class="buzz-title">' + esc(p.title) + '</h3>' +
       (p.excerpt ? '<p class="buzz-excerpt">' + esc(p.excerpt) + '</p>' : "") +
-      (ents.length ? '<div class="buzz-ents">' + ents.join("") + '</div>' : "") +
+      entsHtml +
       (p.author ? '<div class="card-sub">' + esc(p.author) + '</div>' : "");
   }
 

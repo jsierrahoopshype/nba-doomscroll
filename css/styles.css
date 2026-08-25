@@ -258,6 +258,74 @@ a:hover{ text-decoration:underline }
 }
 .buzz-ents{ display:flex; flex-wrap:wrap; gap:.15rem .55rem; margin-top:.5rem }
 
+/* Bluesky posts, rendered the way nba-content-stream renders them: avatar on
+   the left, "Author Name: post text" flowing beside it, then whatever the
+   author attached. Selectors and metrics are ported from that repo's
+   assets/styles.css so the two features read as one product. The avatar is
+   initials rather than a face — Content Stream pulls avatars live from the
+   Bluesky AppView, and this app makes no such call. */
+.bsky-body{ display:flex; align-items:flex-start; gap:.6rem; margin-bottom:.3rem }
+.bsky-avatar-link{ flex:0 0 auto; text-decoration:none }
+.bsky-avatar{
+  width:2.4rem; height:2.4rem; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--surface-hover); border:1px solid var(--border);
+  color:var(--text-secondary); font-family:'JetBrains Mono',monospace;
+  font-size:.7rem; font-weight:600; letter-spacing:.02em;
+}
+.bsky-body-text{ flex:1 1 auto; min-width:0; font-size:1rem; line-height:1.45 }
+.bsky-author{ font-weight:650; color:var(--text); text-decoration:none }
+.bsky-author:hover{ color:var(--accent) }
+.bsky-author-sep{ color:var(--text); margin-right:.25rem }
+.bsky-text{
+  color:var(--text); overflow-wrap:anywhere; word-break:break-word;
+  white-space:pre-wrap;
+}
+.inline-url, .inline-mention{ color:var(--accent); text-decoration:none; word-break:break-all }
+.inline-url:hover, .inline-mention:hover{ text-decoration:underline }
+
+.bsky-images{ display:block; margin:.5rem 0 }
+.bsky-images a{ display:block; width:100% }
+.bsky-images img{
+  display:block; width:100%; max-height:22rem; object-fit:cover;
+  border-radius:8px; background:var(--surface-hover);
+}
+.bsky-images.grid{ display:grid; grid-template-columns:1fr 1fr; gap:.25rem }
+.bsky-images.grid img{ height:8.5rem; max-height:none }
+
+.bsky-video{ position:relative; display:block; margin:.5rem 0; border-radius:8px; overflow:hidden }
+.bsky-video img{ display:block; width:100%; max-height:22rem; object-fit:cover }
+.bsky-video .play-hint{
+  position:absolute; left:.5rem; bottom:.5rem; padding:.25rem .55rem;
+  border-radius:4px; background:rgba(0,0,0,.72); color:#fff;
+  font-family:'JetBrains Mono',monospace; font-size:.7rem; font-weight:600;
+}
+
+.bsky-extcard{
+  display:flex; gap:.6rem; align-items:stretch; margin:.5rem 0;
+  border:1px solid var(--border); border-radius:8px; overflow:hidden;
+  text-decoration:none; color:var(--text); background:var(--bg);
+}
+.bsky-extcard:hover{ border-color:var(--accent) }
+.bsky-extcard img{ flex:0 0 auto; width:6.5rem; height:5rem; object-fit:cover }
+.bsky-extcard .ext-meta{ padding:.5rem .65rem; min-width:0; flex:1 1 auto }
+.bsky-extcard .ext-title{
+  font-size:.86rem; font-weight:600; line-height:1.35;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.bsky-extcard .ext-desc{
+  font-size:.74rem; color:var(--text-secondary); margin-top:.15rem;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.bsky-extcard .ext-host{
+  font-size:.62rem; color:var(--text-secondary); text-transform:uppercase;
+  letter-spacing:.06em; margin-top:.3rem;
+}
+@media(max-width:600px){
+  .bsky-extcard{ flex-direction:column }
+  .bsky-extcard img{ width:100%; height:auto; aspect-ratio:1.91/1 }
+}
+
 /* -------- vs cards -------- */
 .vs-head{ display:flex; align-items:flex-start; gap:.5rem }
 .vs-player{
