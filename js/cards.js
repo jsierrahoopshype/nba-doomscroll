@@ -26,17 +26,20 @@
       '" alt="" onerror="this.style.visibility=\'hidden\'">';
   }
 
+  /* `tab` is where the chip takes you when tapped. A card announcing itself as
+   * BALLOT ODDITY that could not take you to the section holding ballot
+   * oddities was a dead label. */
   var TYPE_META = {
-    trade:  { chip: "TRADE",   cls: "t-trade" },
-    rumor:  { chip: "RUMOR",   cls: "t-rumor" },
-    vs:     { chip: "VS",      cls: "t-vs" },
-    trivia: { chip: "TRIVIA",  cls: "t-vs" },
-    quiz:   { chip: "QUIZ",    cls: "t-quiz" },
-    ballot: { chip: "BALLOT",  cls: "t-quiz" },
-    salary: { chip: "VAULT",   cls: "t-vault" },
-    oddity: { chip: "BALLOT ODDITY", cls: "t-vault" },
-    otd:    { chip: "ON THIS DAY", cls: "t-vault" },   // chip swapped below when approximate
-    race:   { chip: "RACE",    cls: "t-vault" }
+    trade:  { chip: "TRADE",   cls: "t-trade", tab: "trades" },
+    rumor:  { chip: "RUMOR",   cls: "t-rumor", tab: "rumors" },
+    vs:     { chip: "VS",      cls: "t-vs",    tab: "vs" },
+    trivia: { chip: "TRIVIA",  cls: "t-vs",    tab: "quiz" },
+    quiz:   { chip: "QUIZ",    cls: "t-quiz",  tab: "quiz" },
+    ballot: { chip: "BALLOT",  cls: "t-quiz",  tab: "quiz" },
+    salary: { chip: "SALARY",  cls: "t-vault", tab: "vault" },
+    oddity: { chip: "BALLOT ODDITY", cls: "t-vault", tab: "vault" },
+    otd:    { chip: "ON THIS DAY", cls: "t-vault", tab: "vault" },
+    race:   { chip: "RACE",    cls: "t-vault", tab: "races" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -213,7 +216,8 @@
         '<button class="race-btn" type="button" data-race-toggle aria-label="Play or pause the race">Play</button>' +
         '<input class="race-scrub" type="range" min="0" max="1000" value="0" step="1" ' +
           'data-race-scrub aria-label="Scrub through the seasons">' +
-        '<span class="race-group mono">' + esc(p.group || "") + '</span>' +
+        '<button class="race-btn race-speed" type="button" data-race-speed ' +
+          'aria-label="Playback speed">1&times;</button>' +
       '</div>' +
       (p.note ? '<p class="race-note">' + esc(p.note) + '</p>' : "");
   }
@@ -234,7 +238,9 @@
       case "vs":    return { url: c.payload.compare_url, label: "Full comparison" };
       case "salary": return { url: "https://hoopsmatic.com/salary-season-finder", label: "Salary Season Finder" };
       case "oddity": return { url: "https://jsierrahoopshype.github.io/media-vote-tracker/", label: "Media Vote Tracker" };
-      case "race":  return { url: "https://hoopsmatic.com", label: "HoopsMatic tools" };
+      // No tap-through. The race IS the destination; sending someone to the
+      // HoopsMatic homepage from it added nothing.
+      case "race":  return null;
       default: return null;
     }
   }
@@ -242,7 +248,7 @@
   function render(c) {
     var meta = TYPE_META[c.type] || { chip: c.type, cls: "" };
     if (c.type === "otd" && c.payload && c.payload.approx) {
-      meta = { chip: "AROUND THIS DATE", cls: meta.cls };
+      meta = { chip: "AROUND THIS DATE", cls: meta.cls, tab: meta.tab };
     }
     var body = (RENDERERS[c.type] || function () { return ""; })(c);
     var tap = tapTarget(c);
@@ -250,8 +256,12 @@
       ? '<a class="act tap" data-action="tap" href="' + escAttr(tap.url) + '" target="_blank" rel="noopener">' +
         esc(tap.label) + ' <span aria-hidden="true">&#8599;</span></a>'
       : "";
+    var chipHtml = meta.tab
+      ? '<button class="chip chip-link" type="button" data-goto="' + escAttr(meta.tab) +
+        '" title="Show the ' + escAttr(meta.chip.toLowerCase()) + ' section">' + esc(meta.chip) + '</button>'
+      : '<span class="chip">' + esc(meta.chip) + '</span>';
     return '<article class="card ' + meta.cls + '" data-id="' + escAttr(c.id) + '" tabindex="-1">' +
-      '<header class="card-head"><span class="chip">' + esc(meta.chip) + '</span>' +
+      '<header class="card-head">' + chipHtml +
       (c.dummy ? '<span class="chip dummy">SAMPLE</span>' : "") +
       (c.live ? '<span class="chip live">LIVE</span>' : "") +
       '</header>' +

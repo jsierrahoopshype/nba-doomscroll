@@ -1,5 +1,5 @@
 {
- "built": "2026-08-24",
+ "built": "2026-08-25",
  "races": [
   {
    "slug": "career-points",
@@ -890,6 +890,5641 @@
     ],
     "players": [],
     "teams": []
+   }
+  },
+  {
+   "slug": "team-atl-points",
+   "group": "Teams",
+   "title": "Hawks all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Hawks uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 77,
+   "span": "1950-2026",
+   "leader": "Dominique Wilkins",
+   "file": "data/races/r/team-atl-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dominique Wilkins",
+     "Bob Pettit",
+     "Lou Hudson",
+     "Cliff Hagan",
+     "John Drew"
+    ],
+    "teams": [
+     "ATL"
+    ]
+   }
+  },
+  {
+   "slug": "team-atl-rebounds",
+   "group": "Teams",
+   "title": "Hawks all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Hawks uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 76,
+   "span": "1951-2026",
+   "leader": "Bob Pettit",
+   "file": "data/races/r/team-atl-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Bob Pettit",
+     "Bill Bridges",
+     "Kevin Willis",
+     "Dominique Wilkins",
+     "Tree Rollins"
+    ],
+    "teams": [
+     "ATL"
+    ]
+   }
+  },
+  {
+   "slug": "team-atl-assists",
+   "group": "Teams",
+   "title": "Hawks all-time assist leaders",
+   "subtitle": "Regular-season ast in a Hawks uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 77,
+   "span": "1950-2026",
+   "leader": "Trae Young",
+   "file": "data/races/r/team-atl-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Trae Young",
+     "Doc Rivers",
+     "Mookie Blaylock",
+     "Fast Eddie Johnson",
+     "Lenny Wilkens"
+    ],
+    "teams": [
+     "ATL"
+    ]
+   }
+  },
+  {
+   "slug": "team-atl-threes",
+   "group": "Teams",
+   "title": "Hawks all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Hawks uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Trae Young",
+   "file": "data/races/r/team-atl-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Trae Young",
+     "Mookie Blaylock",
+     "Joe Johnson",
+     "Kyle Korver",
+     "Bogdan Bogdanovic"
+    ],
+    "teams": [
+     "ATL"
+    ]
+   }
+  },
+  {
+   "slug": "team-atl-games",
+   "group": "Teams",
+   "title": "Hawks all-time games played",
+   "subtitle": "Regular-season games in a Hawks uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 77,
+   "span": "1950-2026",
+   "leader": "Dominique Wilkins",
+   "file": "data/races/r/team-atl-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dominique Wilkins",
+     "Tree Rollins",
+     "Bob Pettit",
+     "Kevin Willis",
+     "Cliff Hagan"
+    ],
+    "teams": [
+     "ATL"
+    ]
+   }
+  },
+  {
+   "slug": "team-atl-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Hawk",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Trae Young",
+   "file": "data/races/r/team-atl-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Trae Young",
+     "Clint Capela",
+     "Joe Johnson",
+     "Bogdan Bogdanovic",
+     "Al Horford"
+    ],
+    "teams": [
+     "ATL"
+    ]
+   }
+  },
+  {
+   "slug": "team-bkn-points",
+   "group": "Teams",
+   "title": "Nets all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Nets uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Brook Lopez",
+   "file": "data/races/r/team-bkn-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Brook Lopez",
+     "Buck Williams",
+     "Vince Carter",
+     "Richard Jefferson",
+     "Jason Kidd"
+    ],
+    "teams": [
+     "BKN"
+    ]
+   }
+  },
+  {
+   "slug": "team-bkn-rebounds",
+   "group": "Teams",
+   "title": "Nets all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Nets uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Buck Williams",
+   "file": "data/races/r/team-bkn-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Buck Williams",
+     "Brook Lopez",
+     "Derrick Coleman",
+     "Mike Gminski",
+     "Jason Kidd"
+    ],
+    "teams": [
+     "BKN"
+    ]
+   }
+  },
+  {
+   "slug": "team-bkn-assists",
+   "group": "Teams",
+   "title": "Nets all-time assist leaders",
+   "subtitle": "Regular-season ast in a Nets uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Jason Kidd",
+   "file": "data/races/r/team-bkn-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Jason Kidd",
+     "Kenny Anderson",
+     "Deron Williams",
+     "Spencer Dinwiddie",
+     "Darwin Cook"
+    ],
+    "teams": [
+     "BKN"
+    ]
+   }
+  },
+  {
+   "slug": "team-bkn-threes",
+   "group": "Teams",
+   "title": "Nets all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Nets uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Joe Harris",
+   "file": "data/races/r/team-bkn-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Joe Harris",
+     "Jason Kidd",
+     "Kerry Kittles",
+     "Vince Carter",
+     "Spencer Dinwiddie"
+    ],
+    "teams": [
+     "BKN"
+    ]
+   }
+  },
+  {
+   "slug": "team-bkn-games",
+   "group": "Teams",
+   "title": "Nets all-time games played",
+   "subtitle": "Regular-season games in a Nets uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Buck Williams",
+   "file": "data/races/r/team-bkn-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Buck Williams",
+     "Brook Lopez",
+     "Mike Gminski",
+     "Jason Collins",
+     "Chris Morris"
+    ],
+    "teams": [
+     "BKN"
+    ]
+   }
+  },
+  {
+   "slug": "team-bkn-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Net",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Ben Simmons",
+   "file": "data/races/r/team-bkn-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Ben Simmons",
+     "Kevin Durant",
+     "Deron Williams",
+     "Kyrie Irving",
+     "Brook Lopez"
+    ],
+    "teams": [
+     "BKN"
+    ]
+   }
+  },
+  {
+   "slug": "team-bos-points",
+   "group": "Teams",
+   "title": "Celtics all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Celtics uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "John Havlicek",
+   "file": "data/races/r/team-bos-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "John Havlicek",
+     "Paul Pierce",
+     "Larry Bird",
+     "Robert Parish",
+     "Kevin McHale"
+    ],
+    "teams": [
+     "BOS"
+    ]
+   }
+  },
+  {
+   "slug": "team-bos-rebounds",
+   "group": "Teams",
+   "title": "Celtics all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Celtics uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 76,
+   "span": "1951-2026",
+   "leader": "Bill Russell",
+   "file": "data/races/r/team-bos-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Bill Russell",
+     "Robert Parish",
+     "Dave Cowens",
+     "Larry Bird",
+     "John Havlicek"
+    ],
+    "teams": [
+     "BOS"
+    ]
+   }
+  },
+  {
+   "slug": "team-bos-assists",
+   "group": "Teams",
+   "title": "Celtics all-time assist leaders",
+   "subtitle": "Regular-season ast in a Celtics uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "Bob Cousy",
+   "file": "data/races/r/team-bos-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Bob Cousy",
+     "John Havlicek",
+     "Larry Bird",
+     "Rajon Rondo",
+     "Paul Pierce"
+    ],
+    "teams": [
+     "BOS"
+    ]
+   }
+  },
+  {
+   "slug": "team-bos-threes",
+   "group": "Teams",
+   "title": "Celtics all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Celtics uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Paul Pierce",
+   "file": "data/races/r/team-bos-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Paul Pierce",
+     "Jayson Tatum",
+     "Jaylen Brown",
+     "Antoine Walker",
+     "Marcus Smart"
+    ],
+    "teams": [
+     "BOS"
+    ]
+   }
+  },
+  {
+   "slug": "team-bos-games",
+   "group": "Teams",
+   "title": "Celtics all-time games played",
+   "subtitle": "Regular-season games in a Celtics uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "John Havlicek",
+   "file": "data/races/r/team-bos-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "John Havlicek",
+     "Robert Parish",
+     "Paul Pierce",
+     "Kevin McHale",
+     "Bill Russell"
+    ],
+    "teams": [
+     "BOS"
+    ]
+   }
+  },
+  {
+   "slug": "team-bos-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Celtic",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Jaylen Brown",
+   "file": "data/races/r/team-bos-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Jaylen Brown",
+     "Paul Pierce",
+     "Al Horford",
+     "Jayson Tatum",
+     "Kevin Garnett"
+    ],
+    "teams": [
+     "BOS"
+    ]
+   }
+  },
+  {
+   "slug": "team-cha-points",
+   "group": "Teams",
+   "title": "Hornets all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Hornets uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 36,
+   "span": "1989-2026",
+   "leader": "Kemba Walker",
+   "file": "data/races/r/team-cha-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kemba Walker",
+     "Dell Curry",
+     "Miles Bridges",
+     "Gerald Wallace",
+     "Larry Johnson (1969)"
+    ],
+    "teams": [
+     "CHA"
+    ]
+   }
+  },
+  {
+   "slug": "team-cha-rebounds",
+   "group": "Teams",
+   "title": "Hornets all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Hornets uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 36,
+   "span": "1989-2026",
+   "leader": "Emeka Okafor",
+   "file": "data/races/r/team-cha-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Emeka Okafor",
+     "Larry Johnson (1969)",
+     "Gerald Wallace",
+     "Miles Bridges",
+     "Cody Zeller"
+    ],
+    "teams": [
+     "CHA"
+    ]
+   }
+  },
+  {
+   "slug": "team-cha-assists",
+   "group": "Teams",
+   "title": "Hornets all-time assist leaders",
+   "subtitle": "Regular-season ast in a Hornets uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 36,
+   "span": "1989-2026",
+   "leader": "Muggsy Bogues",
+   "file": "data/races/r/team-cha-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Muggsy Bogues",
+     "Kemba Walker",
+     "Raymond Felton",
+     "LaMelo Ball",
+     "David Wesley"
+    ],
+    "teams": [
+     "CHA"
+    ]
+   }
+  },
+  {
+   "slug": "team-cha-threes",
+   "group": "Teams",
+   "title": "Hornets all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Hornets uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 36,
+   "span": "1989-2026",
+   "leader": "Kemba Walker",
+   "file": "data/races/r/team-cha-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kemba Walker",
+     "LaMelo Ball",
+     "Dell Curry",
+     "Miles Bridges",
+     "Terry Rozier"
+    ],
+    "teams": [
+     "CHA"
+    ]
+   }
+  },
+  {
+   "slug": "team-cha-games",
+   "group": "Teams",
+   "title": "Hornets all-time games played",
+   "subtitle": "Regular-season games in a Hornets uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 36,
+   "span": "1989-2026",
+   "leader": "Dell Curry",
+   "file": "data/races/r/team-cha-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dell Curry",
+     "Muggsy Bogues",
+     "Kemba Walker",
+     "Miles Bridges",
+     "Cody Zeller"
+    ],
+    "teams": [
+     "CHA"
+    ]
+   }
+  },
+  {
+   "slug": "team-cha-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Hornet",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 33,
+   "span": "1991-2025",
+   "leader": "Nicolas Batum",
+   "file": "data/races/r/team-cha-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Nicolas Batum",
+     "Gordon Hayward",
+     "Terry Rozier",
+     "Cody Zeller",
+     "LaMelo Ball"
+    ],
+    "teams": [
+     "CHA"
+    ]
+   }
+  },
+  {
+   "slug": "team-chi-points",
+   "group": "Teams",
+   "title": "Bulls all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Bulls uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 60,
+   "span": "1967-2026",
+   "leader": "Michael Jordan",
+   "file": "data/races/r/team-chi-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Michael Jordan",
+     "Scottie Pippen",
+     "Bob Love",
+     "Luol Deng",
+     "Jerry Sloan"
+    ],
+    "teams": [
+     "CHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-chi-rebounds",
+   "group": "Teams",
+   "title": "Bulls all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Bulls uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 60,
+   "span": "1967-2026",
+   "leader": "Michael Jordan",
+   "file": "data/races/r/team-chi-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Michael Jordan",
+     "Tom Boerwinkle",
+     "Scottie Pippen",
+     "Joakim Noah",
+     "Jerry Sloan"
+    ],
+    "teams": [
+     "CHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-chi-assists",
+   "group": "Teams",
+   "title": "Bulls all-time assist leaders",
+   "subtitle": "Regular-season ast in a Bulls uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 60,
+   "span": "1967-2026",
+   "leader": "Michael Jordan",
+   "file": "data/races/r/team-chi-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Michael Jordan",
+     "Scottie Pippen",
+     "Kirk Hinrich",
+     "Norm Van Lier",
+     "Derrick Rose"
+    ],
+    "teams": [
+     "CHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-chi-threes",
+   "group": "Teams",
+   "title": "Bulls all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Bulls uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Zach LaVine",
+   "file": "data/races/r/team-chi-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Zach LaVine",
+     "Kirk Hinrich",
+     "Coby White",
+     "Ben Gordon",
+     "Scottie Pippen"
+    ],
+    "teams": [
+     "CHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-chi-games",
+   "group": "Teams",
+   "title": "Bulls all-time games played",
+   "subtitle": "Regular-season games in a Bulls uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 60,
+   "span": "1967-2026",
+   "leader": "Michael Jordan",
+   "file": "data/races/r/team-chi-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Michael Jordan",
+     "Scottie Pippen",
+     "Kirk Hinrich",
+     "Jerry Sloan",
+     "John Paxson"
+    ],
+    "teams": [
+     "CHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-chi-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Bull",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Zach LaVine",
+   "file": "data/races/r/team-chi-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Zach LaVine",
+     "Nikola Vucevic",
+     "Derrick Rose",
+     "Michael Jordan",
+     "DeMar DeRozan"
+    ],
+    "teams": [
+     "CHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-cle-points",
+   "group": "Teams",
+   "title": "Cavaliers all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Cavaliers uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "LeBron James",
+   "file": "data/races/r/team-cle-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "LeBron James",
+     "Zydrunas Ilgauskas",
+     "Brad Daugherty",
+     "Austin Carr",
+     "Mark Price"
+    ],
+    "teams": [
+     "CLE"
+    ]
+   }
+  },
+  {
+   "slug": "team-cle-rebounds",
+   "group": "Teams",
+   "title": "Cavaliers all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Cavaliers uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "LeBron James",
+   "file": "data/races/r/team-cle-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "LeBron James",
+     "Zydrunas Ilgauskas",
+     "Tristan Thompson",
+     "Brad Daugherty",
+     "Hot Rod Williams"
+    ],
+    "teams": [
+     "CLE"
+    ]
+   }
+  },
+  {
+   "slug": "team-cle-assists",
+   "group": "Teams",
+   "title": "Cavaliers all-time assist leaders",
+   "subtitle": "Regular-season ast in a Cavaliers uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "LeBron James",
+   "file": "data/races/r/team-cle-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "LeBron James",
+     "Mark Price",
+     "Darius Garland",
+     "John Bagley",
+     "Terrell Brandon"
+    ],
+    "teams": [
+     "CLE"
+    ]
+   }
+  },
+  {
+   "slug": "team-cle-threes",
+   "group": "Teams",
+   "title": "Cavaliers all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Cavaliers uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "LeBron James",
+   "file": "data/races/r/team-cle-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "LeBron James",
+     "Kevin Love",
+     "Darius Garland",
+     "Donovan Mitchell",
+     "Mark Price"
+    ],
+    "teams": [
+     "CLE"
+    ]
+   }
+  },
+  {
+   "slug": "team-cle-games",
+   "group": "Teams",
+   "title": "Cavaliers all-time games played",
+   "subtitle": "Regular-season games in a Cavaliers uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "LeBron James",
+   "file": "data/races/r/team-cle-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "LeBron James",
+     "Zydrunas Ilgauskas",
+     "Danny Ferry",
+     "Bingo Smith",
+     "Tristan Thompson"
+    ],
+    "teams": [
+     "CLE"
+    ]
+   }
+  },
+  {
+   "slug": "team-cle-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Cavalier",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Kevin Love",
+   "file": "data/races/r/team-cle-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Kevin Love",
+     "LeBron James",
+     "Zydrunas Ilgauskas",
+     "Tristan Thompson",
+     "Darius Garland"
+    ],
+    "teams": [
+     "CLE"
+    ]
+   }
+  },
+  {
+   "slug": "team-dal-points",
+   "group": "Teams",
+   "title": "Mavericks all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Mavericks uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 46,
+   "span": "1981-2026",
+   "leader": "Dirk Nowitzki",
+   "file": "data/races/r/team-dal-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dirk Nowitzki",
+     "Rolando Blackman",
+     "Mark Aguirre",
+     "Derek Harper",
+     "Michael Finley"
+    ],
+    "teams": [
+     "DAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-dal-rebounds",
+   "group": "Teams",
+   "title": "Mavericks all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Mavericks uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 46,
+   "span": "1981-2026",
+   "leader": "Dirk Nowitzki",
+   "file": "data/races/r/team-dal-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dirk Nowitzki",
+     "James Donaldson",
+     "Sam Perkins",
+     "Luka Doncic",
+     "Shawn Bradley"
+    ],
+    "teams": [
+     "DAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-dal-assists",
+   "group": "Teams",
+   "title": "Mavericks all-time assist leaders",
+   "subtitle": "Regular-season ast in a Mavericks uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 46,
+   "span": "1981-2026",
+   "leader": "Derek Harper",
+   "file": "data/races/r/team-dal-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Derek Harper",
+     "Brad Davis",
+     "Jason Kidd",
+     "Dirk Nowitzki",
+     "Luka Doncic"
+    ],
+    "teams": [
+     "DAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-dal-threes",
+   "group": "Teams",
+   "title": "Mavericks all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Mavericks uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 46,
+   "span": "1981-2026",
+   "leader": "Dirk Nowitzki",
+   "file": "data/races/r/team-dal-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dirk Nowitzki",
+     "Luka Doncic",
+     "Jason Terry",
+     "Tim Hardaway Jr",
+     "Michael Finley"
+    ],
+    "teams": [
+     "DAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-dal-games",
+   "group": "Teams",
+   "title": "Mavericks all-time games played",
+   "subtitle": "Regular-season games in a Mavericks uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 46,
+   "span": "1981-2026",
+   "leader": "Dirk Nowitzki",
+   "file": "data/races/r/team-dal-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dirk Nowitzki",
+     "Brad Davis",
+     "Derek Harper",
+     "Rolando Blackman",
+     "Dwight Powell"
+    ],
+    "teams": [
+     "DAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-dal-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Maverick",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Dirk Nowitzki",
+   "file": "data/races/r/team-dal-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Dirk Nowitzki",
+     "Luka Doncic",
+     "Michael Finley",
+     "Kyrie Irving",
+     "Tim Hardaway Jr"
+    ],
+    "teams": [
+     "DAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-den-points",
+   "group": "Teams",
+   "title": "Nuggets all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Nuggets uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Alex English",
+   "file": "data/races/r/team-den-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Alex English",
+     "Nikola Jokic",
+     "Dan Issel",
+     "Carmelo Anthony",
+     "Jamal Murray"
+    ],
+    "teams": [
+     "DEN"
+    ]
+   }
+  },
+  {
+   "slug": "team-den-rebounds",
+   "group": "Teams",
+   "title": "Nuggets all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Nuggets uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Nikola Jokic",
+   "file": "data/races/r/team-den-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Nikola Jokic",
+     "Dan Issel",
+     "Dikembe Mutombo",
+     "Alex English",
+     "Marcus Camby"
+    ],
+    "teams": [
+     "DEN"
+    ]
+   }
+  },
+  {
+   "slug": "team-den-assists",
+   "group": "Teams",
+   "title": "Nuggets all-time assist leaders",
+   "subtitle": "Regular-season ast in a Nuggets uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Nikola Jokic",
+   "file": "data/races/r/team-den-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Nikola Jokic",
+     "Alex English",
+     "Fat Lever",
+     "Jamal Murray",
+     "Andre Miller"
+    ],
+    "teams": [
+     "DEN"
+    ]
+   }
+  },
+  {
+   "slug": "team-den-threes",
+   "group": "Teams",
+   "title": "Nuggets all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Nuggets uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Jamal Murray",
+   "file": "data/races/r/team-den-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Jamal Murray",
+     "Nikola Jokic",
+     "Michael Porter",
+     "Will Barton",
+     "JR Smith"
+    ],
+    "teams": [
+     "DEN"
+    ]
+   }
+  },
+  {
+   "slug": "team-den-games",
+   "group": "Teams",
+   "title": "Nuggets all-time games played",
+   "subtitle": "Regular-season games in a Nuggets uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Alex English",
+   "file": "data/races/r/team-den-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Alex English",
+     "Nikola Jokic",
+     "T.R. Dunn",
+     "Dan Issel",
+     "Jamal Murray"
+    ],
+    "teams": [
+     "DEN"
+    ]
+   }
+  },
+  {
+   "slug": "team-den-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Nugget",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Nikola Jokic",
+   "file": "data/races/r/team-den-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Nikola Jokic",
+     "Jamal Murray",
+     "Michael Porter",
+     "Paul Millsap",
+     "Aaron Gordon"
+    ],
+    "teams": [
+     "DEN"
+    ]
+   }
+  },
+  {
+   "slug": "team-det-points",
+   "group": "Teams",
+   "title": "Pistons all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Pistons uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 78,
+   "span": "1949-2026",
+   "leader": "Isiah Thomas",
+   "file": "data/races/r/team-det-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Isiah Thomas",
+     "Joe Dumars",
+     "Bob Lanier",
+     "Dave Bing",
+     "Bill Laimbeer"
+    ],
+    "teams": [
+     "DET"
+    ]
+   }
+  },
+  {
+   "slug": "team-det-rebounds",
+   "group": "Teams",
+   "title": "Pistons all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Pistons uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 76,
+   "span": "1951-2026",
+   "leader": "Bill Laimbeer",
+   "file": "data/races/r/team-det-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Bill Laimbeer",
+     "Andre Drummond",
+     "Bob Lanier",
+     "Ben Wallace",
+     "Dennis Rodman"
+    ],
+    "teams": [
+     "DET"
+    ]
+   }
+  },
+  {
+   "slug": "team-det-assists",
+   "group": "Teams",
+   "title": "Pistons all-time assist leaders",
+   "subtitle": "Regular-season ast in a Pistons uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 78,
+   "span": "1949-2026",
+   "leader": "Isiah Thomas",
+   "file": "data/races/r/team-det-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Isiah Thomas",
+     "Joe Dumars",
+     "Dave Bing",
+     "Chauncey Billups",
+     "Grant Hill"
+    ],
+    "teams": [
+     "DET"
+    ]
+   }
+  },
+  {
+   "slug": "team-det-threes",
+   "group": "Teams",
+   "title": "Pistons all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Pistons uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Joe Dumars",
+   "file": "data/races/r/team-det-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Joe Dumars",
+     "Chauncey Billups",
+     "Lindsey Hunter",
+     "Rasheed Wallace",
+     "Cade Cunningham"
+    ],
+    "teams": [
+     "DET"
+    ]
+   }
+  },
+  {
+   "slug": "team-det-games",
+   "group": "Teams",
+   "title": "Pistons all-time games played",
+   "subtitle": "Regular-season games in a Pistons uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 78,
+   "span": "1949-2026",
+   "leader": "Joe Dumars",
+   "file": "data/races/r/team-det-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Joe Dumars",
+     "Isiah Thomas",
+     "Bill Laimbeer",
+     "Vinnie Johnson",
+     "Tayshaun Prince"
+    ],
+    "teams": [
+     "DET"
+    ]
+   }
+  },
+  {
+   "slug": "team-det-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Piston",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Blake Griffin",
+   "file": "data/races/r/team-det-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Blake Griffin",
+     "Richard Hamilton",
+     "Andre Drummond",
+     "Tayshaun Prince",
+     "Reggie Jackson"
+    ],
+    "teams": [
+     "DET"
+    ]
+   }
+  },
+  {
+   "slug": "team-gsw-points",
+   "group": "Teams",
+   "title": "Warriors all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Warriors uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "Stephen Curry",
+   "file": "data/races/r/team-gsw-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Stephen Curry",
+     "Wilt Chamberlain",
+     "Rick Barry",
+     "Paul Arizin",
+     "Chris Mullin"
+    ],
+    "teams": [
+     "GSW"
+    ]
+   }
+  },
+  {
+   "slug": "team-gsw-rebounds",
+   "group": "Teams",
+   "title": "Warriors all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Warriors uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 76,
+   "span": "1951-2026",
+   "leader": "Nate Thurmond",
+   "file": "data/races/r/team-gsw-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Nate Thurmond",
+     "Wilt Chamberlain",
+     "Draymond Green",
+     "Larry Smith",
+     "Clyde Lee"
+    ],
+    "teams": [
+     "GSW"
+    ]
+   }
+  },
+  {
+   "slug": "team-gsw-assists",
+   "group": "Teams",
+   "title": "Warriors all-time assist leaders",
+   "subtitle": "Regular-season ast in a Warriors uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "Stephen Curry",
+   "file": "data/races/r/team-gsw-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Stephen Curry",
+     "Draymond Green",
+     "Guy Rodgers",
+     "Tim Hardaway",
+     "Rick Barry"
+    ],
+    "teams": [
+     "GSW"
+    ]
+   }
+  },
+  {
+   "slug": "team-gsw-threes",
+   "group": "Teams",
+   "title": "Warriors all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Warriors uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Stephen Curry",
+   "file": "data/races/r/team-gsw-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Stephen Curry",
+     "Klay Thompson",
+     "Draymond Green",
+     "Jason Richardson",
+     "Tim Hardaway"
+    ],
+    "teams": [
+     "GSW"
+    ]
+   }
+  },
+  {
+   "slug": "team-gsw-games",
+   "group": "Teams",
+   "title": "Warriors all-time games played",
+   "subtitle": "Regular-season games in a Warriors uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "Stephen Curry",
+   "file": "data/races/r/team-gsw-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Stephen Curry",
+     "Draymond Green",
+     "Chris Mullin",
+     "Klay Thompson",
+     "Nate Thurmond"
+    ],
+    "teams": [
+     "GSW"
+    ]
+   }
+  },
+  {
+   "slug": "team-gsw-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Warrior",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Stephen Curry",
+   "file": "data/races/r/team-gsw-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Stephen Curry",
+     "Klay Thompson",
+     "Draymond Green",
+     "Andrew Wiggins",
+     "Andre Iguodala"
+    ],
+    "teams": [
+     "GSW"
+    ]
+   }
+  },
+  {
+   "slug": "team-hou-points",
+   "group": "Teams",
+   "title": "Rockets all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Rockets uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 59,
+   "span": "1968-2026",
+   "leader": "Hakeem Olajuwon",
+   "file": "data/races/r/team-hou-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Hakeem Olajuwon",
+     "James Harden",
+     "Calvin Murphy",
+     "Rudy Tomjanovich",
+     "Elvin Hayes"
+    ],
+    "teams": [
+     "HOU"
+    ]
+   }
+  },
+  {
+   "slug": "team-hou-rebounds",
+   "group": "Teams",
+   "title": "Rockets all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Rockets uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 59,
+   "span": "1968-2026",
+   "leader": "Hakeem Olajuwon",
+   "file": "data/races/r/team-hou-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Hakeem Olajuwon",
+     "Elvin Hayes",
+     "Moses Malone",
+     "Rudy Tomjanovich",
+     "Otis Thorpe"
+    ],
+    "teams": [
+     "HOU"
+    ]
+   }
+  },
+  {
+   "slug": "team-hou-assists",
+   "group": "Teams",
+   "title": "Rockets all-time assist leaders",
+   "subtitle": "Regular-season ast in a Rockets uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 59,
+   "span": "1968-2026",
+   "leader": "James Harden",
+   "file": "data/races/r/team-hou-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "James Harden",
+     "Calvin Murphy",
+     "Allen Leavell",
+     "Hakeem Olajuwon",
+     "Mike Newlin"
+    ],
+    "teams": [
+     "HOU"
+    ]
+   }
+  },
+  {
+   "slug": "team-hou-threes",
+   "group": "Teams",
+   "title": "Rockets all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Rockets uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "James Harden",
+   "file": "data/races/r/team-hou-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "James Harden",
+     "Eric Gordon",
+     "Trevor Ariza",
+     "Jalen Green",
+     "Vernon Maxwell"
+    ],
+    "teams": [
+     "HOU"
+    ]
+   }
+  },
+  {
+   "slug": "team-hou-games",
+   "group": "Teams",
+   "title": "Rockets all-time games played",
+   "subtitle": "Regular-season games in a Rockets uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 59,
+   "span": "1968-2026",
+   "leader": "Hakeem Olajuwon",
+   "file": "data/races/r/team-hou-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Hakeem Olajuwon",
+     "Calvin Murphy",
+     "Rudy Tomjanovich",
+     "Robert Reid",
+     "Allen Leavell"
+    ],
+    "teams": [
+     "HOU"
+    ]
+   }
+  },
+  {
+   "slug": "team-hou-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Rocket",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "James Harden",
+   "file": "data/races/r/team-hou-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "James Harden",
+     "John Wall",
+     "Yao Ming",
+     "Eric Gordon",
+     "Tracy McGrady"
+    ],
+    "teams": [
+     "HOU"
+    ]
+   }
+  },
+  {
+   "slug": "team-ind-points",
+   "group": "Teams",
+   "title": "Pacers all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Pacers uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Reggie Miller",
+   "file": "data/races/r/team-ind-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Reggie Miller",
+     "Rik Smits",
+     "Jermaine O'Neal",
+     "Danny Granger",
+     "Vern Fleming"
+    ],
+    "teams": [
+     "IND"
+    ]
+   }
+  },
+  {
+   "slug": "team-ind-rebounds",
+   "group": "Teams",
+   "title": "Pacers all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Pacers uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Dale Davis",
+   "file": "data/races/r/team-ind-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dale Davis",
+     "Rik Smits",
+     "Jeff Foster",
+     "Jermaine O'Neal",
+     "Herb Williams"
+    ],
+    "teams": [
+     "IND"
+    ]
+   }
+  },
+  {
+   "slug": "team-ind-assists",
+   "group": "Teams",
+   "title": "Pacers all-time assist leaders",
+   "subtitle": "Regular-season ast in a Pacers uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Reggie Miller",
+   "file": "data/races/r/team-ind-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Reggie Miller",
+     "Vern Fleming",
+     "Mark Jackson",
+     "Jamaal Tinsley",
+     "TJ McConnell"
+    ],
+    "teams": [
+     "IND"
+    ]
+   }
+  },
+  {
+   "slug": "team-ind-threes",
+   "group": "Teams",
+   "title": "Pacers all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Pacers uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Reggie Miller",
+   "file": "data/races/r/team-ind-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Reggie Miller",
+     "Danny Granger",
+     "Paul George",
+     "Myles Turner",
+     "Tyrese Haliburton"
+    ],
+    "teams": [
+     "IND"
+    ]
+   }
+  },
+  {
+   "slug": "team-ind-games",
+   "group": "Teams",
+   "title": "Pacers all-time games played",
+   "subtitle": "Regular-season games in a Pacers uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Reggie Miller",
+   "file": "data/races/r/team-ind-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Reggie Miller",
+     "Rik Smits",
+     "Vern Fleming",
+     "Jeff Foster",
+     "Dale Davis"
+    ],
+    "teams": [
+     "IND"
+    ]
+   }
+  },
+  {
+   "slug": "team-ind-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Pacer",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Myles Turner",
+   "file": "data/races/r/team-ind-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Myles Turner",
+     "Reggie Miller",
+     "Jermaine O'Neal",
+     "Pascal Siakam",
+     "Victor Oladipo"
+    ],
+    "teams": [
+     "IND"
+    ]
+   }
+  },
+  {
+   "slug": "team-lac-points",
+   "group": "Teams",
+   "title": "Clippers all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Clippers uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "Randy Smith",
+   "file": "data/races/r/team-lac-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Randy Smith",
+     "Blake Griffin",
+     "Bob McAdoo",
+     "Elton Brand",
+     "Corey Maggette"
+    ],
+    "teams": [
+     "LAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-lac-rebounds",
+   "group": "Teams",
+   "title": "Clippers all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Clippers uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "DeAndre Jordan",
+   "file": "data/races/r/team-lac-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "DeAndre Jordan",
+     "Elton Brand",
+     "Blake Griffin",
+     "Loy Vaught",
+     "Ivica Zubac"
+    ],
+    "teams": [
+     "LAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-lac-assists",
+   "group": "Teams",
+   "title": "Clippers all-time assist leaders",
+   "subtitle": "Regular-season ast in a Clippers uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "Chris Paul",
+   "file": "data/races/r/team-lac-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Chris Paul",
+     "Randy Smith",
+     "Gary Grant",
+     "Norm Nixon",
+     "Blake Griffin"
+    ],
+    "teams": [
+     "LAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-lac-threes",
+   "group": "Teams",
+   "title": "Clippers all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Clippers uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Paul George",
+   "file": "data/races/r/team-lac-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Paul George",
+     "Eric Piatkowski",
+     "Kawhi Leonard",
+     "JJ Redick",
+     "Jamal Crawford"
+    ],
+    "teams": [
+     "LAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-lac-games",
+   "group": "Teams",
+   "title": "Clippers all-time games played",
+   "subtitle": "Regular-season games in a Clippers uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "DeAndre Jordan",
+   "file": "data/races/r/team-lac-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "DeAndre Jordan",
+     "Randy Smith",
+     "Eric Piatkowski",
+     "Loy Vaught",
+     "Corey Maggette"
+    ],
+    "teams": [
+     "LAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-lac-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Clipper",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Kawhi Leonard",
+   "file": "data/races/r/team-lac-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Kawhi Leonard",
+     "Paul George",
+     "Chris Paul",
+     "DeAndre Jordan",
+     "Blake Griffin"
+    ],
+    "teams": [
+     "LAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-lal-points",
+   "group": "Teams",
+   "title": "Lakers all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Lakers uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 78,
+   "span": "1949-2026",
+   "leader": "Kobe Bryant",
+   "file": "data/races/r/team-lal-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kobe Bryant",
+     "Jerry West",
+     "Kareem Abdul-Jabbar",
+     "Elgin Baylor",
+     "Magic Johnson"
+    ],
+    "teams": [
+     "LAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-lal-rebounds",
+   "group": "Teams",
+   "title": "Lakers all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Lakers uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 76,
+   "span": "1951-2026",
+   "leader": "Elgin Baylor",
+   "file": "data/races/r/team-lal-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Elgin Baylor",
+     "Kareem Abdul-Jabbar",
+     "Kobe Bryant",
+     "Magic Johnson",
+     "Wilt Chamberlain"
+    ],
+    "teams": [
+     "LAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-lal-assists",
+   "group": "Teams",
+   "title": "Lakers all-time assist leaders",
+   "subtitle": "Regular-season ast in a Lakers uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 78,
+   "span": "1949-2026",
+   "leader": "Magic Johnson",
+   "file": "data/races/r/team-lal-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Magic Johnson",
+     "Kobe Bryant",
+     "Jerry West",
+     "Norm Nixon",
+     "LeBron James"
+    ],
+    "teams": [
+     "LAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-lal-threes",
+   "group": "Teams",
+   "title": "Lakers all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Lakers uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Kobe Bryant",
+   "file": "data/races/r/team-lal-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kobe Bryant",
+     "LeBron James",
+     "Derek Fisher",
+     "Nick Van Exel",
+     "Austin Reaves"
+    ],
+    "teams": [
+     "LAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-lal-games",
+   "group": "Teams",
+   "title": "Lakers all-time games played",
+   "subtitle": "Regular-season games in a Lakers uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 78,
+   "span": "1949-2026",
+   "leader": "Kobe Bryant",
+   "file": "data/races/r/team-lal-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kobe Bryant",
+     "Kareem Abdul-Jabbar",
+     "Jerry West",
+     "James Worthy",
+     "Derek Fisher"
+    ],
+    "teams": [
+     "LAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-lal-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Laker",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Kobe Bryant",
+   "file": "data/races/r/team-lal-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Kobe Bryant",
+     "LeBron James",
+     "Anthony Davis",
+     "Shaquille O'Neal",
+     "Pau Gasol"
+    ],
+    "teams": [
+     "LAL"
+    ]
+   }
+  },
+  {
+   "slug": "team-mem-points",
+   "group": "Teams",
+   "title": "Grizzlies all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Grizzlies uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 31,
+   "span": "1996-2026",
+   "leader": "Mike Conley",
+   "file": "data/races/r/team-mem-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Mike Conley",
+     "Marc Gasol",
+     "Zach Randolph",
+     "Pau Gasol",
+     "Rudy Gay"
+    ],
+    "teams": [
+     "MEM"
+    ]
+   }
+  },
+  {
+   "slug": "team-mem-rebounds",
+   "group": "Teams",
+   "title": "Grizzlies all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Grizzlies uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 31,
+   "span": "1996-2026",
+   "leader": "Marc Gasol",
+   "file": "data/races/r/team-mem-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Marc Gasol",
+     "Zach Randolph",
+     "Pau Gasol",
+     "Shareef Abdur-Rahim",
+     "Rudy Gay"
+    ],
+    "teams": [
+     "MEM"
+    ]
+   }
+  },
+  {
+   "slug": "team-mem-assists",
+   "group": "Teams",
+   "title": "Grizzlies all-time assist leaders",
+   "subtitle": "Regular-season ast in a Grizzlies uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 31,
+   "span": "1996-2026",
+   "leader": "Mike Conley",
+   "file": "data/races/r/team-mem-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Mike Conley",
+     "Marc Gasol",
+     "Ja Morant",
+     "Jason Williams",
+     "Mike Bibby"
+    ],
+    "teams": [
+     "MEM"
+    ]
+   }
+  },
+  {
+   "slug": "team-mem-threes",
+   "group": "Teams",
+   "title": "Grizzlies all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Grizzlies uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 31,
+   "span": "1996-2026",
+   "leader": "Mike Conley",
+   "file": "data/races/r/team-mem-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Mike Conley",
+     "Mike Miller",
+     "Desmond Bane",
+     "Jaren Jackson Jr",
+     "Dillon Brooks"
+    ],
+    "teams": [
+     "MEM"
+    ]
+   }
+  },
+  {
+   "slug": "team-mem-games",
+   "group": "Teams",
+   "title": "Grizzlies all-time games played",
+   "subtitle": "Regular-season games in a Grizzlies uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 31,
+   "span": "1996-2026",
+   "leader": "Mike Conley",
+   "file": "data/races/r/team-mem-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Mike Conley",
+     "Marc Gasol",
+     "Zach Randolph",
+     "Rudy Gay",
+     "Pau Gasol"
+    ],
+    "teams": [
+     "MEM"
+    ]
+   }
+  },
+  {
+   "slug": "team-mem-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Grizzlie",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 30,
+   "span": "1996-2025",
+   "leader": "Mike Conley",
+   "file": "data/races/r/team-mem-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Mike Conley",
+     "Marc Gasol",
+     "Zach Randolph",
+     "Jaren Jackson Jr",
+     "Ja Morant"
+    ],
+    "teams": [
+     "MEM"
+    ]
+   }
+  },
+  {
+   "slug": "team-mia-points",
+   "group": "Teams",
+   "title": "Heat all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Heat uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 38,
+   "span": "1989-2026",
+   "leader": "Dwyane Wade",
+   "file": "data/races/r/team-mia-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dwyane Wade",
+     "Bam Adebayo",
+     "Alonzo Mourning",
+     "Glen Rice",
+     "LeBron James"
+    ],
+    "teams": [
+     "MIA"
+    ]
+   }
+  },
+  {
+   "slug": "team-mia-rebounds",
+   "group": "Teams",
+   "title": "Heat all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Heat uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 38,
+   "span": "1989-2026",
+   "leader": "Udonis Haslem",
+   "file": "data/races/r/team-mia-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Udonis Haslem",
+     "Bam Adebayo",
+     "Alonzo Mourning",
+     "Rony Seikaly",
+     "Dwyane Wade"
+    ],
+    "teams": [
+     "MIA"
+    ]
+   }
+  },
+  {
+   "slug": "team-mia-assists",
+   "group": "Teams",
+   "title": "Heat all-time assist leaders",
+   "subtitle": "Regular-season ast in a Heat uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 38,
+   "span": "1989-2026",
+   "leader": "Dwyane Wade",
+   "file": "data/races/r/team-mia-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dwyane Wade",
+     "Tim Hardaway",
+     "Bam Adebayo",
+     "Goran Dragic",
+     "Mario Chalmers"
+    ],
+    "teams": [
+     "MIA"
+    ]
+   }
+  },
+  {
+   "slug": "team-mia-threes",
+   "group": "Teams",
+   "title": "Heat all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Heat uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 38,
+   "span": "1989-2026",
+   "leader": "Duncan Robinson",
+   "file": "data/races/r/team-mia-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Duncan Robinson",
+     "Tyler Herro",
+     "Tim Hardaway",
+     "Eddie Jones",
+     "Glen Rice"
+    ],
+    "teams": [
+     "MIA"
+    ]
+   }
+  },
+  {
+   "slug": "team-mia-games",
+   "group": "Teams",
+   "title": "Heat all-time games played",
+   "subtitle": "Regular-season games in a Heat uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 38,
+   "span": "1989-2026",
+   "leader": "Dwyane Wade",
+   "file": "data/races/r/team-mia-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dwyane Wade",
+     "Udonis Haslem",
+     "Bam Adebayo",
+     "Alonzo Mourning",
+     "Mario Chalmers"
+    ],
+    "teams": [
+     "MIA"
+    ]
+   }
+  },
+  {
+   "slug": "team-mia-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Heat",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Jimmy Butler",
+   "file": "data/races/r/team-mia-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Jimmy Butler",
+     "Chris Bosh",
+     "Dwyane Wade",
+     "Bam Adebayo",
+     "Alonzo Mourning"
+    ],
+    "teams": [
+     "MIA"
+    ]
+   }
+  },
+  {
+   "slug": "team-mil-points",
+   "group": "Teams",
+   "title": "Bucks all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Bucks uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 58,
+   "span": "1969-2026",
+   "leader": "Giannis Antetokounmpo",
+   "file": "data/races/r/team-mil-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Giannis Antetokounmpo",
+     "Kareem Abdul-Jabbar",
+     "Khris Middleton",
+     "Glenn Robinson",
+     "Sidney Moncrief"
+    ],
+    "teams": [
+     "MIL"
+    ]
+   }
+  },
+  {
+   "slug": "team-mil-rebounds",
+   "group": "Teams",
+   "title": "Bucks all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Bucks uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 58,
+   "span": "1969-2026",
+   "leader": "Giannis Antetokounmpo",
+   "file": "data/races/r/team-mil-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Giannis Antetokounmpo",
+     "Kareem Abdul-Jabbar",
+     "Bob Dandridge",
+     "Marques Johnson",
+     "Andrew Bogut"
+    ],
+    "teams": [
+     "MIL"
+    ]
+   }
+  },
+  {
+   "slug": "team-mil-assists",
+   "group": "Teams",
+   "title": "Bucks all-time assist leaders",
+   "subtitle": "Regular-season ast in a Bucks uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 58,
+   "span": "1969-2026",
+   "leader": "Giannis Antetokounmpo",
+   "file": "data/races/r/team-mil-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Giannis Antetokounmpo",
+     "Paul Pressey",
+     "Khris Middleton",
+     "Sidney Moncrief",
+     "Brian Winters"
+    ],
+    "teams": [
+     "MIL"
+    ]
+   }
+  },
+  {
+   "slug": "team-mil-threes",
+   "group": "Teams",
+   "title": "Bucks all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Bucks uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Khris Middleton",
+   "file": "data/races/r/team-mil-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Khris Middleton",
+     "Ray Allen",
+     "Michael Redd",
+     "Brook Lopez",
+     "Bobby Portis"
+    ],
+    "teams": [
+     "MIL"
+    ]
+   }
+  },
+  {
+   "slug": "team-mil-games",
+   "group": "Teams",
+   "title": "Bucks all-time games played",
+   "subtitle": "Regular-season games in a Bucks uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 58,
+   "span": "1969-2026",
+   "leader": "Giannis Antetokounmpo",
+   "file": "data/races/r/team-mil-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Giannis Antetokounmpo",
+     "Khris Middleton",
+     "Junior Bridgeman",
+     "Sidney Moncrief",
+     "Bob Dandridge"
+    ],
+    "teams": [
+     "MIL"
+    ]
+   }
+  },
+  {
+   "slug": "team-mil-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Buck",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Giannis Antetokounmpo",
+   "file": "data/races/r/team-mil-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Giannis Antetokounmpo",
+     "Khris Middleton",
+     "Brook Lopez",
+     "Michael Redd",
+     "Damian Lillard"
+    ],
+    "teams": [
+     "MIL"
+    ]
+   }
+  },
+  {
+   "slug": "team-min-points",
+   "group": "Teams",
+   "title": "Timberwolves all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Timberwolves uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 37,
+   "span": "1990-2026",
+   "leader": "Kevin Garnett",
+   "file": "data/races/r/team-min-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kevin Garnett",
+     "Karl-Anthony Towns",
+     "Anthony Edwards",
+     "Andrew Wiggins",
+     "Sam Mitchell"
+    ],
+    "teams": [
+     "MIN"
+    ]
+   }
+  },
+  {
+   "slug": "team-min-rebounds",
+   "group": "Teams",
+   "title": "Timberwolves all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Timberwolves uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 37,
+   "span": "1990-2026",
+   "leader": "Kevin Garnett",
+   "file": "data/races/r/team-min-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kevin Garnett",
+     "Karl-Anthony Towns",
+     "Kevin Love",
+     "Rudy Gobert",
+     "Gorgui Dieng"
+    ],
+    "teams": [
+     "MIN"
+    ]
+   }
+  },
+  {
+   "slug": "team-min-assists",
+   "group": "Teams",
+   "title": "Timberwolves all-time assist leaders",
+   "subtitle": "Regular-season ast in a Timberwolves uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 37,
+   "span": "1990-2026",
+   "leader": "Kevin Garnett",
+   "file": "data/races/r/team-min-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kevin Garnett",
+     "Ricky Rubio",
+     "Pooh Richardson",
+     "Anthony Edwards",
+     "Karl-Anthony Towns"
+    ],
+    "teams": [
+     "MIN"
+    ]
+   }
+  },
+  {
+   "slug": "team-min-threes",
+   "group": "Teams",
+   "title": "Timberwolves all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Timberwolves uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 37,
+   "span": "1990-2026",
+   "leader": "Anthony Edwards",
+   "file": "data/races/r/team-min-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Anthony Edwards",
+     "Karl-Anthony Towns",
+     "Naz Reid",
+     "Jaden McDaniels",
+     "Andrew Wiggins"
+    ],
+    "teams": [
+     "MIN"
+    ]
+   }
+  },
+  {
+   "slug": "team-min-games",
+   "group": "Teams",
+   "title": "Timberwolves all-time games played",
+   "subtitle": "Regular-season games in a Timberwolves uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 37,
+   "span": "1990-2026",
+   "leader": "Kevin Garnett",
+   "file": "data/races/r/team-min-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kevin Garnett",
+     "Sam Mitchell",
+     "Doug West",
+     "Karl-Anthony Towns",
+     "Gorgui Dieng"
+    ],
+    "teams": [
+     "MIN"
+    ]
+   }
+  },
+  {
+   "slug": "team-min-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Timberwolve",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Kevin Garnett",
+   "file": "data/races/r/team-min-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Kevin Garnett",
+     "Karl-Anthony Towns",
+     "Rudy Gobert",
+     "Anthony Edwards",
+     "D'Angelo Russell"
+    ],
+    "teams": [
+     "MIN"
+    ]
+   }
+  },
+  {
+   "slug": "team-nop-points",
+   "group": "Teams",
+   "title": "Pelicans all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Pelicans uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 24,
+   "span": "2003-2026",
+   "leader": "Anthony Davis",
+   "file": "data/races/r/team-nop-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Anthony Davis",
+     "David West",
+     "Chris Paul",
+     "Jrue Holiday",
+     "Brandon Ingram"
+    ],
+    "teams": [
+     "NOP"
+    ]
+   }
+  },
+  {
+   "slug": "team-nop-rebounds",
+   "group": "Teams",
+   "title": "Pelicans all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Pelicans uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 24,
+   "span": "2003-2026",
+   "leader": "Anthony Davis",
+   "file": "data/races/r/team-nop-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Anthony Davis",
+     "David West",
+     "PJ Brown",
+     "Jonas Valanciunas",
+     "Tyson Chandler"
+    ],
+    "teams": [
+     "NOP"
+    ]
+   }
+  },
+  {
+   "slug": "team-nop-assists",
+   "group": "Teams",
+   "title": "Pelicans all-time assist leaders",
+   "subtitle": "Regular-season ast in a Pelicans uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 24,
+   "span": "2003-2026",
+   "leader": "Chris Paul",
+   "file": "data/races/r/team-nop-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Chris Paul",
+     "Jrue Holiday",
+     "Brandon Ingram",
+     "Tyreke Evans",
+     "Zion Williamson"
+    ],
+    "teams": [
+     "NOP"
+    ]
+   }
+  },
+  {
+   "slug": "team-nop-threes",
+   "group": "Teams",
+   "title": "Pelicans all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Pelicans uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 24,
+   "span": "2003-2026",
+   "leader": "Trey Murphy",
+   "file": "data/races/r/team-nop-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Trey Murphy",
+     "CJ McCollum",
+     "Jrue Holiday",
+     "Brandon Ingram",
+     "Predrag Stojakovic"
+    ],
+    "teams": [
+     "NOP"
+    ]
+   }
+  },
+  {
+   "slug": "team-nop-games",
+   "group": "Teams",
+   "title": "Pelicans all-time games played",
+   "subtitle": "Regular-season games in a Pelicans uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 24,
+   "span": "2003-2026",
+   "leader": "David West",
+   "file": "data/races/r/team-nop-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "David West",
+     "Anthony Davis",
+     "Chris Paul",
+     "Jrue Holiday",
+     "Trey Murphy"
+    ],
+    "teams": [
+     "NOP"
+    ]
+   }
+  },
+  {
+   "slug": "team-nop-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Pelican",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 23,
+   "span": "2003-2025",
+   "leader": "Brandon Ingram",
+   "file": "data/races/r/team-nop-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Brandon Ingram",
+     "CJ McCollum",
+     "Jrue Holiday",
+     "Zion Williamson",
+     "Anthony Davis"
+    ],
+    "teams": [
+     "NOP"
+    ]
+   }
+  },
+  {
+   "slug": "team-nyk-points",
+   "group": "Teams",
+   "title": "Knicks all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Knicks uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "Patrick Ewing",
+   "file": "data/races/r/team-nyk-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Patrick Ewing",
+     "Walt Frazier",
+     "Willis Reed",
+     "Allan Houston",
+     "Carl Braun"
+    ],
+    "teams": [
+     "NYK"
+    ]
+   }
+  },
+  {
+   "slug": "team-nyk-rebounds",
+   "group": "Teams",
+   "title": "Knicks all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Knicks uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 76,
+   "span": "1951-2026",
+   "leader": "Patrick Ewing",
+   "file": "data/races/r/team-nyk-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Patrick Ewing",
+     "Willis Reed",
+     "Charles Oakley",
+     "Harry Gallatin",
+     "Willie Naulls"
+    ],
+    "teams": [
+     "NYK"
+    ]
+   }
+  },
+  {
+   "slug": "team-nyk-assists",
+   "group": "Teams",
+   "title": "Knicks all-time assist leaders",
+   "subtitle": "Regular-season ast in a Knicks uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "Walt Frazier",
+   "file": "data/races/r/team-nyk-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Walt Frazier",
+     "Mark Jackson",
+     "Dick McGuire",
+     "Carl Braun",
+     "Richie Guerin"
+    ],
+    "teams": [
+     "NYK"
+    ]
+   }
+  },
+  {
+   "slug": "team-nyk-threes",
+   "group": "Teams",
+   "title": "Knicks all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Knicks uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "John Starks",
+   "file": "data/races/r/team-nyk-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "John Starks",
+     "Allan Houston",
+     "Carmelo Anthony",
+     "Jalen Brunson",
+     "Julius Randle"
+    ],
+    "teams": [
+     "NYK"
+    ]
+   }
+  },
+  {
+   "slug": "team-nyk-games",
+   "group": "Teams",
+   "title": "Knicks all-time games played",
+   "subtitle": "Regular-season games in a Knicks uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "Patrick Ewing",
+   "file": "data/races/r/team-nyk-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Patrick Ewing",
+     "Walt Frazier",
+     "Bill Bradley",
+     "Carl Braun",
+     "Phil Jackson"
+    ],
+    "teams": [
+     "NYK"
+    ]
+   }
+  },
+  {
+   "slug": "team-nyk-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Knick",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Carmelo Anthony",
+   "file": "data/races/r/team-nyk-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Carmelo Anthony",
+     "Allan Houston",
+     "Julius Randle",
+     "Amare Stoudemire",
+     "Patrick Ewing"
+    ],
+    "teams": [
+     "NYK"
+    ]
+   }
+  },
+  {
+   "slug": "team-okc-points",
+   "group": "Teams",
+   "title": "Thunder all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Thunder uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 59,
+   "span": "1968-2026",
+   "leader": "Russell Westbrook",
+   "file": "data/races/r/team-okc-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Russell Westbrook",
+     "Gary Payton",
+     "Kevin Durant",
+     "Fred Brown",
+     "Shai Gilgeous-Alexander"
+    ],
+    "teams": [
+     "OKC"
+    ]
+   }
+  },
+  {
+   "slug": "team-okc-rebounds",
+   "group": "Teams",
+   "title": "Thunder all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Thunder uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 59,
+   "span": "1968-2026",
+   "leader": "Jack Sikma",
+   "file": "data/races/r/team-okc-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Jack Sikma",
+     "Shawn Kemp",
+     "Russell Westbrook",
+     "Nick Collison",
+     "Kevin Durant"
+    ],
+    "teams": [
+     "OKC"
+    ]
+   }
+  },
+  {
+   "slug": "team-okc-assists",
+   "group": "Teams",
+   "title": "Thunder all-time assist leaders",
+   "subtitle": "Regular-season ast in a Thunder uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 59,
+   "span": "1968-2026",
+   "leader": "Gary Payton",
+   "file": "data/races/r/team-okc-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Gary Payton",
+     "Russell Westbrook",
+     "Nate McMillan",
+     "Fred Brown",
+     "Gus Williams"
+    ],
+    "teams": [
+     "OKC"
+    ]
+   }
+  },
+  {
+   "slug": "team-okc-threes",
+   "group": "Teams",
+   "title": "Thunder all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Thunder uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Kevin Durant",
+   "file": "data/races/r/team-okc-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kevin Durant",
+     "Rashard Lewis",
+     "Russell Westbrook",
+     "Gary Payton",
+     "Ray Allen"
+    ],
+    "teams": [
+     "OKC"
+    ]
+   }
+  },
+  {
+   "slug": "team-okc-games",
+   "group": "Teams",
+   "title": "Thunder all-time games played",
+   "subtitle": "Regular-season games in a Thunder uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 59,
+   "span": "1968-2026",
+   "leader": "Gary Payton",
+   "file": "data/races/r/team-okc-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Gary Payton",
+     "Fred Brown",
+     "Nick Collison",
+     "Russell Westbrook",
+     "Nate McMillan"
+    ],
+    "teams": [
+     "OKC"
+    ]
+   }
+  },
+  {
+   "slug": "team-okc-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Thunder",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Russell Westbrook",
+   "file": "data/races/r/team-okc-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Russell Westbrook",
+     "Shai Gilgeous-Alexander",
+     "Kevin Durant",
+     "Gary Payton",
+     "Steven Adams"
+    ],
+    "teams": [
+     "OKC"
+    ]
+   }
+  },
+  {
+   "slug": "team-orl-points",
+   "group": "Teams",
+   "title": "Magic all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Magic uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 37,
+   "span": "1990-2026",
+   "leader": "Dwight Howard",
+   "file": "data/races/r/team-orl-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dwight Howard",
+     "Nick Anderson",
+     "Nikola Vucevic",
+     "Tracy McGrady",
+     "Jameer Nelson"
+    ],
+    "teams": [
+     "ORL"
+    ]
+   }
+  },
+  {
+   "slug": "team-orl-rebounds",
+   "group": "Teams",
+   "title": "Magic all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Magic uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 37,
+   "span": "1990-2026",
+   "leader": "Dwight Howard",
+   "file": "data/races/r/team-orl-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dwight Howard",
+     "Nikola Vucevic",
+     "Shaquille O'Neal",
+     "Nick Anderson",
+     "Horace Grant"
+    ],
+    "teams": [
+     "ORL"
+    ]
+   }
+  },
+  {
+   "slug": "team-orl-assists",
+   "group": "Teams",
+   "title": "Magic all-time assist leaders",
+   "subtitle": "Regular-season ast in a Magic uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 37,
+   "span": "1990-2026",
+   "leader": "Jameer Nelson",
+   "file": "data/races/r/team-orl-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Jameer Nelson",
+     "Scott Skiles",
+     "Darrell Armstrong",
+     "Anfernee Hardaway",
+     "Nick Anderson"
+    ],
+    "teams": [
+     "ORL"
+    ]
+   }
+  },
+  {
+   "slug": "team-orl-threes",
+   "group": "Teams",
+   "title": "Magic all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Magic uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 37,
+   "span": "1990-2026",
+   "leader": "Dennis Scott",
+   "file": "data/races/r/team-orl-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dennis Scott",
+     "Nick Anderson",
+     "Evan Fournier",
+     "Jameer Nelson",
+     "Hidayet Turkoglu"
+    ],
+    "teams": [
+     "ORL"
+    ]
+   }
+  },
+  {
+   "slug": "team-orl-games",
+   "group": "Teams",
+   "title": "Magic all-time games played",
+   "subtitle": "Regular-season games in a Magic uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 37,
+   "span": "1990-2026",
+   "leader": "Nick Anderson",
+   "file": "data/races/r/team-orl-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Nick Anderson",
+     "Jameer Nelson",
+     "Dwight Howard",
+     "Nikola Vucevic",
+     "Pat Garrity"
+    ],
+    "teams": [
+     "ORL"
+    ]
+   }
+  },
+  {
+   "slug": "team-orl-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Magic",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Jonathan Isaac",
+   "file": "data/races/r/team-orl-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Jonathan Isaac",
+     "Grant Hill",
+     "Dwight Howard",
+     "Nikola Vucevic",
+     "Markelle Fultz"
+    ],
+    "teams": [
+     "ORL"
+    ]
+   }
+  },
+  {
+   "slug": "team-phi-points",
+   "group": "Teams",
+   "title": "76ers all-time scoring leaders",
+   "subtitle": "Regular-season pts in a 76ers uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 77,
+   "span": "1950-2026",
+   "leader": "Hal Greer",
+   "file": "data/races/r/team-phi-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Hal Greer",
+     "Allen Iverson",
+     "Dolph Schayes",
+     "Julius Erving",
+     "Charles Barkley"
+    ],
+    "teams": [
+     "PHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-phi-rebounds",
+   "group": "Teams",
+   "title": "76ers all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a 76ers uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 76,
+   "span": "1951-2026",
+   "leader": "Dolph Schayes",
+   "file": "data/races/r/team-phi-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Dolph Schayes",
+     "Red Kerr",
+     "Charles Barkley",
+     "Billy Cunningham",
+     "Wilt Chamberlain"
+    ],
+    "teams": [
+     "PHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-phi-assists",
+   "group": "Teams",
+   "title": "76ers all-time assist leaders",
+   "subtitle": "Regular-season ast in a 76ers uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 77,
+   "span": "1950-2026",
+   "leader": "Maurice Cheeks",
+   "file": "data/races/r/team-phi-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Maurice Cheeks",
+     "Hal Greer",
+     "Allen Iverson",
+     "Julius Erving",
+     "Dolph Schayes"
+    ],
+    "teams": [
+     "PHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-phi-threes",
+   "group": "Teams",
+   "title": "76ers all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a 76ers uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Tyrese Maxey",
+   "file": "data/races/r/team-phi-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Tyrese Maxey",
+     "Allen Iverson",
+     "Robert Covington",
+     "Kyle Korver",
+     "Joel Embiid"
+    ],
+    "teams": [
+     "PHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-phi-games",
+   "group": "Teams",
+   "title": "76ers all-time games played",
+   "subtitle": "Regular-season games in a 76ers uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 77,
+   "span": "1950-2026",
+   "leader": "Hal Greer",
+   "file": "data/races/r/team-phi-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Hal Greer",
+     "Dolph Schayes",
+     "Maurice Cheeks",
+     "Julius Erving",
+     "Red Kerr"
+    ],
+    "teams": [
+     "PHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-phi-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a 76er",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Joel Embiid",
+   "file": "data/races/r/team-phi-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Joel Embiid",
+     "Tobias Harris",
+     "Allen Iverson",
+     "Elton Brand",
+     "James Harden"
+    ],
+    "teams": [
+     "PHI"
+    ]
+   }
+  },
+  {
+   "slug": "team-phx-points",
+   "group": "Teams",
+   "title": "Suns all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Suns uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 58,
+   "span": "1969-2026",
+   "leader": "Devin Booker",
+   "file": "data/races/r/team-phx-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Devin Booker",
+     "Walter Davis",
+     "Alvan Adams",
+     "Kevin Johnson",
+     "Shawn Marion"
+    ],
+    "teams": [
+     "PHX"
+    ]
+   }
+  },
+  {
+   "slug": "team-phx-rebounds",
+   "group": "Teams",
+   "title": "Suns all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Suns uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 58,
+   "span": "1969-2026",
+   "leader": "Alvan Adams",
+   "file": "data/races/r/team-phx-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Alvan Adams",
+     "Shawn Marion",
+     "Amare Stoudemire",
+     "Larry Nance",
+     "Neal Walk"
+    ],
+    "teams": [
+     "PHX"
+    ]
+   }
+  },
+  {
+   "slug": "team-phx-assists",
+   "group": "Teams",
+   "title": "Suns all-time assist leaders",
+   "subtitle": "Regular-season ast in a Suns uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 58,
+   "span": "1969-2026",
+   "leader": "Steve Nash",
+   "file": "data/races/r/team-phx-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Steve Nash",
+     "Kevin Johnson",
+     "Alvan Adams",
+     "Devin Booker",
+     "Walter Davis"
+    ],
+    "teams": [
+     "PHX"
+    ]
+   }
+  },
+  {
+   "slug": "team-phx-threes",
+   "group": "Teams",
+   "title": "Suns all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Suns uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Devin Booker",
+   "file": "data/races/r/team-phx-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Devin Booker",
+     "Steve Nash",
+     "Dan Majerle",
+     "Leandro Barbosa",
+     "Shawn Marion"
+    ],
+    "teams": [
+     "PHX"
+    ]
+   }
+  },
+  {
+   "slug": "team-phx-games",
+   "group": "Teams",
+   "title": "Suns all-time games played",
+   "subtitle": "Regular-season games in a Suns uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 58,
+   "span": "1969-2026",
+   "leader": "Alvan Adams",
+   "file": "data/races/r/team-phx-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Alvan Adams",
+     "Walter Davis",
+     "Steve Nash",
+     "Devin Booker",
+     "Dick Van Arsdale"
+    ],
+    "teams": [
+     "PHX"
+    ]
+   }
+  },
+  {
+   "slug": "team-phx-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Sun",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Devin Booker",
+   "file": "data/races/r/team-phx-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Devin Booker",
+     "Kevin Durant",
+     "Chris Paul",
+     "Bradley Beal",
+     "Steve Nash"
+    ],
+    "teams": [
+     "PHX"
+    ]
+   }
+  },
+  {
+   "slug": "team-por-points",
+   "group": "Teams",
+   "title": "Trail Blazers all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Trail Blazers uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "Damian Lillard",
+   "file": "data/races/r/team-por-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Damian Lillard",
+     "Clyde Drexler",
+     "LaMarcus Aldridge",
+     "Terry Porter",
+     "CJ McCollum"
+    ],
+    "teams": [
+     "POR"
+    ]
+   }
+  },
+  {
+   "slug": "team-por-rebounds",
+   "group": "Teams",
+   "title": "Trail Blazers all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Trail Blazers uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "LaMarcus Aldridge",
+   "file": "data/races/r/team-por-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "LaMarcus Aldridge",
+     "Clyde Drexler",
+     "Jerome Kersey",
+     "Mychal Thompson",
+     "Buck Williams"
+    ],
+    "teams": [
+     "POR"
+    ]
+   }
+  },
+  {
+   "slug": "team-por-assists",
+   "group": "Teams",
+   "title": "Trail Blazers all-time assist leaders",
+   "subtitle": "Regular-season ast in a Trail Blazers uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "Terry Porter",
+   "file": "data/races/r/team-por-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Terry Porter",
+     "Damian Lillard",
+     "Clyde Drexler",
+     "Damon Stoudamire",
+     "Rod Strickland"
+    ],
+    "teams": [
+     "POR"
+    ]
+   }
+  },
+  {
+   "slug": "team-por-threes",
+   "group": "Teams",
+   "title": "Trail Blazers all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Trail Blazers uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Damian Lillard",
+   "file": "data/races/r/team-por-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Damian Lillard",
+     "CJ McCollum",
+     "Anfernee Simons",
+     "Wesley Matthews",
+     "Terry Porter"
+    ],
+    "teams": [
+     "POR"
+    ]
+   }
+  },
+  {
+   "slug": "team-por-games",
+   "group": "Teams",
+   "title": "Trail Blazers all-time games played",
+   "subtitle": "Regular-season games in a Trail Blazers uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 56,
+   "span": "1971-2026",
+   "leader": "Clyde Drexler",
+   "file": "data/races/r/team-por-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Clyde Drexler",
+     "Jerome Kersey",
+     "Damian Lillard",
+     "Terry Porter",
+     "LaMarcus Aldridge"
+    ],
+    "teams": [
+     "POR"
+    ]
+   }
+  },
+  {
+   "slug": "team-por-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Trail Blazer",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Damian Lillard",
+   "file": "data/races/r/team-por-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Damian Lillard",
+     "CJ McCollum",
+     "Brandon Roy",
+     "LaMarcus Aldridge",
+     "Rasheed Wallace"
+    ],
+    "teams": [
+     "POR"
+    ]
+   }
+  },
+  {
+   "slug": "team-sac-points",
+   "group": "Teams",
+   "title": "Kings all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Kings uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 78,
+   "span": "1949-2026",
+   "leader": "Oscar Robertson",
+   "file": "data/races/r/team-sac-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Oscar Robertson",
+     "Jack Twyman",
+     "Mitch Richmond",
+     "De'Aaron Fox",
+     "Tiny Archibald"
+    ],
+    "teams": [
+     "SAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-sac-rebounds",
+   "group": "Teams",
+   "title": "Kings all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Kings uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 76,
+   "span": "1951-2026",
+   "leader": "Sam Lacey",
+   "file": "data/races/r/team-sac-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Sam Lacey",
+     "Jerry Lucas",
+     "Oscar Robertson",
+     "Wayne Embry",
+     "Jack Twyman"
+    ],
+    "teams": [
+     "SAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-sac-assists",
+   "group": "Teams",
+   "title": "Kings all-time assist leaders",
+   "subtitle": "Regular-season ast in a Kings uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 78,
+   "span": "1949-2026",
+   "leader": "Oscar Robertson",
+   "file": "data/races/r/team-sac-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Oscar Robertson",
+     "Sam Lacey",
+     "Tiny Archibald",
+     "De'Aaron Fox",
+     "Reggie Theus"
+    ],
+    "teams": [
+     "SAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-sac-threes",
+   "group": "Teams",
+   "title": "Kings all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Kings uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Buddy Hield",
+   "file": "data/races/r/team-sac-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Buddy Hield",
+     "Predrag Stojakovic",
+     "Mitch Richmond",
+     "De'Aaron Fox",
+     "Mike Bibby"
+    ],
+    "teams": [
+     "SAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-sac-games",
+   "group": "Teams",
+   "title": "Kings all-time games played",
+   "subtitle": "Regular-season games in a Kings uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 78,
+   "span": "1949-2026",
+   "leader": "Sam Lacey",
+   "file": "data/races/r/team-sac-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Sam Lacey",
+     "Jack Twyman",
+     "Oscar Robertson",
+     "Adrian Smith",
+     "Wayne Embry"
+    ],
+    "teams": [
+     "SAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-sac-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a King",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "De'Aaron Fox",
+   "file": "data/races/r/team-sac-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "De'Aaron Fox",
+     "Harrison Barnes",
+     "Domantas Sabonis",
+     "Chris Webber",
+     "Rudy Gay"
+    ],
+    "teams": [
+     "SAC"
+    ]
+   }
+  },
+  {
+   "slug": "team-sas-points",
+   "group": "Teams",
+   "title": "Spurs all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Spurs uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Tim Duncan",
+   "file": "data/races/r/team-sas-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Tim Duncan",
+     "David Robinson",
+     "George Gervin",
+     "Tony Parker",
+     "Manu Ginobili"
+    ],
+    "teams": [
+     "SAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-sas-rebounds",
+   "group": "Teams",
+   "title": "Spurs all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Spurs uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Tim Duncan",
+   "file": "data/races/r/team-sas-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Tim Duncan",
+     "David Robinson",
+     "Manu Ginobili",
+     "Artis Gilmore",
+     "George Gervin"
+    ],
+    "teams": [
+     "SAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-sas-assists",
+   "group": "Teams",
+   "title": "Spurs all-time assist leaders",
+   "subtitle": "Regular-season ast in a Spurs uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Tony Parker",
+   "file": "data/races/r/team-sas-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Tony Parker",
+     "Avery Johnson",
+     "Tim Duncan",
+     "Manu Ginobili",
+     "Johnny Moore"
+    ],
+    "teams": [
+     "SAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-sas-threes",
+   "group": "Teams",
+   "title": "Spurs all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Spurs uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Manu Ginobili",
+   "file": "data/races/r/team-sas-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Manu Ginobili",
+     "Patrick Mills",
+     "Danny Green",
+     "Devin Vassell",
+     "Keldon Johnson"
+    ],
+    "teams": [
+     "SAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-sas-games",
+   "group": "Teams",
+   "title": "Spurs all-time games played",
+   "subtitle": "Regular-season games in a Spurs uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 50,
+   "span": "1977-2026",
+   "leader": "Tim Duncan",
+   "file": "data/races/r/team-sas-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Tim Duncan",
+     "Tony Parker",
+     "Manu Ginobili",
+     "David Robinson",
+     "George Gervin"
+    ],
+    "teams": [
+     "SAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-sas-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Spur",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Tim Duncan",
+   "file": "data/races/r/team-sas-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Tim Duncan",
+     "Tony Parker",
+     "Manu Ginobili",
+     "LaMarcus Aldridge",
+     "David Robinson"
+    ],
+    "teams": [
+     "SAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-tor-points",
+   "group": "Teams",
+   "title": "Raptors all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Raptors uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 31,
+   "span": "1996-2026",
+   "leader": "DeMar DeRozan",
+   "file": "data/races/r/team-tor-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "DeMar DeRozan",
+     "Kyle Lowry",
+     "Chris Bosh",
+     "Vince Carter",
+     "Pascal Siakam"
+    ],
+    "teams": [
+     "TOR"
+    ]
+   }
+  },
+  {
+   "slug": "team-tor-rebounds",
+   "group": "Teams",
+   "title": "Raptors all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Raptors uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 31,
+   "span": "1996-2026",
+   "leader": "Chris Bosh",
+   "file": "data/races/r/team-tor-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Chris Bosh",
+     "Jonas Valanciunas",
+     "Pascal Siakam",
+     "Kyle Lowry",
+     "Antonio Davis"
+    ],
+    "teams": [
+     "TOR"
+    ]
+   }
+  },
+  {
+   "slug": "team-tor-assists",
+   "group": "Teams",
+   "title": "Raptors all-time assist leaders",
+   "subtitle": "Regular-season ast in a Raptors uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 31,
+   "span": "1996-2026",
+   "leader": "Kyle Lowry",
+   "file": "data/races/r/team-tor-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kyle Lowry",
+     "Jose Calderon",
+     "Fred VanVleet",
+     "DeMar DeRozan",
+     "Pascal Siakam"
+    ],
+    "teams": [
+     "TOR"
+    ]
+   }
+  },
+  {
+   "slug": "team-tor-threes",
+   "group": "Teams",
+   "title": "Raptors all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Raptors uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 31,
+   "span": "1996-2026",
+   "leader": "Kyle Lowry",
+   "file": "data/races/r/team-tor-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Kyle Lowry",
+     "Fred VanVleet",
+     "Morris Peterson",
+     "OG Anunoby",
+     "Terrence Ross"
+    ],
+    "teams": [
+     "TOR"
+    ]
+   }
+  },
+  {
+   "slug": "team-tor-games",
+   "group": "Teams",
+   "title": "Raptors all-time games played",
+   "subtitle": "Regular-season games in a Raptors uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 31,
+   "span": "1996-2026",
+   "leader": "DeMar DeRozan",
+   "file": "data/races/r/team-tor-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "DeMar DeRozan",
+     "Kyle Lowry",
+     "Morris Peterson",
+     "Jose Calderon",
+     "Pascal Siakam"
+    ],
+    "teams": [
+     "TOR"
+    ]
+   }
+  },
+  {
+   "slug": "team-tor-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Raptor",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 30,
+   "span": "1996-2025",
+   "leader": "Kyle Lowry",
+   "file": "data/races/r/team-tor-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Kyle Lowry",
+     "Pascal Siakam",
+     "DeMar DeRozan",
+     "Fred VanVleet",
+     "Serge Ibaka"
+    ],
+    "teams": [
+     "TOR"
+    ]
+   }
+  },
+  {
+   "slug": "team-uta-points",
+   "group": "Teams",
+   "title": "Jazz all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Jazz uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 52,
+   "span": "1975-2026",
+   "leader": "Karl Malone",
+   "file": "data/races/r/team-uta-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Karl Malone",
+     "John Stockton",
+     "Adrian Dantley",
+     "Darrell Griffith",
+     "Thurl Bailey"
+    ],
+    "teams": [
+     "UTA"
+    ]
+   }
+  },
+  {
+   "slug": "team-uta-rebounds",
+   "group": "Teams",
+   "title": "Jazz all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Jazz uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 52,
+   "span": "1975-2026",
+   "leader": "Karl Malone",
+   "file": "data/races/r/team-uta-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Karl Malone",
+     "Rudy Gobert",
+     "Mark Eaton",
+     "Derrick Favors",
+     "John Stockton"
+    ],
+    "teams": [
+     "UTA"
+    ]
+   }
+  },
+  {
+   "slug": "team-uta-assists",
+   "group": "Teams",
+   "title": "Jazz all-time assist leaders",
+   "subtitle": "Regular-season ast in a Jazz uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 52,
+   "span": "1975-2026",
+   "leader": "John Stockton",
+   "file": "data/races/r/team-uta-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "John Stockton",
+     "Karl Malone",
+     "Rickey Green",
+     "Deron Williams",
+     "Joe Ingles"
+    ],
+    "teams": [
+     "UTA"
+    ]
+   }
+  },
+  {
+   "slug": "team-uta-threes",
+   "group": "Teams",
+   "title": "Jazz all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Jazz uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Joe Ingles",
+   "file": "data/races/r/team-uta-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Joe Ingles",
+     "Donovan Mitchell",
+     "John Stockton",
+     "Jordan Clarkson",
+     "Gordon Hayward"
+    ],
+    "teams": [
+     "UTA"
+    ]
+   }
+  },
+  {
+   "slug": "team-uta-games",
+   "group": "Teams",
+   "title": "Jazz all-time games played",
+   "subtitle": "Regular-season games in a Jazz uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 52,
+   "span": "1975-2026",
+   "leader": "John Stockton",
+   "file": "data/races/r/team-uta-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "John Stockton",
+     "Karl Malone",
+     "Mark Eaton",
+     "Darrell Griffith",
+     "Thurl Bailey"
+    ],
+    "teams": [
+     "UTA"
+    ]
+   }
+  },
+  {
+   "slug": "team-uta-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Jazz",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Rudy Gobert",
+   "file": "data/races/r/team-uta-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Rudy Gobert",
+     "Karl Malone",
+     "Derrick Favors",
+     "Andrei Kirilenko",
+     "Jordan Clarkson"
+    ],
+    "teams": [
+     "UTA"
+    ]
+   }
+  },
+  {
+   "slug": "team-was-points",
+   "group": "Teams",
+   "title": "Wizards all-time scoring leaders",
+   "subtitle": "Regular-season pts in a Wizards uniform, cumulative",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 65,
+   "span": "1962-2026",
+   "leader": "Elvin Hayes",
+   "file": "data/races/r/team-was-points.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Elvin Hayes",
+     "Bradley Beal",
+     "Jeff Malone",
+     "John Wall",
+     "Wes Unseld"
+    ],
+    "teams": [
+     "WAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-was-rebounds",
+   "group": "Teams",
+   "title": "Wizards all-time rebounding leaders",
+   "subtitle": "Regular-season reb in a Wizards uniform, cumulative",
+   "unit": "reb",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 65,
+   "span": "1962-2026",
+   "leader": "Wes Unseld",
+   "file": "data/races/r/team-was-rebounds.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Wes Unseld",
+     "Elvin Hayes",
+     "Gus Johnson",
+     "Walt Bellamy",
+     "Greg Ballard"
+    ],
+    "teams": [
+     "WAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-was-assists",
+   "group": "Teams",
+   "title": "Wizards all-time assist leaders",
+   "subtitle": "Regular-season ast in a Wizards uniform, cumulative",
+   "unit": "ast",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 65,
+   "span": "1962-2026",
+   "leader": "John Wall",
+   "file": "data/races/r/team-was-assists.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "John Wall",
+     "Wes Unseld",
+     "Bradley Beal",
+     "Rod Strickland",
+     "Kevin Porter (1950)"
+    ],
+    "teams": [
+     "WAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-was-threes",
+   "group": "Teams",
+   "title": "Wizards all-time 3-point leaders",
+   "subtitle": "Regular-season 3PM in a Wizards uniform, cumulative",
+   "unit": "3PM",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 2,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 47,
+   "span": "1980-2026",
+   "leader": "Bradley Beal",
+   "file": "data/races/r/team-was-threes.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Bradley Beal",
+     "Gilbert Arenas",
+     "Antawn Jamison",
+     "Corey Kispert",
+     "John Wall"
+    ],
+    "teams": [
+     "WAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-was-games",
+   "group": "Teams",
+   "title": "Wizards all-time games played",
+   "subtitle": "Regular-season games in a Wizards uniform, cumulative",
+   "unit": "games",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 3,
+   "note": "Counts only what each player did for this franchise.",
+   "steps": 65,
+   "span": "1962-2026",
+   "leader": "Wes Unseld",
+   "file": "data/races/r/team-was-games.json",
+   "tags": {
+    "category": [
+     "team",
+     "franchise"
+    ],
+    "players": [
+     "Wes Unseld",
+     "Elvin Hayes",
+     "Bradley Beal",
+     "Greg Ballard",
+     "Charles Jones (1957)"
+    ],
+    "teams": [
+     "WAS"
+    ]
+   }
+  },
+  {
+   "slug": "team-was-earnings",
+   "group": "Teams",
+   "title": "Most money earned as a Wizard",
+   "subtitle": "Cumulative salary paid by the franchise, 1991 onward",
+   "unit": "",
+   "fmt": "money",
+   "kind": "player",
+   "tier": 2,
+   "note": "Salary data starts in 1991.",
+   "steps": 35,
+   "span": "1991-2025",
+   "leader": "Bradley Beal",
+   "file": "data/races/r/team-was-earnings.json",
+   "tags": {
+    "category": [
+     "team",
+     "salary"
+    ],
+    "players": [
+     "Bradley Beal",
+     "John Wall",
+     "Gilbert Arenas",
+     "Kyle Kuzma",
+     "Juwan Howard"
+    ],
+    "teams": [
+     "WAS"
+    ]
+   }
+  },
+  {
+   "slug": "earnings-by-country",
+   "group": "Money",
+   "title": "NBA earnings by country",
+   "subtitle": "Every dollar paid, credited to the player's country",
+   "unit": "",
+   "fmt": "money",
+   "kind": "country",
+   "tier": 1,
+   "note": "Salary data starts in 1991.",
+   "steps": 36,
+   "span": "1991-2026",
+   "leader": "United States",
+   "file": "data/races/r/earnings-by-country.json",
+   "tags": {
+    "category": [
+     "salary",
+     "international"
+    ],
+    "players": [],
+    "teams": []
+   }
+  },
+  {
+   "slug": "payroll-by-franchise",
+   "group": "Money",
+   "title": "Total salary paid, by franchise",
+   "subtitle": "Every dollar a franchise has paid its players, cumulative",
+   "unit": "",
+   "fmt": "money",
+   "kind": "team",
+   "tier": 1,
+   "note": "Salary data starts in 1991, so this is not an all-time figure.",
+   "steps": 36,
+   "span": "1991-2026",
+   "leader": "Knicks",
+   "file": "data/races/r/payroll-by-franchise.json",
+   "tags": {
+    "category": [
+     "salary",
+     "franchise"
+    ],
+    "players": [],
+    "teams": [
+     "NYK",
+     "POR",
+     "LAL",
+     "DAL",
+     "GSW",
+     "MIA",
+     "BKN",
+     "BOS"
+    ]
    }
   },
   {

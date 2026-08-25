@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>NBA Doomscroll — trades, rumors, battles &amp; quizzes · HoopsMatic</title>
-<meta name="description" content="An endless, personalized NBA feed: community trades, rumors from this day in history, player battles, quizzes and vault oddities. Tuned entirely in your browser — your data never leaves it.">
+<title>NBA Doomscroll — trades, rumors, quizzes &amp; record races · HoopsMatic</title>
+<meta name="description" content="An endless, personalized NBA feed: community trades, rumors from this day in history, player comparisons, quizzes, historical oddities and animated all-time record races. Tuned entirely in your browser.">
 <meta property="og:title" content="NBA Doomscroll · HoopsMatic">
-<meta property="og:description" content="An endless NBA feed of trades, rumor history, player battles, quizzes and vault finds. Personalized in your browser, with no account and no tracking.">
+<meta property="og:description" content="An endless NBA feed of trades, rumor history, player comparisons, quizzes, historical finds and animated record races. Personalized in your browser, with no account and no tracking.">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,7 +23,8 @@
   </div>
   <p class="subtitle">
     An endless NBA feed: trades other people built, rumors from this day in
-    history, player battles, quizzes and vault oddities. The mix retunes itself
+    history, player comparisons, quizzes, historical oddities and animated
+    record races — every franchise, country and college. The mix retunes itself
     from what you like, save and skip, and all of that stays on this device.
   </p>
 
@@ -32,13 +33,6 @@
     <div class="controls-row" id="tabExtra" hidden></div>
     <div class="controls-row">
       <button class="icon-btn" id="profileBtn" type="button">Your algorithm</button>
-      <button class="privacy-badge" id="privacyBadge" type="button">private by default</button>
-    </div>
-    <div class="privacy-pop" id="privacyPop" hidden>
-      <b>Your data never leaves your browser.</b> Likes, saves and the
-      personalization weights live only in this device&rsquo;s localStorage.
-      There is no account, no server, no tracking. Export your profile as a
-      file from the menu, or wipe everything with one tap.
     </div>
   </div>
 
@@ -51,7 +45,7 @@
     An <a href="https://hoopsmatic.com">HoopsMatic</a> experiment · no account, no server, no tracking.<br>
     Personalization is a plain tag-weighting algorithm running in your browser; a quarter of every feed stays random on purpose.<br>
     Rumors load live from the HoopsHype archive in your browser, as short excerpts that link back to the full item.<br>
-    Trades are real builds from the Trade Machine, filtered on salary match. Rumors load from the HoopsHype archive when it is reachable, otherwise the tab shows sample cards.
+    Trades are real builds from the Trade Machine, filtered on salary match. Races are computed from public season data, one file per race.
   </div>
 </div>
 
@@ -68,6 +62,13 @@
     <div class="ob-teams"></div>
     <h3>Eras</h3>
     <div class="ob-eras"></div>
+    <h3>Favourite players <span class="ob-optional">optional</span></h3>
+    <div class="ob-players">
+      <input type="search" id="obPlayerSearch" class="ob-search"
+             placeholder="Search a player, then tap to add" autocomplete="off">
+      <div class="ob-player-results" id="obPlayerResults" hidden></div>
+      <div class="ob-player-picked" id="obPlayerPicked"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn" data-ob="skip" type="button">Skip, surprise me</button>
       <button class="btn primary" data-ob="start" type="button">Start scrolling</button>
@@ -84,6 +85,10 @@
     </div>
     <p class="lede">Fully local, fully yours. This is everything the feed
       knows about you.</p>
+    <p class="panel-privacy"><b>Your data never leaves your browser.</b> Likes,
+      saves and the personalization weights live only in this device&rsquo;s
+      localStorage. There is no account, no server, no tracking. Export your
+      profile below, or wipe everything with one tap.</p>
     <div class="panel-body" id="panelBody"></div>
     <div class="panel-danger">
       <button class="btn" data-panel="export" type="button">Export profile</button>

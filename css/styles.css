@@ -538,3 +538,50 @@ a:hover{ text-decoration:underline }
   color:var(--text-secondary); line-height:1.3;
 }
 .ob-pick.type.on span{ color:inherit; opacity:.85 }
+
+/* -------- clickable type chip -------- */
+/* The chip names the section a card belongs to, so it navigates there. */
+.chip-link{ border:0; cursor:pointer; font:inherit; font-size:.58rem; font-weight:600;
+            letter-spacing:.04em; text-transform:uppercase; transition:.15s }
+.chip-link:hover{ filter:brightness(.92); text-decoration:underline;
+                  text-underline-offset:2px }
+
+/* -------- race speed control -------- */
+.race-speed{ min-width:3rem; flex:0 0 auto }
+
+/* -------- onboarding: favourite players -------- */
+.ob-optional{ font-family:'JetBrains Mono',monospace; font-size:.55rem; font-weight:500;
+              color:var(--text-secondary); text-transform:uppercase; letter-spacing:.06em;
+              margin-left:.4rem }
+.ob-players{ position:relative; margin-bottom:.9rem }
+.ob-search{
+  width:100%; padding:.5rem .6rem; border-radius:8px;
+  border:1px solid var(--border); background:var(--surface); color:var(--text);
+  font-family:'DM Sans',sans-serif; font-size:.85rem;
+}
+.ob-search:focus{ outline:none; border-color:var(--accent) }
+.ob-player-results{
+  position:absolute; z-index:5; left:0; right:0; top:100%; margin-top:.25rem;
+  background:var(--surface); border:1px solid var(--border); border-radius:8px;
+  overflow:hidden; box-shadow:0 6px 20px rgba(0,0,0,.10);
+}
+.ob-result{
+  display:block; width:100%; text-align:left; border:0; background:none;
+  padding:.45rem .6rem; font-family:'DM Sans',sans-serif; font-size:.82rem;
+  color:var(--text); cursor:pointer;
+}
+.ob-result:hover{ background:var(--surface-hover) }
+.ob-player-picked{ display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.45rem }
+.ob-chip{
+  font-family:'JetBrains Mono',monospace; font-size:.6rem; font-weight:600;
+  padding:.25rem .5rem; border-radius:999px; cursor:pointer;
+  border:1px solid var(--accent); background:var(--accent); color:#fff;
+}
+
+/* -------- privacy note, now inside the algorithm panel -------- */
+.panel-privacy{
+  margin-top:.5rem; padding:.55rem .7rem;
+  font-size:.78rem; color:var(--text-secondary); line-height:1.45;
+  background:var(--bg); border:1px solid var(--border); border-radius:8px;
+}
+.panel-privacy b{ color:var(--green) }

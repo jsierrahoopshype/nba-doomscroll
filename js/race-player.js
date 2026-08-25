@@ -23,10 +23,13 @@
 (function (global) {
   "use strict";
 
-  var TARGET_MS = 90000;   // Jorge's ask: a race should run about 90 seconds
-  var MIN_STEP = 700;      // …but never flicker on a short race
-  var MAX_STEP = 2200;     // …and never crawl on a 30-step one
-  var ROWS = 8;            // visible bars
+  var TARGET_MS = 70000;   // target runtime at 1x
+  var MIN_STEP = 600;      // …but never flicker on a short race
+  // A 34-step race clamped at 2.2s ran 73 seconds against a 90-second target,
+  // so the ceiling was what actually set the pace for every short series, not
+  // the target. 3.0s lets those reach the target instead of undershooting it.
+  var MAX_STEP = 3000;
+  var ROWS = 10;           // visible bars
 
   /* Everything below is a port of the "hoopshype-official" theme from the
    * bar-chart-race repo (src/bar_race/themes.py line 969 and the draw loop in
@@ -51,7 +54,7 @@
   var PAD_B = 54;
   var PAD_L = 12;
   var PAD_R = 12;
-  var ROW_H = 46;          // only used to size the canvas; bars are computed
+  var ROW_H = 42;          // only used to size the canvas; bars are computed
 
   var C = {
     bg: BG,
@@ -145,7 +148,9 @@
     opts = opts || {};
     var ctx = canvas.getContext("2d");
     var steps = race.labels.length;
-    var stepMs = Math.max(MIN_STEP, Math.min(MAX_STEP, Math.round(TARGET_MS / Math.max(1, steps - 1))));
+    var baseStepMs = Math.max(MIN_STEP, Math.min(MAX_STEP, Math.round(TARGET_MS / Math.max(1, steps - 1))));
+    var speed = 1;
+    var stepMs = baseStepMs;
     var fmt = race.fmt || "int";
 
     var reduced = false;
@@ -470,6 +475,10 @@
       draw();
     }
     function toggle() { playing ? pause() : play(); }
+    function setSpeed(mult) {
+      speed = mult;
+      stepMs = Math.max(80, Math.round(baseStepMs / speed));
+    }
     function seek(frac) {
       pos = Math.max(0, Math.min(steps - 1, frac * (steps - 1)));
       draw();
@@ -492,12 +501,14 @@
     destroy = function () { global.clearTimeout(settle); __d(); };
 
     var api = {
-      play: play, pause: pause, toggle: toggle, seek: seek, destroy: function () { destroy(); },
+      play: play, pause: pause, toggle: toggle, seek: seek, setSpeed: setSpeed,
+      destroy: function () { destroy(); },
       get playing() { return playing; },
       get progress() { return pos / Math.max(1, steps - 1); },
+      get speed() { return speed; },
+      get durationMs() { return stepMs * (steps - 1); },
       reducedMotion: reduced,
-      stepMs: stepMs,
-      durationMs: stepMs * (steps - 1)
+      steps: steps
     };
     return api;
   }

@@ -61,25 +61,26 @@ it is a scroll feed.
   Questions that duplicate a Vault ballot-oddity card (same season, award and
   player) are dropped in the browser once both pools have loaded
 - `data/vault-pool.json` — cap-share salary cards, auto-detected ballot
-  oddities, on-this-day games and the bar chart race clip cards
+  oddities and on-this-day games. Races moved to their own pool and tab
 - `data/race-pool.json` — one feed card per race, tagged with the players and
   teams that race actually puts on screen
-- `data/races/index.json` + `data/races/r/*.json` — 30 races as data, ~11KB
+- `data/races/index.json` + `data/races/r/*.json` — 215 races as data, ~12KB
   each, loaded one at a time when a card scrolls into view
-- `data/races/*.mp4` + `data/races/races.json` — the old pre-rendered clips.
-  Nothing reads them any more; left on disk rather than deleted as a
-  side-effect. Safe to remove in a deliberate commit
-- `data/dummy-cards.json` — fallback cards shown only when a live source is
-  unreachable (rumor text in it is invented placeholder content, never archive
-  data)
+- `data/races/faces/*.png` + `data/races/logos/*.png` — the headshot and logo
+  tiles the races draw, baked at build time
+- `data/dummy-cards.json` — fallback cards for trades and races only. The rumor
+  entries in it are never rendered: an invented trade is self-evidently
+  hypothetical, an invented rumor is a fake NBA report sitting next to
+  HoopsHype, and a SAMPLE label does not survive a screenshot. When the rumor
+  endpoint is unreachable the tab says so and links to HoopsHype instead
 - `data/rumor-blocklist.json` — editable keyword blocklist for the Rumors
   editorial filter
 - `tools/build_data.mjs` — rebuilds the VS / Quiz / Trivia / Ballot pools
 - `tools/build_vault.mjs` — rebuilds the Vault pool
 - `tools/build_races.mjs` — rebuilds the bar chart races
 - `tools/render_races.py` — the old MP4 renderer, superseded by
-  `build_races.mjs`; kept because it is the only thing that can still produce a
-  standalone video file
+  `build_races.mjs`. Kept because it is the only thing here that can still
+  produce a standalone video file; its output is no longer committed
 - `tools/gen_dummy_cards.py` — regenerates the placeholder pool
 
 ## Rebuilding the data pools
@@ -112,8 +113,16 @@ scores.
       [salary-season-finder/data_sources/bio.csv] \
       [bar-chart-race/assets/headshots]
 
-Thirty-three races across eight groups: Career, Playoffs, Franchises,
-Countries, Draft classes, Generations, Colleges & clubs and Awards. The last
+215 races across ten groups: Career, Playoffs, Franchises, Countries, Draft
+classes, Generations, Colleges & clubs, **Teams**, **Money** and Awards.
+
+The Teams group is the bulk of them: 30 franchises x 6 measures (points,
+rebounds, assists, 3PM, games, and money earned in that uniform). Rows are
+filtered on the TEAM column, so a player is credited only for what he did in
+that shirt — Shaq's Lakers points do not follow him to Miami. Relocations keep
+their abbreviations separate (SEA and OKC are different races) because the
+stats file records the abbreviation of the day, and merging them is a judgement
+call rather than a fact. The last
 group needs the optional bio.csv: no repo's bio.json carries a college, but the
 CSV salary-season-finder builds from has a COLLEGE / TEAM column covering 5,079
 of the 5,105 players in rsStats. It holds a college for Americans and the pro
@@ -164,8 +173,9 @@ turns ~55KB portraits into ~16KB tiles and leaves the browser nothing to crop.
 Team logos come from the same repo's `assets/logos/` into `data/races/logos/`.
 Neither needs an npm install and neither is fetched at build time.
 
-Coverage across bar slots in player races is about 46%, and 49 of the 65 players
-who finish in a top 8 have a face. A bar with no photo is drawn as a bare bar,
+Coverage across bar slots in player races is about 32% once the team races pull
+in several hundred more role players; on the marquee all-time races it is far
+higher. A bar with no photo is drawn as a bare bar,
 deliberately: a stand-in initials disc read worse than nothing.
 
 `nba-headshots` stays as a fallback. Pass its **repo root**, not

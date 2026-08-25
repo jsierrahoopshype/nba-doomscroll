@@ -37,6 +37,7 @@
       saved: [],
       seen: {},             // card id -> last impression ts (bounded)
       counts: { like: 0, save: 0, tap: 0, quiz: 0, skim: 0 },
+      quiz: { answered: 0, correct: 0, noHint: 0, hintsUsed: 0 },
       onboarded: false,
       lastSession: 0
     };
@@ -137,7 +138,22 @@
       return on;
     },
     tap: function (card) { bump(card, "tap"); },
-    quizAnswered: function (card) { bump(card, "quiz"); },
+    /* opts: { correct, hints } — how many hints were taken before answering.
+     * Recorded so Guess the Player can show a solve rate that means something:
+     * "solved with no hints" is a different achievement from "solved with all
+     * three", and without this they looked identical. */
+    quizAnswered: function (card, opts) {
+      bump(card, "quiz");
+      opts = opts || {};
+      if (!profile.quiz) profile.quiz = { answered: 0, correct: 0, noHint: 0, hintsUsed: 0 };
+      profile.quiz.answered++;
+      if (opts.correct) {
+        profile.quiz.correct++;
+        if (!opts.hints) profile.quiz.noHint++;
+      }
+      profile.quiz.hintsUsed += Number(opts.hints || 0);
+      persist();
+    },
     skim: function (card) { bump(card, "skim"); },
 
     isLiked: function (id) { return profile.liked.indexOf(id) >= 0; },

@@ -19,7 +19,7 @@
     { key: "rumors", label: "Rumors" },
     { key: "vs", label: "VS" },
     { key: "quiz", label: "Quiz" },
-    { key: "vault", label: "Vault" },
+    { key: "vault", label: "History" },
     { key: "races", label: "Races" }
   ];
   var BATCH = 8;
@@ -58,6 +58,9 @@
     foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json"]
   };
   var poolPromises = {};
+  // Set when a live source could not be reached, so the tab can say so instead
+  // of quietly showing nothing.
+  var liveFailed = {};
 
   /* "On this day" has to mean today, so the 2,000-card vault pool is filtered
    * down to the current calendar date on load. Roughly 50 dates in the year
@@ -159,6 +162,11 @@
         // The vault pool is what carries the oddity claims, so the dedupe can
         // only run once it has landed.
         if (u.indexOf("vault-pool") >= 0) dropDuplicateBallots();
+        // The group filter is built from the race cards that are loaded. Open
+        // the Races tab before its pool lands and renderTabExtra() found none
+        // and hid the bar, then never ran again — so a cold Races link got the
+        // races without any way to filter them.
+        if (state.tab === "races" && u.indexOf("race-pool") >= 0) renderTabExtra();
         state.exhausted = false;
         // Top up a feed that opened before its pool landed.
         if (feedEl.querySelectorAll(".card").length < BATCH) loadMore();
@@ -190,13 +198,26 @@
     loadMore();
     renderSummary();
     observeSentinel();
-    // Live sources, fetched in the reader's browser. When real cards arrive
-    // the sample cards of that type are dropped, so a tab never mixes real and
-    // invented content. When they do not, the samples stay and the tab works.
+    /* Live sources, fetched in the reader's browser. When real cards arrive the
+     * sample cards of that type are dropped, so a tab never mixes real and
+     * invented content.
+     *
+     * When they DO NOT arrive, rumors and trades part company. An invented
+     * trade is self-evidently hypothetical — that is what a trade machine
+     * produces. An invented rumor is a fake NBA report, and this sits next to
+     * HoopsHype. Labelling it SAMPLE is not enough: a screenshot loses the
+     * label. So a failed rumor load drops the placeholders entirely and the tab
+     * says so. */
     function swapInLive(loader, type) {
       if (!loader) return;
       loader.load().then(function (live) {
-        if (!live || !live.length) return;
+        // js/rumors.js is deliberately fail-soft and resolves with an empty
+        // array rather than rejecting, so an empty result is the failure signal
+        // — not just a rejected promise.
+        if (!live || !live.length) {
+          if (type === "rumor") dropInventedRumors();
+          return;
+        }
         allCards = allCards.filter(function (c) {
           if (c.type === type && c.dummy) { delete byId[c.id]; return false; }
           return true;
@@ -210,7 +231,23 @@
         renderSummary();
       }).catch(function (e) {
         console.warn("[doomscroll] live " + type + " failed:", e.message);
+        if (type === "rumor") dropInventedRumors();
       });
+    }
+
+    function dropInventedRumors() {
+      liveFailed.rumor = true;
+      var before = allCards.length;
+      allCards = allCards.filter(function (c) {
+        if (c.type === "rumor" && c.dummy) { delete byId[c.id]; return false; }
+        return true;
+      });
+      if (before === allCards.length) return;
+      console.info("[doomscroll] rumors unavailable — " + (before - allCards.length) +
+        " placeholder cards dropped rather than shown");
+      state.exhausted = false;
+      if (state.tab === "rumors" || state.tab === "foryou") { clearFeed(); loadMore(); }
+      renderSummary();
     }
     swapInLive(root.LiveRumors, "rumor");
     swapInLive(root.DoomTrades, "trade");
@@ -268,10 +305,9 @@
     }
   }
 
-  tabsEl.addEventListener("click", function (ev) {
-    var b = ev.target.closest("[data-tab]");
-    if (!b || b.dataset.tab === state.tab) return;
-    state.tab = b.dataset.tab;
+  function goTab(key) {
+    if (!key || key === state.tab || !TABS.some(function (t) { return t.key === key; })) return;
+    state.tab = key;
     state.exhausted = false;
     state.raceGroup = null;
     renderTabs();
@@ -281,6 +317,17 @@
     loadMore();
     renderSummary();
     if (state.tab === "vs" && window.LiveVs) LiveVs.ready().catch(function () {});
+  }
+
+  tabsEl.addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-tab]");
+    if (b) goTab(b.dataset.tab);
+  });
+
+  // The type chip on every card is a link to that card's section.
+  feedEl.addEventListener("click", function (ev) {
+    var chip = ev.target.closest("[data-goto]");
+    if (chip) goTab(chip.dataset.goto);
   });
 
   document.getElementById("tabExtra").addEventListener("click", function (ev) {
@@ -320,8 +367,8 @@
     rumors: "rumor history, legal/off-court topics filtered out",
     vs: "career comparisons scored the same way as the full tool",
     quiz: "guess the player, two-player trivia, and real award ballots",
-    vault: "cap-share salaries, ballot oddities, on this day",
-    races: "80 seasons of NBA history, one bar chart race at a time"
+    vault: "cap-share salaries, ballot oddities, games on this date",
+    races: "every franchise, country and college, one bar chart race at a time"
   };
 
   function renderSummary() {
@@ -385,7 +432,11 @@
       state.exhausted = true;
       state.loading = false;
       if (!feedEl.querySelector(".card")) {
-        feedEl.innerHTML = '<div class="feed-msg">Nothing here yet.</div>';
+        feedEl.innerHTML = state.tab === "rumors" && liveFailed.rumor
+          ? '<div class="feed-msg">Rumors could not load right now. ' +
+            'They come live from the HoopsHype archive — nothing is shown here until they do.' +
+            '<br><br><a href="https://hoopshype.com/rumors/" target="_blank" rel="noopener">Read them on HoopsHype</a></div>'
+          : '<div class="feed-msg">Nothing here yet.</div>';
       } else if (!feedEl.querySelector(".feed-end")) {
         var end = document.createElement("div");
         end.className = "feed-msg feed-end";
@@ -572,6 +623,20 @@
     });
   });
 
+  feedEl.addEventListener("click", function (ev) {
+    var sp = ev.target.closest("[data-race-speed]");
+    if (!sp) return;
+    var card = sp.closest(".card");
+    var cv = card && card.querySelector(".race-canvas");
+    if (!cv) return;
+    card.dataset.engaged = "1";
+    var SPEEDS = [1, 1.5, 2, 0.5];
+    var next = SPEEDS[(SPEEDS.indexOf(Number(sp.dataset.speed || 1)) + 1) % SPEEDS.length];
+    sp.dataset.speed = String(next);
+    sp.innerHTML = (next === 0.5 ? "0.5" : next) + "&times;";
+    mountRace(cv).then(function (ctl) { if (ctl) ctl.setSpeed(next); });
+  });
+
   feedEl.addEventListener("input", function (ev) {
     var s = ev.target.closest("[data-race-scrub]");
     if (!s) return;
@@ -671,7 +736,11 @@
     res.innerHTML = '<span>' + (correct ? "Correct." : "Nope.") + '</span>' +
       (detail ? '<span class="quiz-detail">' + esc(detail) + '</span>' : "");
     res.className = "quiz-result " + (correct ? "good" : "bad");
-    E.quizAnswered(card);
+    var hintBox = cardEl.querySelector(".quiz-hints");
+    E.quizAnswered(card, {
+      correct: correct,
+      hints: hintBox ? Number(hintBox.dataset.shown || 0) : 0
+    });
   }
 
   function answerTrivia(cardEl, btn, card) {
@@ -688,7 +757,11 @@
     res.hidden = false;
     res.textContent = correct ? "Correct." : "Nope.";
     res.className = "quiz-result " + (correct ? "good" : "bad");
-    E.quizAnswered(card);
+    var hintBox = cardEl.querySelector(".quiz-hints");
+    E.quizAnswered(card, {
+      correct: correct,
+      hints: hintBox ? Number(hintBox.dataset.shown || 0) : 0
+    });
   }
 
   /* ---------------- share ---------------- */
@@ -844,6 +917,60 @@
     { key: "otd",    label: "On this day", note: "games from this date" }
   ];
 
+  /* Optional player picker. Names come from the card pools already in memory,
+   * so it needs no extra data file and can only ever offer players the feed can
+   * actually show. It is below teams on purpose: it is the one step that asks
+   * the reader to think rather than tap. */
+  var obPicked = [];
+
+  function obPlayerNames() {
+    var seen = Object.create(null), out = [];
+    allCards.forEach(function (c) {
+      ((c.tags && c.tags.players) || []).forEach(function (n) {
+        if (n && !seen[n]) { seen[n] = 1; out.push(n); }
+      });
+    });
+    return out.sort();
+  }
+
+  function renderObPicked() {
+    document.getElementById("obPlayerPicked").innerHTML = obPicked.map(function (n) {
+      return '<button class="ob-chip" type="button" data-ob-drop="' + esc(n) + '">' +
+        esc(n) + ' <span aria-hidden="true">&times;</span></button>';
+    }).join("");
+  }
+
+  function wireObPlayers() {
+    var input = document.getElementById("obPlayerSearch");
+    var results = document.getElementById("obPlayerResults");
+    if (!input) return;
+    var names = obPlayerNames();
+    input.addEventListener("input", function () {
+      var q = input.value.trim().toLowerCase();
+      if (q.length < 2) { results.hidden = true; results.innerHTML = ""; return; }
+      var hits = names.filter(function (n) { return n.toLowerCase().indexOf(q) >= 0; }).slice(0, 8);
+      if (!hits.length) { results.hidden = true; results.innerHTML = ""; return; }
+      results.innerHTML = hits.map(function (n) {
+        return '<button class="ob-result" type="button" data-ob-add="' + esc(n) + '">' + esc(n) + '</button>';
+      }).join("");
+      results.hidden = false;
+    });
+    document.getElementById("onboard").addEventListener("click", function (ev) {
+      var add = ev.target.closest("[data-ob-add]");
+      if (add) {
+        if (obPicked.indexOf(add.dataset.obAdd) < 0) obPicked.push(add.dataset.obAdd);
+        input.value = ""; results.hidden = true; results.innerHTML = "";
+        renderObPicked();
+        return;
+      }
+      var drop = ev.target.closest("[data-ob-drop]");
+      if (drop) {
+        obPicked = obPicked.filter(function (n) { return n !== drop.dataset.obDrop; });
+        renderObPicked();
+      }
+    });
+  }
+
   function showOnboarding() {
     var m = document.getElementById("onboard");
     m.querySelector(".ob-types").innerHTML = TYPE_LIST.map(function (t) {
@@ -856,6 +983,9 @@
     m.querySelector(".ob-eras").innerHTML = ERA_LIST.map(function (e2) {
       return '<button class="ob-pick era" data-key="era:' + e2 + '">' + e2 + "</button>";
     }).join("");
+    obPicked = [];
+    renderObPicked();
+    wireObPlayers();
     m.hidden = false;
     document.body.classList.add("modal-open");
   }
@@ -865,6 +995,10 @@
     if (pick) { pick.classList.toggle("on"); return; }
     if (ev.target.closest("[data-ob=start]")) {
       var keys = Array.prototype.map.call(this.querySelectorAll(".ob-pick.on"), function (b) { return b.dataset.key; });
+      // "player:Name" is already a tag key the engine weights, so a picked
+      // player needs no special handling beyond being seeded harder than a
+      // team — it is a much more specific thing to ask for.
+      obPicked.forEach(function (n) { keys.push("player:" + n, "player:" + n); });
       if (keys.length) E.seed(keys); else E.skipOnboarding();
       closeOnboarding(keys.length);
     } else if (ev.target.closest("[data-ob=skip]")) {
@@ -997,7 +1131,4 @@
 
   /* ---------------- privacy badge ---------------- */
 
-  document.getElementById("privacyBadge").addEventListener("click", function () {
-    document.getElementById("privacyPop").hidden ^= 1;
-  });
 })(window);

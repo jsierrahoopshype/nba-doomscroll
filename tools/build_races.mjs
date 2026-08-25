@@ -43,8 +43,8 @@ const OUT_R = path.join(OUT, "r");
 const HEADSHOT_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/";
 const LOGO_BASE = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/";
 
-const KEEP = 12;          // rows stored per step; the player shows 8 and lets
-                          // the other 4 animate in and out of the frame
+const KEEP = 15;         // rows stored per step; the player shows 10 and lets
+                          // the rest animate in and out of the frame
 
 const args = process.argv.slice(2);
 if (args[0] !== "--local" || args.length < 4) {
@@ -145,7 +145,7 @@ const bio = new Map(bioRows.map(b => [b.PLAYER, b]));
  * the source, squashed to 1.4:1 landscape. That drops ~55KB portraits to ~10KB
  * tiles, and leaves the browser with nothing to crop.
  */
-const TILE_W = 140, TILE_H = 100;
+const TILE_W = 112, TILE_H = 80;
 const MIN_SRC_BYTES = 15000;
 const FACE_DIR = path.join(OUT, "faces");
 const tileCache = new Map();
@@ -588,6 +588,123 @@ if (BIO_CSV) {
 } else {
   console.log("Colleges and clubs… skipped (pass salary-season-finder/data_sources/bio.csv as the 4th argument)");
 }
+
+/* ---- team races: players within one franchise ---- */
+
+/* The franchise races above compare franchises to each other. These compare
+ * PLAYERS INSIDE one franchise, which is a different thing entirely and the one
+ * people actually argue about: the Lakers all-time scoring list, the Celtics
+ * assist list, who has earned the most money in a Bulls jersey.
+ *
+ * 30 franchises x 6 measures. Rows are filtered by the TEAM column, so a player
+ * is credited only for what he did in that uniform — Shaq's Lakers points do not
+ * follow him to Miami. Relocations keep the modern abbreviation's history
+ * separate (SEA and OKC are different races) because the stats file records the
+ * abbreviation of the day, and merging them is a judgement call rather than a
+ * fact.
+ *
+ * Bars carry the franchise colour: it is a Lakers race, so it is purple. The
+ * headshots and names are what separate the runners.
+ */
+
+console.log("Team races…");
+const NICK = new Map();
+for (const t of readJson(findInHeadshots("teams", "metadata", "teams.json"))) {
+  NICK.set(t.abbrev, t.nickname || t.full_name.split(" ").pop());
+}
+
+const TEAM_MEASURES = [
+  { key: "PTS", slug: "points",   noun: "scoring leaders",    unit: "pts",   tier: 1 },
+  { key: "REB", slug: "rebounds", noun: "rebounding leaders", unit: "reb",   tier: 2 },
+  { key: "AST", slug: "assists",  noun: "assist leaders",     unit: "ast",   tier: 2 },
+  { key: "3P",  slug: "threes",   noun: "3-point leaders",    unit: "3PM",   tier: 2 },
+  { key: "GP",  slug: "games",    noun: "games played",       unit: "games", tier: 3 }
+];
+
+// Only franchises with a real body of history get races; a two-season 1940s
+// club produces a chart with three bars and nothing to watch.
+const teamSeasons = new Map();
+for (const r of rs) {
+  if (!r.TEAM || r.TEAM === "TOT") continue;
+  if (!teamSeasons.has(r.TEAM)) teamSeasons.set(r.TEAM, new Set());
+  teamSeasons.get(r.TEAM).add(r.YEAR);
+}
+const TEAM_ABBREVS = [...teamSeasons.entries()]
+  .filter(([ab, yrs]) => yrs.size >= 12 && (TEAM_COLOR[ab] || NICK.has(ab)))
+  .map(([ab]) => ab)
+  .sort();
+console.log(`  ${TEAM_ABBREVS.length} franchises with 12+ seasons of history`);
+
+const teamPlayerEntity = ab => name => {
+  const img = faceFor(name);
+  const e = { n: name, img, c: TEAM_COLOR[ab] || rampColor(ab), t: ab };
+  if (img && !/^data\/races\/faces\//.test(img)) {
+    const b = FACES.boxFor(name); if (b) e.b = b;
+  } else if (img) {
+    e.b = [0, 0, 1, 1];
+  }
+  return e;
+};
+
+const teamLabel = ab => NICK.get(ab) || ab;
+
+for (const ab of TEAM_ABBREVS) {
+  const rows = rs.filter(r => r.TEAM === ab);
+  const entityFor = teamPlayerEntity(ab);
+  for (const m of TEAM_MEASURES) {
+    add(buildRace({
+      slug: "team-" + ab.toLowerCase() + "-" + m.slug,
+      group: "Teams",
+      title: teamLabel(ab) + " all-time " + m.noun,
+      subtitle: "Regular-season " + m.unit + " in a " + teamLabel(ab) + " uniform, cumulative",
+      unit: m.unit, kind: "player", tier: m.tier,
+      note: "Counts only what each player did for this franchise.",
+      tags: { category: ["team", "franchise"], team: ab }
+    }, rows.map(r => ({ step: r.YEAR, key: r.PLAYER, value: num(r[m.key]) })), entityFor));
+  }
+
+  // Money earned in this uniform. Watchable in a way the stat races are not:
+  // the Lakers list runs Magic -> Worthy -> Shaq -> Kobe -> LeBron.
+  add(buildRace({
+    slug: "team-" + ab.toLowerCase() + "-earnings",
+    group: "Teams",
+    title: "Most money earned as a " + teamLabel(ab).replace(/s$/, ""),
+    subtitle: "Cumulative salary paid by the franchise, 1991 onward",
+    unit: "", fmt: "money", kind: "player", tier: 2,
+    note: "Salary data starts in 1991.",
+    tags: { category: ["team", "salary"], team: ab }
+  }, salaries.filter(x => x.TEAM === ab)
+      .map(x => ({ step: x.YEAR, key: x.PLAYER, value: num(x.SALARY) })), entityFor));
+}
+
+/* ---- money ---- */
+
+console.log("Money…");
+add(buildRace({
+  slug: "earnings-by-country", group: "Money",
+  title: "NBA earnings by country",
+  subtitle: "Every dollar paid, credited to the player's country",
+  unit: "", fmt: "money", kind: "country", tier: 1,
+  note: "Salary data starts in 1991.",
+  tags: { category: ["salary", "international"] }
+}, salaries.map(x => ({ step: x.YEAR, key: natOf(x.PLAYER), value: num(x.SALARY) })), countryEntity));
+
+const franchisePayrollEntity = ab => ({
+  n: (NICK.get(ab) ? teamLabel(ab) : ab),
+  img: logoFor(ab),
+  c: TEAM_COLOR[ab] || rampColor(ab),
+  t: ab
+});
+add(buildRace({
+  slug: "payroll-by-franchise", group: "Money",
+  title: "Total salary paid, by franchise",
+  subtitle: "Every dollar a franchise has paid its players, cumulative",
+  unit: "", fmt: "money", kind: "team", tier: 1,
+  note: "Salary data starts in 1991, so this is not an all-time figure.",
+  tags: { category: ["salary", "franchise"] }
+}, salaries.filter(x => x.TEAM && x.TEAM !== "TOT")
+    .map(x => ({ step: x.YEAR, key: x.TEAM, value: num(x.SALARY) })),
+   franchisePayrollEntity));
 
 /* ---- awards ---- */
 
