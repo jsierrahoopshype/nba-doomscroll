@@ -1,6 +1,6 @@
 {
- "built": "2026-08-23",
- "count": 30,
+ "built": "2026-08-24",
+ "count": 33,
  "cards": [
   {
    "id": "race-career-points",
@@ -947,6 +947,90 @@
     "steps": 79,
     "leader": "Born in the 1980s",
     "file": "data/races/r/gen-points.json"
+   }
+  },
+  {
+   "id": "race-school-points",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [],
+    "era": "all-time",
+    "category": "college"
+   },
+   "payload": {
+    "slug": "school-points",
+    "title": "Points scored by college or club",
+    "subtitle": "Career points, credited to where the player came from",
+    "span": "1947-2026",
+    "group": "Colleges & clubs",
+    "unit": "pts",
+    "kind": "school",
+    "tier": 1,
+    "note": "American players are credited to their college, international players to the club they left for the NBA.",
+    "steps": 80,
+    "leader": "Kentucky",
+    "file": "data/races/r/school-points.json"
+   }
+  },
+  {
+   "id": "race-school-players",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [],
+    "era": "all-time",
+    "category": "college"
+   },
+   "payload": {
+    "slug": "school-players",
+    "title": "NBA players produced, by college or club",
+    "subtitle": "Cumulative count of players who have appeared",
+    "span": "1947-2026",
+    "group": "Colleges & clubs",
+    "unit": "players",
+    "kind": "school",
+    "tier": 2,
+    "note": "Counted the first season each player appeared in an NBA game.",
+    "steps": 80,
+    "leader": "Kentucky",
+    "file": "data/races/r/school-players.json"
+   }
+  },
+  {
+   "id": "race-school-allstars",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [],
+    "teams": [],
+    "era": "all-time",
+    "category": "college"
+   },
+   "payload": {
+    "slug": "school-allstars",
+    "title": "All-Star selections by college or club",
+    "subtitle": "Cumulative All-Star nods",
+    "span": "1951-2026",
+    "group": "Colleges & clubs",
+    "unit": "selections",
+    "kind": "school",
+    "tier": 2,
+    "note": "",
+    "steps": 75,
+    "leader": "UCLA",
+    "file": "data/races/r/school-allstars.json"
    }
   },
   {

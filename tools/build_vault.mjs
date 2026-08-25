@@ -38,6 +38,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { buildFaceIndex, reportFaceIndex } from "./lib/faces.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -88,14 +89,13 @@ const push = (type, tab, tags, payload) =>
 
 /* ---------------- shared: headshots ---------------- */
 
-const headMeta = readJson(path.join(HS, "players.json")).players || [];
-const faceByName = new Map();
-for (const p of headMeta) {
-  if (p.headshot && p.headshot.face && p.headshot.filename) {
-    faceByName.set(p.full_name, HEADSHOT_BASE + p.headshot.filename);
-  }
-}
-const faceOf = name => faceByName.get(name) || SILHOUETTE;
+// Was reading players.json alone, which describes 572 of the 1,785 face crops
+// nba-headshots actually ships — so a salary card for Jordan or Kareem drew a
+// silhouette next to a name while their PNG sat in the repo. lib/faces.mjs uses
+// the file listing and screens the name map's wrong-face collisions.
+const FACES = buildFaceIndex(HS, readJson(path.join(PD, "player-headshots.json")));
+reportFaceIndex(FACES, "Headshots");
+const faceOf = name => FACES.faceOf(name);
 
 /* ---------------- 1. salary cards ---------------- */
 

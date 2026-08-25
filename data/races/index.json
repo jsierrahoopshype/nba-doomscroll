@@ -1,5 +1,5 @@
 {
- "built": "2026-08-23",
+ "built": "2026-08-24",
  "races": [
   {
    "slug": "career-points",
@@ -818,6 +818,75 @@
     "category": [
      "history",
      "generations"
+    ],
+    "players": [],
+    "teams": []
+   }
+  },
+  {
+   "slug": "school-points",
+   "group": "Colleges & clubs",
+   "title": "Points scored by college or club",
+   "subtitle": "Career points, credited to where the player came from",
+   "unit": "pts",
+   "fmt": "int",
+   "kind": "school",
+   "tier": 1,
+   "note": "American players are credited to their college, international players to the club they left for the NBA.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "Kentucky",
+   "file": "data/races/r/school-points.json",
+   "tags": {
+    "category": [
+     "college",
+     "origins"
+    ],
+    "players": [],
+    "teams": []
+   }
+  },
+  {
+   "slug": "school-players",
+   "group": "Colleges & clubs",
+   "title": "NBA players produced, by college or club",
+   "subtitle": "Cumulative count of players who have appeared",
+   "unit": "players",
+   "fmt": "int",
+   "kind": "school",
+   "tier": 2,
+   "note": "Counted the first season each player appeared in an NBA game.",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "Kentucky",
+   "file": "data/races/r/school-players.json",
+   "tags": {
+    "category": [
+     "college",
+     "origins"
+    ],
+    "players": [],
+    "teams": []
+   }
+  },
+  {
+   "slug": "school-allstars",
+   "group": "Colleges & clubs",
+   "title": "All-Star selections by college or club",
+   "subtitle": "Cumulative All-Star nods",
+   "unit": "selections",
+   "fmt": "int",
+   "kind": "school",
+   "tier": 2,
+   "note": "",
+   "steps": 75,
+   "span": "1951-2026",
+   "leader": "UCLA",
+   "file": "data/races/r/school-allstars.json",
+   "tags": {
+    "category": [
+     "college",
+     "awards"
     ],
     "players": [],
     "teams": []

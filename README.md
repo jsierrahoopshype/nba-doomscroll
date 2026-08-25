@@ -41,8 +41,9 @@ it is a scroll feed.
   - `js/share-image.js` — renders any card to a branded PNG on a canvas
   - `js/trades.js` — live Trade Machine feed: dedupes re-logged builds, keeps
     two-team deals, applies the 15% balance rule
-  - `js/race-player.js` — canvas bar chart race player: 90-second runtime,
-    eased rank and value transitions, headshot or initials disc per bar
+  - `js/race-player.js` — canvas bar chart race player: a port of the
+    bar-chart-race repo's `hoopshype-official` theme, 90-second runtime, eased
+    rank and value transitions
 - `data/vs-pool.json` — 2,000 pre-scored matchups (1,000 same-era, 1,000
   cross-era), filtered to competitive ones
 - `data/vs-values.json` — per-player metric values for live scoring (~740KB
@@ -107,10 +108,17 @@ scores.
 ## Rebuilding the races
 
     node tools/build_races.mjs --local <nba-player-data> \
-      <nba-headshots/players/metadata> <Games.csv>
+      <nba-headshots repo root> <Games.csv> \
+      [salary-season-finder/data_sources/bio.csv] \
+      [bar-chart-race/assets/headshots]
 
-Thirty races across seven groups: Career, Playoffs, Franchises, Countries,
-Draft classes, Generations and Awards. Each writes `data/races/r/<slug>.json`
+Thirty-three races across eight groups: Career, Playoffs, Franchises,
+Countries, Draft classes, Generations, Colleges & clubs and Awards. The last
+group needs the optional bio.csv: no repo's bio.json carries a college, but the
+CSV salary-season-finder builds from has a COLLEGE / TEAM column covering 5,079
+of the 5,105 players in rsStats. It holds a college for Americans and the pro
+club they left for international players, which is why those races are titled
+"college or club" rather than "college". Each writes `data/races/r/<slug>.json`
 (labels, entities and the top 12 per season) plus one feed card in
 `data/race-pool.json`. The browser animates them; no video is produced.
 
@@ -129,11 +137,45 @@ Two things worth knowing about the source data, both checked every build:
   Karl Malone on UTA, which is worth more than getting the two split careers to
   read the way a 2026 fan expects.
 
-The build prints headshot coverage. It is low (about 5% of bar slots) because
-nba-headshots holds active rosters only; every other bar draws an initials
-disc. Retired players do have NBA CDN ids in `player-headshots.json`, so
-re-running that repo's fetch pipeline over the full name map would raise it a
-lot — that is a change to another repo and has not been made.
+### Look
+
+`js/race-player.js` is a port of the `hoopshype-official` theme from the
+bar-chart-race repo (`src/bar_race/themes.py` line 969 plus the draw loop in
+`src/bar_race/render.py`), so a race in the feed reads as the same product as a
+rendered clip: `#1a1a1a` panel, bar radius 6 with a 1px border lightened 20%, a
+highlight strip on the top 30% of each bar, labels inside the bar with the name
+left-anchored and never truncated, the value right-aligned at the bar end, a
+left-to-right dark gradient under the label, and the season bottom-right. The
+one thing not ported is the typeface: that theme loads Futura Today from the
+repo's `assets/fonts`, this uses the site's DM Sans.
+
+### Headshots and logos
+
+The fifth argument points at `bar-chart-race/assets/headshots`, and it is worth
+passing. That directory holds 5,082 PNGs keyed by plain player name and covers
+Wilt, Russell, Bird, West, Havlicek, Mikan and Unseld — none of whom any other
+repo can resolve. Files under 15KB are NBA CDN silhouette placeholders and are
+skipped, the same rule `render.py` applies.
+
+Each one is baked into `data/races/faces/` as the tile the theme actually
+draws — top 80% of the source, squashed to 1.4:1 landscape, 140x100 — by
+`tools/lib/png.mjs`, a small PNG decode/resize/encode on Node's own zlib. That
+turns ~55KB portraits into ~16KB tiles and leaves the browser nothing to crop.
+Team logos come from the same repo's `assets/logos/` into `data/races/logos/`.
+Neither needs an npm install and neither is fetched at build time.
+
+Coverage across bar slots in player races is about 46%, and 49 of the 65 players
+who finish in a top 8 have a face. A bar with no photo is drawn as a bare bar,
+deliberately: a stand-in initials disc read worse than nothing.
+
+`nba-headshots` stays as a fallback. Pass its **repo root**, not
+`players/metadata`: its `players.json` describes 572 face crops while the repo
+ships 1,785, so reading the metadata alone was why coverage once read 5%.
+`tools/lib/faces.mjs` reads the file listing instead, and screens
+`player-headshots.json`, which points some fathers at their sons' photos
+("Larry Nance" -> `1626204-larry-nance-jr`) and reuses 22 of its NBA ids across
+two different players (Ray Allen and Alonzo Mourning are both 951). A mapped
+file is accepted only when the slug matches the slugified name.
 
 ## Local dev
 

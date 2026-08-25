@@ -15,9 +15,10 @@
  *     past another slides rather than jumping.
  *   - The value axis eases too. Without that, one huge season makes every bar
  *     visibly snap shorter.
- *   - Headshots are drawn only when the build verified a committed PNG. Every
- *     other bar gets an initials disc in the entity's colour, which is most of
- *     them for historical races — see the coverage note in the builder.
+ *   - Emblems are drawn WHOLE and never clipped: headshots from the alpha
+ *     bounding box the builder measured, logos with the five-argument
+ *     drawImage. A bar with no image gets no emblem at all — a stand-in disc
+ *     read worse than an empty bar.
  */
 (function (global) {
   "use strict";
@@ -26,19 +27,54 @@
   var MIN_STEP = 700;      // …but never flicker on a short race
   var MAX_STEP = 2200;     // …and never crawl on a 30-step one
   var ROWS = 8;            // visible bars
-  var ROW_H = 42;
-  var PAD_T = 10;
-  var PAD_B = 52;
+
+  /* Everything below is a port of the "hoopshype-official" theme from the
+   * bar-chart-race repo (src/bar_race/themes.py line 969 and the draw loop in
+   * src/bar_race/render.py), so a race here reads as the same product as a
+   * rendered clip:
+   *
+   *   bg #1a1a1a solid            bar radius 6, 1px border lightened 20%
+   *   highlight strip on the top 30% of each bar, lightened 25%, alpha <= 120
+   *   labels INSIDE the bar, name left-anchored and never truncated, value
+   *   right-aligned at the bar end and spilling after the name on a short bar
+   *   a left-to-right dark gradient under the label so white text stays legible
+   *   headshots in "rectangle" style: 1.4:1 landscape, flush with the bar's
+   *   left edge, full bar height
+   *   season bottom-right, white at 90%
+   *   no vignette, no noise, no bar shadow, no leader glow
+   *
+   * The one thing not ported is the typeface. That theme loads Futura Today
+   * from the repo's assets/fonts; this uses the site's DM Sans.
+   */
+  var BG = "#1a1a1a";
+  var PAD_T = 8;
+  var PAD_B = 54;
   var PAD_L = 12;
   var PAD_R = 12;
+  var ROW_H = 46;          // only used to size the canvas; bars are computed
 
   var C = {
-    bg: "#ffffff",
-    text: "#1d1d1f",
-    text2: "#6e6e73",
-    grid: "#e8e8ed",
-    track: "#f5f5f7"
+    bg: BG,
+    text: "#ffffff",
+    text2: "#cccccc"
   };
+
+  function hexRgb(h) {
+    h = String(h).replace("#", "");
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function lighten(rgb, amt) {
+    return [
+      Math.min(255, Math.round(rgb[0] + (255 - rgb[0]) * amt)),
+      Math.min(255, Math.round(rgb[1] + (255 - rgb[1]) * amt)),
+      Math.min(255, Math.round(rgb[2] + (255 - rgb[2]) * amt))
+    ];
+  }
+  function rgba(rgb, a) {
+    return "rgba(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + "," + a + ")";
+  }
 
   /* ---------------- image cache ---------------- */
 
@@ -71,21 +107,6 @@
     }
     if (fmt === "float1") return (v / 10).toFixed(1);
     return Math.round(v).toLocaleString("en-US");
-  }
-
-  function initials(ent) {
-    var name = typeof ent === "string" ? ent : ent.n;
-    // A franchise already has a three-letter identity; "LL" for the Lakers is
-    // strictly worse than "LAL".
-    if (ent && ent.t && typeof ent !== "string") return ent.t;
-    // "Class of 1998" and "Born in the 1970s" read better as the year than as
-    // "C1" or "BI", so pull a 4-digit run out when there is one.
-    var yr = /(\d{4})/.exec(name);
-    if (yr) return yr[1].slice(2);
-    var parts = name.replace(/[^A-Za-z .'-]/g, "").split(/[ .]+/).filter(Boolean);
-    if (!parts.length) return "?";
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
   function shortName(name) {
@@ -150,7 +171,7 @@
       return rows.length ? rows[0][1] : 1;
     });
 
-    // Warm the first races' images so the opening frame is not all discs.
+    // Warm the images so the opening frame is not a set of bare bars.
     race.e.forEach(function (e) { if (e.img) getImage(e.img); });
 
     var pos = 0;              // float position along steps, 0 .. steps-1
@@ -218,37 +239,36 @@
       ctx.closePath();
     }
 
-    function drawDisc(ent, cx, cy, r) {
+    /* Draws the player's head or the franchise logo whole — never clipped,
+     * never cover-cropped — and draws NOTHING when there is no image.
+     *
+     * The face crops are background-removed cut-outs on a 256x256 canvas, and
+     * the head only fills about 46% of the width. The old version clipped them
+     * into a circle to make them look bigger, which sliced off ears, chins and
+     * hair. The builder now ships the head's real bounding box as `e.b`, so the
+     * source rectangle is the head itself and it can be scaled to fill the row.
+     *
+     * Returns the width it used, so the name knows where to start. 0 means the
+     * bar carries no emblem at all — which is the intended look for a player
+     * with no photo, rather than a stand-in disc.
+     */
+    /* The tool's "rectangle" headshot style, but with the crop and the 1.4:1
+     * squash already baked into the tile by tools/lib/png.mjs — so there is
+     * nothing to crop here. The tile is drawn flush with the bar's left edge at
+     * full bar height, exactly as render.py places it.
+     *
+     * A team logo is square at bar height minus 6, same anchor.
+     *
+     * Returns the right edge the label must clear, or the bar's left edge when
+     * there is no image at all. */
+    function drawEmblem(ent, x1, y1, barH) {
       var im = ent.img ? getImage(ent.img) : null;
-      if (ready(im)) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
-        // Cover-fit the square face crop (and any non-square logo).
-        var iw = im.naturalWidth, ih = im.naturalHeight;
-        var s = Math.max((r * 2) / iw, (r * 2) / ih);
-        ctx.drawImage(im, cx - (iw * s) / 2, cy - (ih * s) / 2, iw * s, ih * s);
-        ctx.restore();
-      } else {
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255,255,255,0.92)";
-        ctx.fill();
-        ctx.fillStyle = ent.c || "#3b82f6";
-        ctx.font = "600 " + Math.round(r * 0.92) + "px 'JetBrains Mono', ui-monospace, monospace";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(initials(ent), cx, cy + 0.5);
-      }
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(0,0,0,0.10)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      if (!ready(im)) return x1;
+      var isTeam = !!(ent.t && !ent.b);
+      var dh = isTeam ? Math.max(8, barH - 6) : barH;
+      var dw = isTeam ? dh : Math.round(barH * 1.4);
+      ctx.drawImage(im, x1, y1, dw, dh);
+      return x1 + dw;
     }
 
     function draw() {
@@ -262,14 +282,20 @@
 
       var i = Math.floor(p), j = Math.min(steps - 1, i + 1), t = easeInOut(p - i);
       var target = maxStep[i] + (maxStep[j] - maxStep[i]) * t;
-      // Ease the axis toward the target so the whole chart does not jolt when
-      // the leader has a big season. Snapped whenever the race is not running:
-      // a scrub or a pause redraws once, and an eased axis that only gets one
-      // frame to catch up leaves every bar drawn against a stale maximum —
-      // which is how the leader's bar ended up running under the value column.
+      // Snapped whenever the race is not running: a scrub or a pause redraws
+      // once, and an eased axis that only gets one frame to catch up leaves
+      // every bar drawn against a stale maximum.
       if (playing) easedMax += (target - easedMax) * 0.18;
       else easedMax = target;
       var scaleMax = Math.max(1, easedMax);
+
+      // Geometry straight out of render.py: a gap of 2.5% of the bar area, and
+      // the bars share what is left.
+      var areaTop = PAD_T, areaBottom = H - PAD_B;
+      var areaH = areaBottom - areaTop;
+      var barGap = Math.max(4, Math.round(areaH * 0.025));
+      var barH = Math.max(8, Math.floor((areaH - barGap * (ROWS + 1)) / ROWS));
+      var maxBarW = W - PAD_L - PAD_R;
 
       var keys = activeKeys(p);
       var rows = [];
@@ -281,88 +307,126 @@
       }
       rows.sort(function (a, b) { return a.r - b.r; });
 
-      var barX = PAD_L;
-      var barMaxW = W - PAD_L - PAD_R - 66;   // room for the value at the end
-      var barH = ROW_H - 10;
-
       for (var n = 0; n < rows.length; n++) {
         var row = rows[n];
         if (row.r > ROWS + 0.6) continue;
-        var y = PAD_T + row.r * ROW_H;
-        if (y > PAD_T + ROWS * ROW_H) continue;
-        // Fade a bar as it slides past the last visible slot.
+        var yCenter = areaTop + barGap + row.r * (barH + barGap) + barH / 2;
+        var y1 = Math.round(yCenter - barH / 2);
+        if (y1 > areaBottom) continue;
         var alpha = row.r > ROWS - 1 ? Math.max(0, 1 - (row.r - (ROWS - 1))) : 1;
-        // Clamped: the eased axis can briefly sit below the leader's value, and
-        // an unclamped bar then runs straight under the value column.
-        var w = Math.max(2, Math.min(barMaxW, (row.v / scaleMax) * barMaxW));
+
+        var barW = Math.max(1, Math.min(maxBarW, (row.v / scaleMax) * maxBarW));
+        var x1 = PAD_L, x2 = x1 + barW;
+        var base = hexRgb(row.e.c || "#3b82f6");
 
         ctx.save();
         ctx.globalAlpha = alpha;
 
-        roundRect(barX, y, Math.max(barH, w), barH, 7);
-        ctx.fillStyle = row.e.c || "#3b82f6";
+        // bar
+        roundRect(x1, y1, barW, barH, 6);
+        ctx.fillStyle = rgba(base, 1);
         ctx.fill();
 
-        var cx = barX + barH / 2 + 1;
-        var cy = y + barH / 2;
-        drawDisc(row.e, cx, cy, barH / 2 - 3);
+        // 1px border, lightened 20%
+        roundRect(x1 + 0.5, y1 + 0.5, Math.max(1, barW - 1), barH - 1, 6);
+        ctx.strokeStyle = rgba(lighten(base, 0.2), 0.7);
+        ctx.lineWidth = 1;
+        ctx.stroke();
 
-        // Name inside the bar when it fits, outside when the bar is still short.
+        // highlight strip across the top 30%
+        var hlH = Math.max(1, Math.round(barH * 0.30));
+        ctx.save();
+        roundRect(x1, y1, barW, barH, 6);
+        ctx.clip();
+        ctx.fillStyle = rgba(lighten(base, 0.25), 0.47);
+        ctx.fillRect(x1, y1, barW, hlH);
+        ctx.restore();
+
+        // headshot or logo, flush left, then the label clears it
+        var hsRight = drawEmblem(row.e, x1, y1, barH);
+
         var label = barLabel(row.e.n, race.kind);
         ctx.font = "600 13px 'DM Sans', system-ui, sans-serif";
-        ctx.textBaseline = "middle";
-        ctx.textAlign = "left";
-        var nameX = barX + barH + 8;
-        var fits = nameX + ctx.measureText(label).width + 8 < barX + w;
-        if (fits) {
-          ctx.fillStyle = "#ffffff";
-          ctx.fillText(label, nameX, cy + 0.5);
-        } else {
-          ctx.fillStyle = C.text;
-          ctx.fillText(label, barX + Math.max(barH, w) + 8, cy + 0.5);
+        var tw = ctx.measureText(label).width;
+        ctx.font = "600 13px 'JetBrains Mono', ui-monospace, monospace";
+        var valText = fmtValue(row.v, fmt);
+        var vw = ctx.measureText(valText).width;
+
+        var textLeft = Math.max(hsRight + 8, x1 + 10);
+        var textRight = x2 - 10;
+
+        // Dark left-to-right gradient under the label so white text survives a
+        // pale bar. render.py ramps alpha 80 -> 0 over the label's width.
+        var gradW = Math.min(barW, Math.max(barW * 0.5, tw + vw + 40));
+        if (gradW > 10) {
+          var g = ctx.createLinearGradient(x1, 0, x1 + gradW, 0);
+          g.addColorStop(0, "rgba(0,0,0,0.31)");
+          g.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.save();
+          roundRect(x1, y1, barW, barH, 6);
+          ctx.clip();
+          ctx.fillStyle = g;
+          ctx.fillRect(x1, y1, gradW, barH);
+          ctx.restore();
         }
 
-        // Value always sits at the far right, on its own column, so the eye can
-        // read the standings down the edge.
-        ctx.font = "600 12px 'JetBrains Mono', ui-monospace, monospace";
-        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "left";
+        var cy = y1 + barH / 2;
+
+        // Name always left-anchored and never truncated: on a short bar it
+        // spills past the bar end onto the background, which is what
+        // label_overflow_outside does in the theme.
+        ctx.font = "600 13px 'DM Sans', system-ui, sans-serif";
+        ctx.fillStyle = "rgba(0,0,0,0.47)";
+        ctx.fillText(label, textLeft + 1, cy + 1);
         ctx.fillStyle = C.text;
-        ctx.fillText(fmtValue(row.v, fmt), W - PAD_R, cy + 0.5);
+        ctx.fillText(label, textLeft, cy);
+
+        // Value right-aligned at the bar end, or just after the name when the
+        // bar is too short. The two positions meet exactly at the threshold, so
+        // it never jumps as a bar grows past it.
+        ctx.font = "600 13px 'JetBrains Mono', ui-monospace, monospace";
+        var valX = Math.max(textLeft + tw + 10, textRight - vw);
+        ctx.fillStyle = "rgba(0,0,0,0.47)";
+        ctx.fillText(valText, valX + 1, cy + 1);
+        ctx.fillStyle = C.text;
+        ctx.fillText(valText, valX, cy);
 
         ctx.restore();
       }
 
-      // Footer: season label big on the right, unit on the left, progress rail.
-      var railY = H - 22;
-      ctx.fillStyle = C.track;
-      roundRect(PAD_L, railY, W - PAD_L - PAD_R, 4, 2);
-      ctx.fill();
-      ctx.fillStyle = "#3b82f6";
-      roundRect(PAD_L, railY, Math.max(4, (W - PAD_L - PAD_R) * (p / Math.max(1, steps - 1))), 4, 2);
-      ctx.fill();
-
+      // Season, bottom right, white at 90% — the theme's date block.
       ctx.textBaseline = "alphabetic";
       ctx.textAlign = "right";
-      ctx.font = "700 30px 'JetBrains Mono', ui-monospace, monospace";
-      ctx.fillStyle = "rgba(29,29,31,0.18)";
-      ctx.fillText(labelAt(p), W - PAD_R, railY - 12);
+      ctx.font = "700 34px 'JetBrains Mono', ui-monospace, monospace";
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.fillText(labelAt(p), W - PAD_R, H - 18);
 
       ctx.textAlign = "left";
       ctx.font = "500 11px 'JetBrains Mono', ui-monospace, monospace";
-      ctx.fillStyle = C.text2;
-      ctx.fillText((race.unit || "").toUpperCase(), PAD_L, railY - 12);
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.fillText((race.unit || "").toUpperCase(), PAD_L, H - 30);
+
+      // progress rail
+      var railY = H - 12;
+      ctx.fillStyle = "rgba(255,255,255,0.14)";
+      roundRect(PAD_L, railY, W - PAD_L - PAD_R, 3, 2);
+      ctx.fill();
+      ctx.fillStyle = "#3b82f6";
+      roundRect(PAD_L, railY, Math.max(3, (W - PAD_L - PAD_R) * (p / Math.max(1, steps - 1))), 3, 2);
+      ctx.fill();
 
       if (!playing && !reduced) {
-        // Play affordance, so a paused card does not look broken.
-        var r = 21;
+        var cxp = W / 2, cyp = areaTop + areaH / 2, r = 21;
         ctx.beginPath();
-        ctx.arc(W / 2, PAD_T + (ROWS * ROW_H) / 2, r, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(29,29,31,0.55)";
+        ctx.arc(cxp, cyp, r, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(W / 2 - 5, PAD_T + (ROWS * ROW_H) / 2 - 9);
-        ctx.lineTo(W / 2 + 9, PAD_T + (ROWS * ROW_H) / 2);
-        ctx.lineTo(W / 2 - 5, PAD_T + (ROWS * ROW_H) / 2 + 9);
+        ctx.moveTo(cxp - 5, cyp - 9);
+        ctx.lineTo(cxp + 9, cyp);
+        ctx.lineTo(cxp - 5, cyp + 9);
         ctx.closePath();
         ctx.fillStyle = "#ffffff";
         ctx.fill();
@@ -438,5 +502,5 @@
     return api;
   }
 
-  global.RacePlayer = { mount: mount, fmtValue: fmtValue, barLabel: barLabel, initials: initials };
+  global.RacePlayer = { mount: mount, fmtValue: fmtValue, barLabel: barLabel };
 })(window);
