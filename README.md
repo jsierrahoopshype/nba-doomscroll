@@ -32,7 +32,8 @@ it is a scroll feed.
 - `index.html` + `css/` + `js/` — the app (no framework, vanilla JS)
   - `js/engine.js` — personalization engine (weights, sampling, storage)
   - `js/cards.js` — card renderers
-  - `js/app.js` — shell: tabs, infinite feed, interactions, panels
+  - `js/app.js` — shell: tabs, entity filter, infinite feed, interactions,
+    panels
   - `js/compare-core.js` — comparison scoring, extracted verbatim from the
     HoopsMatic comparison tool so card scores match it exactly
   - `js/vs-score.js` — shared scorer replaying those rules over pre-resolved

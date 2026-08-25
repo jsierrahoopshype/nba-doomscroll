@@ -585,3 +585,41 @@ a:hover{ text-decoration:underline }
   background:var(--bg); border:1px solid var(--border); border-radius:8px;
 }
 .panel-privacy b{ color:var(--green) }
+
+/* -------- clickable entities -------- */
+/* A player name or team on a card. Styled as text, not a button, so a card
+   does not read as a row of controls — the underline is the only affordance
+   until you hover. */
+.ent{
+  border:0; background:none; padding:0; margin:0; font:inherit; color:inherit;
+  cursor:pointer; text-align:inherit;
+  text-decoration:underline; text-decoration-style:dotted;
+  text-decoration-color:var(--border); text-underline-offset:2px;
+  transition:.15s;
+}
+.ent:hover{ color:var(--accent); text-decoration-style:solid;
+            text-decoration-color:var(--accent) }
+.ent:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:3px }
+.trade-team .ent, .otd-team .ent{ color:inherit }
+
+/* -------- the "filtered to X" strip -------- */
+.ent-bar{ margin-top:.35rem }
+.ent-bar-inner{
+  display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+  padding:.4rem .6rem; border-radius:8px;
+  background:var(--accent-dim); border:1px solid var(--accent);
+}
+.ent-bar-label{
+  font-size:.55rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--accent);
+}
+.ent-bar-name{ font-size:.9rem; font-weight:700; letter-spacing:-.01em }
+.ent-bar-count{ font-size:.62rem; color:var(--text-secondary) }
+.ent-bar-clear{
+  margin-left:auto; cursor:pointer;
+  font-family:'JetBrains Mono',monospace; font-size:.6rem; font-weight:600;
+  text-transform:uppercase; letter-spacing:.05em;
+  padding:.22rem .55rem; border-radius:999px;
+  border:1px solid var(--accent); background:var(--accent); color:#fff;
+}
+.ent-bar-clear:hover{ filter:brightness(1.08) }

@@ -10,20 +10,6 @@ Last reviewed: 2026-08-25.
 
 ## Next up
 
-### Clickable players and teams
-Tapping a player name or a team on any card filters the whole feed to that
-entity. Jorge's "big ask", and the highest-value item left.
-
-More than a filter — it needs:
-- a route (`?player=LeBron+James` / `?team=LAL`) so the state is shareable
-- a header strip saying what you are filtered to, with a way out
-- a decision on what an empty result looks like
-- interaction with the existing tab model: does a player filter cross tabs, or
-  narrow the current one?
-
-It also unlocks Collections and makes the Daily Five better, so it should
-probably come before gamification.
-
 ### Current-events content
 Jorge: *"Try hard to get actual Rumors or highly shared content from the Content
 Stream. We should really populate the Doomscroll with current events."*
@@ -114,3 +100,6 @@ Kept short so the list above stays the point.
 - On This Day one-point regular-season tier cut (994 of 2,073 cards)
 - Vault renamed History; type chips navigate; privacy badge demoted
 - Invented rumor placeholders no longer rendered
+- Clickable players and teams: tapping a name filters the whole feed to that
+  entity across every section, with `?player=` / `?team=` routing, a filter
+  strip and an empty state

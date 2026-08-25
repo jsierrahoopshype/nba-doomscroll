@@ -20,6 +20,17 @@
       '" alt="' + escAttr(alt || "") + '" onerror="this.onerror=null;this.src=\'' + SILHOUETTE + '\'">';
   }
 
+  /* A player name or team that filters the whole feed to that entity when
+   * tapped. Rendered as a button so it is reachable by keyboard and announced
+   * as interactive; app.js reads data-entity / data-entity-kind. */
+  function ent(name, kind, cls) {
+    if (!name) return "";
+    return '<button class="ent" type="button" data-entity="' + escAttr(name) +
+      '" data-entity-kind="' + escAttr(kind) + '"' +
+      (cls ? ' data-cls="' + escAttr(cls) + '"' : "") +
+      ' title="Show everything about ' + escAttr(name) + '">' + esc(name) + '</button>';
+  }
+
   function logo(src, name, cls) {
     if (!src) return '<span class="team-logo lg logo-none" title="' + escAttr(name || "") + '"></span>';
     return '<img class="' + (cls || "team-logo lg") + '" loading="lazy" src="' + escAttr(src) +
@@ -49,12 +60,12 @@
     var sides = p.sides.map(function (s) {
       var players = s.gets.map(function (pl) {
         return '<div class="trade-player">' + face(pl.img, pl.name) +
-          '<div class="tp-text"><span class="tp-name">' + esc(pl.name) + '</span>' +
+          '<div class="tp-text"><span class="tp-name">' + ent(pl.name, "player") + '</span>' +
           '<span class="tp-sal mono">$' + esc(pl.salary) + 'M</span></div></div>';
       }).join("");
       return '<div class="trade-side">' +
         '<div class="trade-side-head"><img class="team-logo" loading="lazy" src="' + escAttr(s.logo) + '" alt="">' +
-        '<span class="trade-team">' + esc(s.team) + ' get</span></div>' + players + '</div>';
+        '<span class="trade-team">' + ent(s.team, "team") + ' get</span></div>' + players + '</div>';
     }).join('<div class="trade-arrows" aria-hidden="true">&#8646;</div>');
     var balCls = p.balance_pct >= 95 ? "ok" : p.balance_pct >= 85 ? "warn" : "bad";
     return '<div class="trade-grid">' + sides + '</div>' +
@@ -88,10 +99,10 @@
         esc(w.stat) + ' <span class="mono">' + esc(w.val) + '</span></div>';
     }).join("");
     return '<div class="vs-head">' +
-      '<div class="vs-player">' + face(p.p1.img, p.p1.name, "face lg") + '<span>' + esc(p.p1.name) + '</span>' +
+      '<div class="vs-player">' + face(p.p1.img, p.p1.name, "face lg") + '<span>' + ent(p.p1.name, "player") + '</span>' +
       '<b class="vs-score mono">' + esc(p.p1.score) + '</b></div>' +
       '<div class="vs-mid">VS</div>' +
-      '<div class="vs-player">' + face(p.p2.img, p.p2.name, "face lg") + '<span>' + esc(p.p2.name) + '</span>' +
+      '<div class="vs-player">' + face(p.p2.img, p.p2.name, "face lg") + '<span>' + ent(p.p2.name, "player") + '</span>' +
       '<b class="vs-score mono">' + esc(p.p2.score) + '</b></div></div>' +
       '<div class="vs-headline">' + esc(p.headline) + '</div>' +
       '<div class="vs-rows">' + rows + '</div>' + wins;
@@ -153,8 +164,8 @@
       ? '<span class="sal-today">just <b class="mono">' + esc(p.cap_pct) + '%</b> of that season&rsquo;s cap</span>'
       : '<span class="sal-today"><b class="mono">' + esc(p.cap_pct) + '%</b> of the entire salary cap</span>';
     return '<div class="sal-head">' + face(p.img, p.player, "face lg") +
-      '<div><div class="sal-name">' + esc(p.player) + '</div>' +
-      '<div class="card-sub">' + esc(p.team) + ' · <span class="mono">' + esc(p.season) + '</span></div></div></div>' +
+      '<div><div class="sal-name">' + ent(p.player, "player") + '</div>' +
+      '<div class="card-sub">' + ent(p.team, "team") + ' · <span class="mono">' + esc(p.season) + '</span></div></div></div>' +
       '<div class="sal-line">made <b class="mono">' + esc(p.salary) + '</b>' + pctLine + '</div>' +
       (p.note ? '<p class="rumor-text sal-note">' + esc(p.note) + '</p>' : "") +
       '<div class="card-sub">Cap that season: <span class="mono">' + esc(p.cap) + '</span></div>';
@@ -181,10 +192,10 @@
       ' · ' + esc(p.label) + '</div>' +
       '<div class="otd-score">' +
       '<div class="otd-team">' + logo(p.away_logo, p.away_name) +
-      '<span>' + esc(p.away) + '</span><b class="mono ' + (!homeWin ? "win" : "") + '">' + esc(p.away_score) + '</b></div>' +
+      '<span>' + ent(p.away, "team") + '</span><b class="mono ' + (!homeWin ? "win" : "") + '">' + esc(p.away_score) + '</b></div>' +
       '<div class="otd-at mono">@</div>' +
       '<div class="otd-team">' + logo(p.home_logo, p.home_name) +
-      '<span>' + esc(p.home) + '</span><b class="mono ' + (homeWin ? "win" : "") + '">' + esc(p.home_score) + '</b></div>' +
+      '<span>' + ent(p.home, "team") + '</span><b class="mono ' + (homeWin ? "win" : "") + '">' + esc(p.home_score) + '</b></div>' +
       '</div>' +
       '<p class="rumor-text otd-story">' + esc(p.story) + '</p>' +
       (bits.length ? '<div class="card-sub">' + bits.join(" · ") + '</div>' : "");
@@ -274,5 +285,6 @@
       '</footer></article>';
   }
 
-  root.DoomCards = { render: render, esc: esc };
+  root.DoomCards = {
+    ent: ent, render: render, esc: esc };
 })(window);

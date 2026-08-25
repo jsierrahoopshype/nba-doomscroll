@@ -33,7 +33,14 @@
   // is already on screen — invisible with a 2,000-card pool, glaring with the
   // handful of live trades. Cleared whenever the feed is cleared.
   var rendered = {};
-  var state = { tab: "foryou", exhausted: false, loading: false, raceGroup: null };
+  /* entity: { kind: "player"|"team", value: "LeBron James" } or null.
+   *
+   * An entity filter deliberately CROSSES tabs rather than narrowing the
+   * current one. Tapping LeBron means "show me everything about LeBron" — his
+   * comparisons, his quiz cards, his races, his salary cards — and confining
+   * that to whichever tab you happened to be on would be a much weaker feature
+   * than the one people expect from tapping a name. */
+  var state = { tab: "foryou", exhausted: false, loading: false, raceGroup: null, entity: null };
 
   var feedEl = document.getElementById("feed");
   var tabsEl = document.getElementById("tabs");
@@ -268,12 +275,35 @@
 
   function renderTabs() {
     tabsEl.innerHTML = TABS.map(function (t) {
-      return '<button class="tab' + (t.key === state.tab ? " active" : "") + '" data-tab="' + t.key + '">' + t.label + "</button>";
+      // While an entity filter is on, no tab is "active" — the feed is not
+      // showing a tab. Tapping one clears the filter and goes there.
+      var active = !state.entity && t.key === state.tab;
+      return '<button class="tab' + (active ? " active" : "") + '" data-tab="' + t.key + '">' + t.label + "</button>";
     }).join("");
     renderTabExtra();
+    renderEntityBar();
   }
 
   // Per-tab action strip. VS gets the live random-matchup generator.
+  function renderEntityBar() {
+    var el = document.getElementById("entityBar");
+    if (!el) return;
+    if (!state.entity) { el.hidden = true; el.innerHTML = ""; return; }
+    var e = state.entity;
+    var n = poolForTab(state.tab).length;
+    el.innerHTML =
+      '<div class="ent-bar-inner">' +
+        '<span class="ent-bar-label mono">' +
+          (e.kind === "team" ? "Team" : "Player") + '</span>' +
+        '<strong class="ent-bar-name">' + esc(entityLabel(e)) + '</strong>' +
+        '<span class="ent-bar-count mono">' + n.toLocaleString("en-US") +
+          ' card' + (n === 1 ? "" : "s") + '</span>' +
+        '<button class="ent-bar-clear" type="button" data-entity-clear>' +
+          'Clear <span aria-hidden="true">&times;</span></button>' +
+      '</div>';
+    el.hidden = false;
+  }
+
   function renderTabExtra() {
     var el = document.getElementById("tabExtra");
     if (state.tab === "vs") {
@@ -305,8 +335,74 @@
     }
   }
 
+  var ALL_POOLS = ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json"];
+
+  // Cards carry team abbreviations, which is right on a card but terse as a
+  // headline. Current franchises only — a defunct abbreviation falls through
+  // and prints as-is.
+  var TEAM_NAME = {
+    ATL: "Atlanta Hawks", BOS: "Boston Celtics", BKN: "Brooklyn Nets",
+    CHA: "Charlotte Hornets", CHI: "Chicago Bulls", CLE: "Cleveland Cavaliers",
+    DAL: "Dallas Mavericks", DEN: "Denver Nuggets", DET: "Detroit Pistons",
+    GSW: "Golden State Warriors", HOU: "Houston Rockets", IND: "Indiana Pacers",
+    LAC: "LA Clippers", LAL: "Los Angeles Lakers", MEM: "Memphis Grizzlies",
+    MIA: "Miami Heat", MIL: "Milwaukee Bucks", MIN: "Minnesota Timberwolves",
+    NOP: "New Orleans Pelicans", NYK: "New York Knicks",
+    OKC: "Oklahoma City Thunder", ORL: "Orlando Magic",
+    PHI: "Philadelphia 76ers", PHX: "Phoenix Suns", POR: "Portland Trail Blazers",
+    SAC: "Sacramento Kings", SAS: "San Antonio Spurs", TOR: "Toronto Raptors",
+    UTA: "Utah Jazz", WAS: "Washington Wizards"
+  };
+
+  function entityLabel(e) {
+    return e.kind === "team" ? (TEAM_NAME[e.value] || e.value) : e.value;
+  }
+
+  function syncUrl() {
+    if (!root.history || !root.history.replaceState) return;
+    var q = "";
+    if (state.entity) {
+      q = "?" + (state.entity.kind === "team" ? "team" : "player") +
+          "=" + encodeURIComponent(state.entity.value);
+    } else if (state.tab !== "foryou") {
+      q = "?tab=" + state.tab;
+    }
+    root.history.replaceState(null, "", q || root.location.pathname);
+  }
+
+  function setEntity(kind, value) {
+    if (!value) return;
+    state.entity = { kind: kind === "team" ? "team" : "player", value: value };
+    state.exhausted = false;
+    state.raceGroup = null;
+    // A player filter has to search everything, not just whichever pools the
+    // current tab happened to need.
+    ensurePools(ALL_POOLS);
+    renderTabs();
+    clearFeed();
+    root.scrollTo(0, 0);
+    loadMore();
+    renderSummary();
+    syncUrl();
+  }
+
+  function clearEntity() {
+    if (!state.entity) return;
+    state.entity = null;
+    state.exhausted = false;
+    renderTabs();
+    clearFeed();
+    root.scrollTo(0, 0);
+    loadMore();
+    renderSummary();
+    syncUrl();
+  }
+
   function goTab(key) {
-    if (!key || key === state.tab || !TABS.some(function (t) { return t.key === key; })) return;
+    if (!key || !TABS.some(function (t) { return t.key === key; })) return;
+    // Tapping a tab while filtered clears the filter and goes there.
+    if (key === state.tab && !state.entity) return;
+    state.entity = null;
     state.tab = key;
     state.exhausted = false;
     state.raceGroup = null;
@@ -316,6 +412,7 @@
     ensurePools(TAB_POOLS[state.tab] || []);
     loadMore();
     renderSummary();
+    syncUrl();
     if (state.tab === "vs" && window.LiveVs) LiveVs.ready().catch(function () {});
   }
 
@@ -324,10 +421,22 @@
     if (b) goTab(b.dataset.tab);
   });
 
-  // The type chip on every card is a link to that card's section.
+  // The type chip on every card is a link to that card's section; a player
+  // name or team filters the whole feed to that entity.
   feedEl.addEventListener("click", function (ev) {
     var chip = ev.target.closest("[data-goto]");
-    if (chip) goTab(chip.dataset.goto);
+    if (chip) { goTab(chip.dataset.goto); return; }
+    var e = ev.target.closest("[data-entity]");
+    if (e) {
+      ev.preventDefault();
+      var card = e.closest(".card");
+      if (card) card.dataset.engaged = "1";
+      setEntity(e.dataset.entityKind, e.dataset.entity);
+    }
+  });
+
+  document.getElementById("entityBar").addEventListener("click", function (ev) {
+    if (ev.target.closest("[data-entity-clear]")) clearEntity();
   });
 
   document.getElementById("tabExtra").addEventListener("click", function (ev) {
@@ -375,6 +484,13 @@
     var el = document.getElementById("summary");
     if (!el) return;
     var n = poolForTab(state.tab).length;
+    if (state.entity) {
+      el.innerHTML = "<strong>" + n.toLocaleString("en-US") + "</strong> card" +
+        (n === 1 ? "" : "s") + " mentioning " + esc(entityLabel(state.entity)) +
+        " · every section";
+      renderEntityBar();
+      return;
+    }
     var sample = poolForTab(state.tab).filter(function (c) { return c.dummy; }).length;
     el.innerHTML = "<strong>" + n.toLocaleString("en-US") + "</strong> cards · " +
       esc(TAB_BLURB[state.tab] || "") +
@@ -391,10 +507,19 @@
     return false;
   }
 
+  function matchesEntity(c, e) {
+    var t = c.tags || {};
+    var list = e.kind === "team" ? (t.teams || []) : (t.players || []);
+    return list.indexOf(e.value) >= 0;
+  }
+
   function poolForTab(tab, excludeRendered) {
-    var pool = tab === "foryou" ? allCards
-      : allCards.filter(function (c) { return (c.tab || []).indexOf(tab) >= 0; });
-    if (tab === "races" && state.raceGroup) {
+    // The entity filter outranks the tab: it draws from everything.
+    var pool = state.entity
+      ? allCards.filter(function (c) { return matchesEntity(c, state.entity); })
+      : (tab === "foryou" ? allCards
+        : allCards.filter(function (c) { return (c.tab || []).indexOf(tab) >= 0; }));
+    if (!state.entity && tab === "races" && state.raceGroup) {
       pool = pool.filter(function (c) { return c.payload.group === state.raceGroup; });
     }
     if (!excludeRendered) return pool;
@@ -431,7 +556,11 @@
     if (!batch.length) {
       state.exhausted = true;
       state.loading = false;
-      if (!feedEl.querySelector(".card")) {
+      if (!feedEl.querySelector(".card") && state.entity) {
+        feedEl.innerHTML = '<div class="feed-msg">Nothing about ' +
+          esc(entityLabel(state.entity)) + ' yet.<br><br>' +
+          '<button class="btn" type="button" data-entity-clear>Back to the feed</button></div>';
+      } else if (!feedEl.querySelector(".card")) {
         feedEl.innerHTML = state.tab === "rumors" && liveFailed.rumor
           ? '<div class="feed-msg">Rumors could not load right now. ' +
             'They come live from the HoopsHype archive — nothing is shown here until they do.' +
@@ -624,6 +753,7 @@
   });
 
   feedEl.addEventListener("click", function (ev) {
+    if (ev.target.closest("[data-entity-clear]")) { clearEntity(); return; }
     var sp = ev.target.closest("[data-race-speed]");
     if (!sp) return;
     var card = sp.closest(".card");
@@ -862,6 +992,12 @@
     var params = new URLSearchParams(window.location.search);
     var id = params.get("card");
     var tab = params.get("tab");
+    var who = params.get("player"), team = params.get("team");
+    if (who || team) {
+      state.entity = { kind: who ? "player" : "team", value: who || team };
+      ensurePools(ALL_POOLS);
+      renderTabs();
+    }
     if (tab && TABS.some(function (t) { return t.key === tab; })) { state.tab = tab; renderTabs(); }
     if (!id) return false;
     if (!byId[id]) { pendingShareId = id; return false; }   // retried on pool arrival
