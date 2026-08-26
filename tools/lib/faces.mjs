@@ -57,7 +57,11 @@ import zlib from "zlib";
  * what every file in nba-headshots is. Anything else returns null and the
  * caller falls back to the full canvas.
  */
-function alphaBox(file) {
+/* Exported because the Teammates cards need the same measurement for a
+ * different shape: the races draw a landscape tile, that card draws a circle,
+ * and both have to know where the head actually is inside a cut-out rather
+ * than guessing from a fixed fraction of the canvas. */
+export function alphaBox(file, y0Frac, y1Frac) {
   let buf;
   try { buf = fs.readFileSync(file); } catch (e) { return null; }
   if (buf.length < 8 || buf.readUInt32BE(0) !== 0x89504e47) return null;
@@ -90,6 +94,12 @@ function alphaBox(file) {
   const prev = Buffer.alloc(stride);
   let minX = w, minY = h, maxX = -1, maxY = -1;
   const ALPHA_MIN = 16;   // ignore the soft feathered edge the cut-out leaves
+  /* Optional vertical band, as fractions of the image height. Measuring the
+   * whole cut-out gives the SUBJECT — head and shoulders — whose centre is the
+   * chest, not the face. Measuring just the top of it gives the head, which is
+   * what a circular avatar has to be centred on. */
+  const bandTop = y0Frac == null ? 0 : Math.max(0, Math.floor(y0Frac * h));
+  const bandBottom = y1Frac == null ? h : Math.min(h, Math.ceil(y1Frac * h));
 
   for (let y = 0; y < h; y++) {
     const base = y * (stride + 1);
@@ -109,7 +119,7 @@ function alphaBox(file) {
       }
       cur[i] = v & 0xff;
     }
-    for (let x = 0; x < w; x++) {
+    for (let x = 0; y >= bandTop && y < bandBottom && x < w; x++) {
       if (cur[x * bpp + 3] >= ALPHA_MIN) {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;

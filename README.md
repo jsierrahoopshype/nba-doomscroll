@@ -82,6 +82,10 @@ it is a scroll feed.
     is about to be seen. Switched off entirely by prefers-reduced-motion,
     prefers-reduced-data or Save-Data, and every failure path leaves the poster
     and the tap-through exactly as they were
+  - `js/mates-player.js` — Teammates Score head-to-head: a scoreboard of two
+    running totals over a season-by-season list of each man's decorated
+    teammates, ported from hh-teammates' video generator. Same control contract
+    as the race player, so app.js drives both through one lifecycle
   - `js/race-player.js` — canvas bar chart race player: a port of the
     bar-chart-race repo's `hoopshype-official` theme, 90-second runtime, eased
     rank and value transitions
@@ -101,6 +105,15 @@ it is a scroll feed.
   who drew no Rookie of the Year votes just surfaces whoever was not a rookie.
   Questions that duplicate a Vault ballot-oddity card (same season, award and
   player) are dropped in the browser once both pools have loaded
+- `data/teammates-pool.json` + `data/teammates/*.json` + `data/teammates/faces/*.png`
+  — 700 Teammates Score matchups: who had the better help, scored off the
+  accolades a player's TEAMMATES won beside him (MVP 10, All-NBA 1st 4,
+  All-Star 1, down to 0.125). One ~4KB step file per matchup, loaded when the
+  card scrolls into view, plus a 128px head tile per player. Built by
+  `tools/build_teammates.mjs` from hh-teammates' 5.4MB `teammates.json`. The
+  101 players are every star whose career reaches 1984 or later with eight-plus
+  seasons, enough awards for the question to mean something, AND a real
+  headshot — every card here has two faces on it
 - `data/vault-pool.json` — cap-share salary cards, auto-detected ballot
   oddities and on-this-day games. Races moved to their own pool and tab
 - `data/race-pool.json` — one feed card per race, tagged with the players and
@@ -132,6 +145,11 @@ it is a scroll feed.
   `build_races.mjs`. Kept because it is the only thing here that can still
   produce a standalone video file; its output is no longer committed
 - `tools/gen_dummy_cards.py` — regenerates the placeholder pool
+- `tools/build_teammates.mjs` — rebuilds the Teammates Score matchups. Pairs
+  every qualifying star with every other one (5,050 combinations from 101
+  players), ranks them by the weaker half's fame plus whether the two shared a
+  league, and keeps the best 700 with no player in more than 14. Head tiles are
+  cut square around the measured head, never stretched
 - `tools/build_buzz_map.mjs` — rebuilds `data/buzz-map.json` from
   nba-content-stream's canonical files. Only needs re-running when players
   enter the league

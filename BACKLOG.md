@@ -43,12 +43,10 @@ The tab ships, but these calls are Jorge's:
 
 ## Asked for, not yet built
 
-- **Weekly digest needs one Worker change.** The card is built and dormant. It
-  asks `nba-trade-daily-digest` for `?days=7` and renders only if the response
-  says what window it covers — add `days` support and echo `days: 7` (or
-  `period`, or `window_hours`) in the payload and it appears on its own, no
-  redeploy here. A ranked `topPlayers` array in the payload would also make the
-  "No. N most-traded player" line real for any rank rather than always No. 1.
+- **Weekly digest needs one Worker change.** The card is built and dormant.
+  Full spec, contract and verification steps in `proposals/digest-weekly/`.
+  Short version: `nba-trade-daily-digest` accepts `?days=N` and echoes `days` in
+  the response; the card lights up on its own, no redeploy here.
 
 - **VS cards with no real headshot.** 1,885 of 2,000 VS cards and 294 of 300
   trivia cards show at least one silhouette: `player-headshots.json` covers 572
@@ -57,21 +55,33 @@ The tab ships, but these calls are Jorge's:
   for the ~900 players the pools need into `data/faces/`, the way
   `data/races/faces/` already works, and rebuild the pools so a card with no
   face is dropped rather than silhouetted.
-- **Reddit video still cannot autoplay.** Bluesky video now does. Reddit has no
-  URL to play: Content Stream tags every r/nba item `media: {type: "text"}` and
-  never captures the v.redd.it link, and Reddit's JSON API — the only public
-  place that carries `media.reddit_video.fallback_url` — is the endpoint that
-  403s from a datacenter IP. Fixing it means Content Stream's poller capturing
-  the video URL at ingest, which is an upstream change.
-- **More video formats in the feed.** Four generators to port to canvas cards,
-  the way the bar races were:
-  `nba-player-data/nba-comparison-video-generator.html` (reads the same
-  rsStats/poStats/awards files the VS pool is built from),
-  `hh-teammates/teammates-video.html` (its own `data/teammates.json`, 5.4MB —
-  needs a baked pool like vs-pool), `nba-trade-video` (drives the real Trade
-  Machine in an iframe for its verdicts, so the feed version would have to
-  stop at what the trade log can prove), and media-vote-tracker's award races
-  (the ballot export is already in this repo).
+- **Reddit video: not doing it, and the reason is not technical.** Bluesky video
+  autoplays; Reddit will not, by decision rather than by limitation. The only
+  public source of a playable v.redd.it URL is the JSON API that returns 403 to
+  datacenter IPs — that 403 is Reddit deliberately closing the door, and routing
+  around it is the thing most likely to cause the trouble Jorge said he does not
+  want. Hotlinking v.redd.it media into a third-party page is separately outside
+  what Reddit's terms contemplate, and DASH there splits video and audio into
+  streams that need muxing anyway. If Reddit video is ever wanted, the sanctioned
+  route is Reddit's own embed (`redditmedia.com/r/<sub>/comments/<id>/?embed=true`
+  in an iframe): their player, their terms, their analytics — and no autoplay,
+  which is rather the point of the sanctioning.
+- **More video formats in the feed.** Teammates Score has shipped. Still to do,
+  in Jorge's order: `nba-player-data/nba-comparison-video-generator.html` (reads
+  the same rsStats/poStats/awards files the VS pool is built from, so it is
+  mostly renderer work), then media-vote-tracker's award races (the ballot
+  export is already in this repo). `nba-trade-video` is the awkward one — it
+  gets its verdicts by driving the real Trade Machine in an iframe and holds no
+  CBA logic of its own, so a feed version could only claim what the trade log
+  proves, which the trade cards already say.
+- **34 modern stars are missing from Teammates for want of a photo.** Kevin
+  McHale, Jason Kidd, Shawn Marion, DeAndre Jordan, Amare Stoudemire, DeMarcus
+  Cousins, Tim Hardaway, Tom Chambers, Terry Cummings, Dennis Johnson and two
+  dozen more clear every other bar but have only an NBA-CDN grey placeholder in
+  `bar-chart-race/assets/headshots`, and nba-headshots does not resolve them
+  either. A real photo for any of them, in either repo, and they join the pool
+  on the next build — 34 more players is roughly another 400 possible
+  matchups.
 
 ## Gamification
 
