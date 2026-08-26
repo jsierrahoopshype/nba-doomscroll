@@ -539,6 +539,8 @@
     // wiping innerHTML without stopping them leaks a running loop per race the
     // reader has scrolled past this session.
     destroyRaces(feedEl);
+    // A playing <video> inside a node about to be discarded keeps streaming.
+    if (root.BskyVideo) BskyVideo.releaseAll(feedEl);
     feedEl.innerHTML = "";
     rendered = {};
   }
@@ -641,6 +643,10 @@
     skimObserver.observe(el);
     var cv = el.querySelector(".race-canvas");
     if (cv) raceObserver.observe(cv);
+    // Bluesky video posters become muted autoplaying clips when they reach the
+    // middle of the screen. No-op when the reader has asked for less motion or
+    // less data, or when the browser cannot play HLS.
+    if (root.BskyVideo) BskyVideo.watch(el);
   }
 
   /* ---------------- bar chart races ---------------- */

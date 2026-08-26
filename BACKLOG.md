@@ -50,13 +50,21 @@ The tab ships, but these calls are Jorge's:
   for the ~900 players the pools need into `data/faces/`, the way
   `data/races/faces/` already works, and rebuild the pools so a card with no
   face is dropped rather than silhouetted.
-- **Reddit video autoplay.** No data source: Content Stream tags every r/nba
-  item `media: {type: "text"}` and never captures the v.redd.it URL. Bluesky
-  video IS available (an HLS playlist per post) and could autoplay muted on
-  scroll with hls.js vendored locally.
-- **More video formats in the feed.** Teammate Scores, Player Comparison and
-  Media Awards, rendered on canvas the way the bar races are. Blocked on
-  knowing which repos hold them.
+- **Reddit video still cannot autoplay.** Bluesky video now does. Reddit has no
+  URL to play: Content Stream tags every r/nba item `media: {type: "text"}` and
+  never captures the v.redd.it link, and Reddit's JSON API — the only public
+  place that carries `media.reddit_video.fallback_url` — is the endpoint that
+  403s from a datacenter IP. Fixing it means Content Stream's poller capturing
+  the video URL at ingest, which is an upstream change.
+- **More video formats in the feed.** Four generators to port to canvas cards,
+  the way the bar races were:
+  `nba-player-data/nba-comparison-video-generator.html` (reads the same
+  rsStats/poStats/awards files the VS pool is built from),
+  `hh-teammates/teammates-video.html` (its own `data/teammates.json`, 5.4MB —
+  needs a baked pool like vs-pool), `nba-trade-video` (drives the real Trade
+  Machine in an iframe for its verdicts, so the feed version would have to
+  stop at what the trade log can prove), and media-vote-tracker's award races
+  (the ballot export is already in this repo).
 
 ## Gamification
 

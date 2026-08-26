@@ -225,7 +225,7 @@
       media = { type: "image", images: (em.images || []).map(function (i) {
         return { url: i.fullsize || i.thumb, alt: i.alt || "" }; }) };
     } else if (t.indexOf("app.bsky.embed.video") === 0) {
-      media = { type: "video", thumbnail: em.thumbnail || null };
+      media = { type: "video", thumbnail: em.thumbnail || null, playlist: em.playlist || null };
     } else if (t.indexOf("app.bsky.embed.external") === 0) {
       var x = em.external || {};
       media = { type: "link", uri: x.uri, title: x.title, description: x.description, thumb: x.thumb };

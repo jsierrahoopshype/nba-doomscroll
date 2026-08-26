@@ -73,7 +73,8 @@
     otd:    { chip: "ON THIS DAY", cls: "t-vault", tab: "vault" },
     race:   { chip: "RACE",    cls: "t-vault", tab: "races" },
     buzz:   { chip: "BUZZ",    cls: "t-buzz",  tab: "buzz" },
-    tradetrend: { chip: "TRADE TRENDS", cls: "t-trade", tab: "trades" }
+    tradetrend: { chip: "TRADE TRENDS", cls: "t-trade", tab: "trades" },
+    tradedigest: { chip: "DAILY DIGEST", cls: "t-trade", tab: "trades" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -122,6 +123,42 @@
       '<div class="card-sub">Across <span class="mono">' + esc(String(p.deals)) +
         '</span> trades readers built ' + esc(p.span) + ' · the number is how many of them included that player</div>' +
       '<div class="tt-list">' + rows + '</div>';
+  }
+
+  /* The Trade Machine's own daily digest — the same numbers, from the same
+   * endpoint, as the card that goes out on social. Computed server-side over
+   * the whole log, which is why it can say "the last 24 hours" and mean it. */
+  function renderTradeDigest(c) {
+    var p = c.payload;
+    function bars(list, kind) {
+      var top = list[0] ? list[0].pct : 100;
+      return list.map(function (x) {
+        var w = Math.max(6, Math.round(x.pct / (top || 1) * 100));
+        return '<div class="td-row">' +
+          '<span class="td-fill" style="width:' + w + '%"></span>' +
+          (kind === "dest"
+            ? '<img class="team-logo" loading="lazy" src="' + escAttr(x.logo) + '" alt="" ' +
+              'onerror="this.style.visibility=\'hidden\'">'
+            : face(x.img, x.name)) +
+          '<span class="td-name">' +
+            (kind === "dest" ? ent(x.abbr, "team", "", x.name) : ent(x.name, "player")) +
+          '</span>' +
+          '<span class="td-pct mono">' + esc(x.pct.toFixed(1)) + '%</span>' +
+        '</div>';
+      }).join("");
+    }
+    return '<div class="td-hero">' + face(p.img, p.player, "face lg") +
+      '<div class="td-hero-text">' +
+        '<div class="td-name-big">' + ent(p.player, "player") + '</div>' +
+        '<div class="td-share"><b class="mono">' + esc(p.share.toFixed(1)) + '%</b>' +
+          ' of every trade built in the last 24 hours</div>' +
+      '</div></div>' +
+      '<div class="card-sub">' + esc(String(p.count)) + ' of <span class="mono">' +
+        esc(String(p.trades)) + '</span> trades · from the Trade Machine’s daily digest</div>' +
+      (p.dests.length ? '<div class="td-label mono">Most common destinations</div>' +
+        '<div class="td-list">' + bars(p.dests, "dest") + '</div>' : "") +
+      (p.back.length ? '<div class="td-label mono">Most traded for</div>' +
+        '<div class="td-list">' + bars(p.back, "back") + '</div>' : "");
   }
 
   function renderRumor(c) {
@@ -433,7 +470,13 @@
         }).join("") + '</div>';
     }
     if (m.type === "video" && m.thumbnail) {
-      return '<a class="bsky-video" href="' + escAttr(postUrl) + '" target="_blank" rel="noopener">' +
+      /* The poster is the card until it scrolls into view; app.js then swaps a
+       * muted, looping <video> in over the top of it (js/bsky-video.js). The
+       * anchor stays exactly what it was, so with no autoplay — reduced motion,
+       * reduced data, a browser that will not play HLS — tapping still opens
+       * the post on Bluesky, which is the behaviour this shipped with. */
+      return '<a class="bsky-video" href="' + escAttr(postUrl) + '" target="_blank" rel="noopener"' +
+        (m.playlist ? ' data-playlist="' + escAttr(m.playlist) + '"' : "") + '>' +
         '<img loading="lazy" src="' + escAttr(m.thumbnail) + '" alt="" ' +
         'onerror="this.closest(\'.bsky-video\').remove()">' +
         '<span class="play-hint">&#9654; Play on Bluesky</span></a>';
@@ -521,7 +564,7 @@
     trade: renderTrade, rumor: renderRumor, vs: renderVs, trivia: renderTrivia,
     quiz: renderQuiz, ballot: renderBallot, salary: renderSalary, otd: renderOtd,
     race: renderRace, oddity: renderOddity, buzz: renderBuzz,
-    tradetrend: renderTradeTrend
+    tradetrend: renderTradeTrend, tradedigest: renderTradeDigest
   };
 
   /* ---------------- card frame ---------------- */
@@ -536,6 +579,7 @@
         ? { url: c.payload.machine_url, label: "Open this trade" }
         : { url: "https://hoopsmatic.com/transactionmaster", label: "Open Trade Machine" };
       case "tradetrend": return { url: c.payload.machine_url, label: "Build one yourself" };
+      case "tradedigest": return { url: c.payload.machine_url, label: "Trade him yourself" };
       case "rumor": return { url: c.payload.source_url || "https://hoopshype.com/rumors/", label: "Read on HoopsHype" };
       case "vs":    return { url: c.payload.compare_url, label: "Full comparison" };
       case "salary": return { url: "https://hoopsmatic.com/salary-season-finder", label: "Salary Season Finder" };

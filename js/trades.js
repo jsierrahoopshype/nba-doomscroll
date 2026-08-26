@@ -310,11 +310,84 @@
     return "over the last " + Math.round(hours / 24) + " days";
   }
 
+  /* ---------------- daily digest ----------------
+   *
+   * The trends card above is computed here from the newest slice of the log,
+   * which is honest but shallow — a few hundred deals, however far back that
+   * reaches. The Trade Machine already publishes a proper one: the same Worker
+   * that feeds nba-trade-card computes, server-side and over the whole log,
+   * who appeared in the most trades in the last 24 hours, where those trades
+   * sent them, and who came back the other way.
+   *
+   * Same endpoint, same shape, same numbers as the card Jorge posts to social.
+   * If it is unreachable the tab simply does not get this card; the locally
+   * computed trends card is unaffected.
+   */
+  var DIGEST_URL = "https://nba-trade-daily-digest.thejorgesierra.workers.dev/digest";
+
+  function pairs(list) {
+    return (list || []).filter(function (e) { return e && e.length >= 2; })
+      .slice(0, 3)
+      .map(function (e) { return { name: String(e[0]), n: +e[1] || 0 }; });
+  }
+
+  function digestCard(d) {
+    if (!d || !d.hasTrades || !d.topPlayer || !d.tradeCount) return null;
+    var dests = pairs(d.topDestinations), back = pairs(d.topTradedForPlayers);
+    if (!dests.length && !back.length) return null;
+    var share = Math.round(d.topCount / d.tradeCount * 1000) / 10;
+    return {
+      id: "trade-digest",
+      type: "tradedigest",
+      tab: ["trades"],
+      live: true,
+      tags: {
+        content_type: "tradedigest",
+        players: [d.topPlayer].concat(back.map(function (b) { return b.name; })).slice(0, 5),
+        teams: dests.map(function (x) { return abbrev(x.name) || x.name; }).filter(Boolean),
+        era: "2020s",
+        category: "trade-machine"
+      },
+      payload: {
+        player: d.topPlayer,
+        img: faceFor(d.topPlayer),
+        share: share,
+        count: d.topCount,
+        trades: d.tradeCount,
+        dests: dests.map(function (x) {
+          return { name: x.name, abbr: abbrev(x.name) || x.name, logo: logoFor(x.name),
+                   pct: Math.round(x.n / d.topCount * 1000) / 10 };
+        }),
+        back: back.map(function (x) {
+          return { name: x.name, img: faceFor(x.name),
+                   pct: Math.round(x.n / d.topCount * 1000) / 10 };
+        }),
+        machine_url: MACHINE_URL + "?player=" + encodeURIComponent(playerSlug(d.topPlayer))
+      }
+    };
+  }
+
+  function loadDigest() {
+    return fetch(DIGEST_URL, { credentials: "omit" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("digest " + r.status);
+        return r.json();
+      })
+      .then(function (j) { return digestCard(j && j.digest); })
+      .catch(function (e) {
+        console.warn("[doomscroll] trade digest unavailable:", e.message);
+        return null;
+      });
+  }
+
   /* ---------------- public ---------------- */
 
   /** Resolves to trade cards, or [] if the log is unreachable. Never throws:
    *  the Trades tab keeps its sample cards on any failure. */
   function load() {
+    // The digest is independent of the log: it is fetched alongside it and
+    // simply absent if it fails.
+    var digest = loadHeadshots().then(loadDigest);
     return loadHeadshots().then(function () {
       var sep = TRADE_LOG_URL.indexOf("?") >= 0 ? "&" : "?";
       return fetch(TRADE_LOG_URL + sep + "limit=" + WANT_ROWS, { credentials: "omit" });
@@ -381,10 +454,15 @@
         " logged deals (" + stats.dup + " duplicates, " + stats.multi +
         " multi-team, " + stats.unbalanced + " failed the balance filter)" +
         (trends ? "; trends over " + deals.length + " deals" : "; too few deals for a trends card"));
-      return cards;
+      return digest.then(function (dc) {
+        if (dc) cards.unshift(dc);
+        return cards;
+      });
     }).catch(function (e) {
       console.warn("[doomscroll] trade log unavailable:", e.message);
-      return [];
+      // The digest stands on its own: if the log is down but the digest is up,
+      // the Trades tab still has something real to say.
+      return digest.then(function (dc) { return dc ? [dc] : []; }).catch(function () { return []; });
     });
   }
 

@@ -246,6 +246,30 @@ a:hover{ text-decoration:underline }
 .tt-builds b{ display:block; font-size:1.05rem; color:var(--t-trade) }
 .tt-builds span{ font-size:.55rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.06em }
 
+/* -------- trade daily digest -------- */
+.td-hero{ display:flex; align-items:center; gap:.6rem; margin-bottom:.15rem }
+.td-hero-text{ min-width:0 }
+.td-name-big{ font-size:1.15rem; font-weight:700; letter-spacing:-.015em; line-height:1.2 }
+.td-share{ font-size:.82rem; color:var(--text-secondary); line-height:1.3 }
+.td-share b{ color:var(--t-trade); font-size:1rem }
+.td-label{
+  margin-top:.6rem; font-size:.58rem; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--text-secondary);
+}
+.td-list{ margin-top:.25rem }
+.td-row{
+  position:relative; display:flex; align-items:center; gap:.45rem;
+  padding:.3rem .45rem; border-radius:6px; overflow:hidden; margin-bottom:.2rem;
+  background:var(--surface-hover);
+}
+.td-fill{
+  position:absolute; left:0; top:0; bottom:0; border-radius:6px;
+  background:rgba(29,138,64,.16);
+}
+.td-row > :not(.td-fill){ position:relative }
+.td-name{ flex:1 1 auto; min-width:0; font-size:.85rem; font-weight:600 }
+.td-pct{ font-size:.75rem; color:var(--t-trade); font-weight:600 }
+
 /* -------- buzz cards -------- */
 .buzz-meta{
   display:flex; align-items:center; gap:.45rem; margin-bottom:.4rem;
@@ -314,6 +338,14 @@ a:hover{ text-decoration:underline }
 
 .bsky-video{ position:relative; display:block; margin:.5rem 0; border-radius:8px; overflow:hidden }
 .bsky-video img{ display:block; width:100%; max-height:22rem; object-fit:cover }
+/* The clip is laid over its own poster rather than replacing it, so the card
+   never changes height when playback starts, stops or fails. */
+.bsky-video video{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; background:#000;
+}
+.bsky-video.playing .play-hint{ opacity:0 }
+.bsky-video .play-hint{ transition:opacity .2s }
 .bsky-video .play-hint{
   position:absolute; left:.5rem; bottom:.5rem; padding:.25rem .55rem;
   border-radius:4px; background:rgba(0,0,0,.72); color:#fff;

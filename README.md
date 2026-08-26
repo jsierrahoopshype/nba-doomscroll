@@ -51,7 +51,11 @@ it is a scroll feed.
     format); trades containing picks fall back to the empty tool, because the
     log records "2027 #14 pick" and that cannot be re-encoded. It also emits
     one TRADE TRENDS card: who the whole log is moving and where to, counted
-    over deduped deals rather than log rows
+    over deduped deals rather than log rows. And one DAILY DIGEST card from
+    `nba-trade-daily-digest`, the same Worker and the same numbers behind
+    nba-trade-card: the most-traded player of the last 24 hours computed
+    server-side over the whole log, his destinations and the pieces coming
+    back
   - `js/buzz.js` — the Buzz tab: reads nba-content-stream's published
     `trending.json` and `feed.json` in the reader's browser, filters them, and
     translates entity slugs into the names the rest of the feed uses. Bluesky
@@ -65,6 +69,13 @@ it is a scroll feed.
     RSS is not gated, and two subreddit feeds carry up to 100 entries each,
     keyed by the same fullname the index uses. Both enrichments are
     best-effort, with a timeout, falling back to the index alone
+  - `js/bsky-video.js` — Bluesky video autoplay: muted, inline, looping, one
+    clip at a time, the one nearest the middle of the screen. Safari plays HLS
+    natively; everyone else lazily loads `js/vendor/hls.light.min.js`
+    (hls.js 1.7.1, Apache-2.0, licence beside it) the first time a video card
+    is about to be seen. Switched off entirely by prefers-reduced-motion,
+    prefers-reduced-data or Save-Data, and every failure path leaves the poster
+    and the tap-through exactly as they were
   - `js/race-player.js` — canvas bar chart race player: a port of the
     bar-chart-race repo's `hoopshype-official` theme, 90-second runtime, eased
     rank and value transitions
