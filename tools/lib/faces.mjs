@@ -247,3 +247,180 @@ export function reportFaceIndex(idx, label) {
     `${s.onDisk} PNGs on disk, ${s.rejected} mappings rejected as name/slug mismatches).`);
   if (s.rejects.length) console.log(`  rejected e.g. ${s.rejects.join(", ")}`);
 }
+
+/* ==================================================================
+ * bar-chart-race/assets/headshots — the wide source
+ * ==================================================================
+ *
+ * nba-headshots resolves 572 names. bar-chart-race ships 6,769 PNGs keyed by
+ * full name, and on the pool players the two sources are not complementary:
+ * every nba-headshots face that a pool needs is also in bar-chart-race, and
+ * bar-chart-race has 306 more on top. So for anything that wants "only players
+ * with a real photo", this is the index to ask.
+ *
+ * Three things make the difference between 60% coverage and 38%:
+ *
+ *   Case. The file is "Kevin Mchale.png", "Fred Vanvleet.png", "Zach Lavine.png".
+ *   Matching case-sensitively lost McHale, VanVleet, LaVine, LaMelo Ball,
+ *   LaMarcus Aldridge, DeAndre Jordan, DeMarcus Cousins and Tracy McGrady.
+ *
+ *   Diacritics. "Nikola Jokić.png" against "Nikola Jokic" in the stats files.
+ *
+ *   Punctuation. "Amar'e Stoudemire", "B.J. Armstrong". Punctuation is
+ *   removed rather than spaced, so "Amar'e" and "Amare" agree and "B.J." and
+ *   "BJ" agree without inventing a word boundary that is not there.
+ *
+ * THE TRAP, AGAIN
+ *
+ * Generational suffixes are the same hazard buildFaceIndex was written to dodge,
+ * in a different costume. Only "Larry Nance Jr..png" exists — the father has no
+ * photo — so a stem match on "larry nance" hands the elder Nance his son's face.
+ * Across the pools there are eight names where the only file carrying their stem
+ * has a suffix they do not:
+ *
+ *     Jimmy Butler <- III        Larry Nance <- Jr.        (wrong man)
+ *     Marcus Morris <- Sr.       Glenn Robinson <- III     (wrong man)
+ *     Kelly Oubre <- Jr.         Tim Hardaway <- Jr.       (wrong man)
+ *                                Ron Harper <- Jr.         (wrong man)
+ *                                John Lucas <- III         (wrong man)
+ *
+ * Five of the eight are a different player. So the rule is: a stem match is
+ * refused whenever the FILE carries a generational suffix the name does not.
+ * That costs Butler, Morris and Oubre a photo they could have had, and it is
+ * the same trade buildFaceIndex makes above — an initials disc is a blemish,
+ * the wrong player's face is a lie.
+ *
+ * Files of exactly the NBA CDN's grey placeholder size are not photographs and
+ * are skipped, which is what makes "has a headshot" true rather than roughly
+ * true: 3,307 of the 6,769 are that placeholder.
+ *
+ * _unmapped/ holds another 1,687 real crops keyed by NBA person id, reachable
+ * through nba-player-data's player-headshots.json, whose values start with that
+ * id. That map has the father/son collisions buildFaceIndex documents, so the
+ * same slug check applies: "Tim Hardaway" -> "203501-tim-hardaway-jr" is
+ * rejected, because the slug in the value is not the slug of the name asked for.
+ */
+
+const PLACEHOLDER_BYTES = 15000;   // below this it is the CDN's grey silhouette
+
+const bcrFold = s => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "");
+const bcrNorm = s => bcrFold(s).toLowerCase()
+  .replace(/[^a-z0-9 ]+/g, "").replace(/\s+/g, " ").trim();
+const bcrStem = s => bcrNorm(s).replace(/\b(jr|sr|ii|iii|iv|v)\b/g, "")
+  .replace(/\s+/g, " ").trim();
+
+const bcrHasSuffix = s => /\b(jr|sr|ii|iii|iv|v)\b/.test(bcrNorm(s));
+
+/**
+ * @param {string} dir       bar-chart-race/assets/headshots
+ * @param {object} [headMap] nba-player-data/player-headshots.json, for _unmapped
+ * @returns {{ fileFor:(name:string)=>string|null, size:number, stats:object }}
+ */
+export function buildBcrIndex(dir, headMap) {
+  const exact = new Map();          // normalized name -> file
+  const stem = new Map();           // suffix-stripped stem -> file
+  const stemCount = new Map();      // stem -> how many files reduce to it
+  const stemSuffixed = new Map();   // stem -> does that one file carry a suffix
+  const byId = new Map();           // NBA person id -> file
+  const stats = { files: 0, placeholders: 0, unmapped: 0, suffixGuarded: 0 };
+
+  let entries = [];
+  try { entries = fs.readdirSync(dir); } catch (e) { return emptyBcrIndex(); }
+
+  for (const f of entries) {
+    if (!/\.png$/i.test(f)) continue;
+    const full = path.join(dir, f);
+    let size = 0;
+    try { size = fs.statSync(full).size; } catch (e) { continue; }
+    if (size < PLACEHOLDER_BYTES) { stats.placeholders++; continue; }
+    stats.files++;
+    const raw = f.replace(/\.png$/i, "");
+    const e = bcrNorm(raw), s = bcrStem(raw);
+    if (!exact.has(e)) exact.set(e, full);
+    stemCount.set(s, (stemCount.get(s) || 0) + 1);
+    if (!stem.has(s)) { stem.set(s, full); stemSuffixed.set(s, bcrHasSuffix(raw)); }
+  }
+
+  const unDir = path.join(dir, "_unmapped");
+  try {
+    for (const f of fs.readdirSync(unDir)) {
+      if (!/\.png$/i.test(f)) continue;
+      const full = path.join(unDir, f);
+      if (fs.statSync(full).size < PLACEHOLDER_BYTES) continue;
+      byId.set(f.replace(/\.png$/i, ""), full);
+      stats.unmapped++;
+    }
+  } catch (e) { /* no _unmapped directory, fine */ }
+
+  function fileFor(name) {
+    const hit = exact.get(bcrNorm(name));
+    if (hit) return hit;
+    const s = bcrStem(name);
+    if (stemCount.get(s) === 1) {
+      if (stemSuffixed.get(s) && !bcrHasSuffix(name)) stats.suffixGuarded++;
+      else return stem.get(s);
+    }
+    /* _unmapped, through the name map — with buildFaceIndex's slug check, since
+     * this map points several fathers at their sons. */
+    const mapped = headMap && headMap[name];
+    if (mapped) {
+      const str = String(mapped);
+      const cut = str.indexOf("-");
+      const id = cut < 0 ? str : str.slice(0, cut);
+      const slug = cut < 0 ? "" : str.slice(cut + 1);
+      if (slug === slugify(name) && byId.has(id)) return byId.get(id);
+    }
+    return null;
+  }
+
+  return { fileFor, size: exact.size, stats };
+}
+
+function emptyBcrIndex() {
+  return { fileFor: () => null, size: 0, stats: { files: 0, placeholders: 0, unmapped: 0 } };
+}
+
+/* ---------------- square head tile ----------------
+ *
+ * Same framing the Teammates scoreboard uses, because the same thing is true
+ * everywhere a face goes in a circle or a rounded square: these sources are
+ * head-and-shoulders cut-outs, so their centre of mass is the chest. A square
+ * around that leaves the face high and half out of frame; a square hung off the
+ * crown cuts the chin off. Measure the head's width in the top third of the
+ * cut-out, assume a head is ~1.4x as tall as it is wide, centre on the middle
+ * of that, and make the square 2.25 head-widths across so the whole head still
+ * fits once a circle takes the corners off.
+ *
+ * Square in, square out, one resize — never stretched on either axis.
+ */
+const HEAD_BAND = 0.34;
+const HEAD_PAD = 2.25;
+const HEAD_RATIO = 1.4;
+
+/**
+ * @param {string} src   source PNG (a background-removed cut-out)
+ * @param {number} side  output edge in px
+ * @param {object} png   { decodePng, crop, resize, encodePng } from ./png.mjs
+ * @returns {Buffer|null}
+ */
+export function headTile(src, side, png) {
+  const img = png.decodePng(src);
+  if (!img) return null;
+  const full = alphaBox(src);
+  let s, x, y;
+  if (full) {
+    const fy = full[1] * img.h, fh = full[3];
+    const headBox = alphaBox(src, full[1], full[1] + fh * HEAD_BAND) || full;
+    const hx = headBox[0] * img.w, hw = headBox[2] * img.w;
+    s = Math.round(Math.min(img.w, img.h, hw * HEAD_PAD));
+    x = Math.round(hx + hw / 2 - s / 2);
+    y = Math.round(fy + hw * HEAD_RATIO / 2 - s / 2);
+  } else {
+    s = Math.min(img.w, Math.round(img.h * 0.78));
+    x = Math.round((img.w - s) / 2);
+    y = 0;
+  }
+  x = Math.max(0, Math.min(x, img.w - s));
+  y = Math.max(0, Math.min(y, img.h - s));
+  return png.encodePng(png.resize(png.crop(img, x, y, s, s), side, side));
+}

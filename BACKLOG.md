@@ -48,13 +48,6 @@ The tab ships, but these calls are Jorge's:
   Short version: `nba-trade-daily-digest` accepts `?days=N` and echoes `days` in
   the response; the card lights up on its own, no redeploy here.
 
-- **VS cards with no real headshot.** 1,885 of 2,000 VS cards and 294 of 300
-  trivia cards show at least one silhouette: `player-headshots.json` covers 572
-  players and the pools need 842. `bar-chart-race/assets/headshots` has 6,769
-  keyed by full name — the races already use it. The fix is to bake face tiles
-  for the ~900 players the pools need into `data/faces/`, the way
-  `data/races/faces/` already works, and rebuild the pools so a card with no
-  face is dropped rather than silhouetted.
 - **Reddit video: not doing it, and the reason is not technical.** Bluesky video
   autoplays; Reddit will not, by decision rather than by limitation. The only
   public source of a playable v.redd.it URL is the JSON API that returns 403 to
@@ -74,14 +67,17 @@ The tab ships, but these calls are Jorge's:
   gets its verdicts by driving the real Trade Machine in an iframe and holds no
   CBA logic of its own, so a feed version could only claim what the trade log
   proves, which the trade cards already say.
-- **34 modern stars are missing from Teammates for want of a photo.** Kevin
-  McHale, Jason Kidd, Shawn Marion, DeAndre Jordan, Amare Stoudemire, DeMarcus
-  Cousins, Tim Hardaway, Tom Chambers, Terry Cummings, Dennis Johnson and two
-  dozen more clear every other bar but have only an NBA-CDN grey placeholder in
-  `bar-chart-race/assets/headshots`, and nba-headshots does not resolve them
-  either. A real photo for any of them, in either repo, and they join the pool
-  on the next build — 34 more players is roughly another 400 possible
-  matchups.
+- **Teammates should be rebuilt on the shared face index — most of its 34
+  missing stars were a matching bug, not a missing photo.** `build_teammates.mjs`
+  has its own name matcher that folds diacritics but never lowercases, so
+  `Kevin Mchale.png`, `Deandre Jordan.png`, `Demarcus Cousins.png`,
+  `Zach Lavine.png`, `Tracy Mcgrady.png` and `Amar'e Stoudemire.png` all missed.
+  `Faces.buildBcrIndex` (written for the pools) handles every one of them, plus
+  the suffix trap. Swapping the matcher and rebuilding should recover most of
+  the 34 and roughly 400 more possible matchups. Left alone for now because the
+  current 700 are shipped and approved — this is a deliberate rebuild, not a
+  side-effect of another task. Tim Hardaway stays out either way: the only file
+  is his son's.
 
 ## Gamification
 
@@ -167,3 +163,6 @@ Kept short so the list above stays the point.
 - Buzz tab: today's NBA conversation, live from the Content Stream, filtered
   three ways (editorial blocklist, other-league words, require an NBA entity)
   and joined to the feed's own player and team names
+- Silhouettes gone: 1,231 head tiles baked from `bar-chart-race`, VS / trivia /
+  quiz pools built only from players who have a photograph, trade and History
+  cards drawing initials rather than a grey outline when nobody does

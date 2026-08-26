@@ -33,6 +33,26 @@ PLAYERS_JSON = os.environ.get(
     os.path.join(os.path.dirname(__file__), "..", "..", "ref", "nba-headshots", "players", "metadata", "players.json"),
 )
 
+# The tiles tools/build_data.mjs bakes: 1,078 players, local, framed on the head.
+# Sample cards used remote nba-headshots URLs and SILHOUETTE for everyone else,
+# which is how a sample card for Kareem showed a grey outline. Preferred here,
+# and face() in js/cards.js draws initials for whatever is left, so a sample
+# card never shows an outline of nobody either.
+FACE_INDEX = os.path.join(os.path.dirname(__file__), "..", "data", "faces", "index.json")
+try:
+    with open(FACE_INDEX, encoding="utf-8") as _f:
+        TILES = json.load(_f).get("faces", {})
+except Exception:
+    TILES = {}
+
+def face_url(name, fallback=None):
+    """Baked tile if there is one, else the caller's URL, else nothing at all —
+    None renders as initials rather than the generic silhouette."""
+    tile = TILES.get(name)
+    if tile:
+        return "data/faces/" + tile
+    return fallback
+
 TEAMS = {
     "ATL": "Atlanta Hawks", "BOS": "Boston Celtics", "BKN": "Brooklyn Nets",
     "CHA": "Charlotte Hornets", "CHI": "Chicago Bulls", "CLE": "Cleveland Cavaliers",
@@ -72,7 +92,7 @@ def load_modern_players(n=40):
                 "name": p["full_name"],
                 "team": p.get("team_abbrev") or "FA",
                 "era": era_from(p.get("seasons_from", "2015")),
-                "img": HEADSHOT_BASE + p["headshot"]["filename"],
+                "img": face_url(p["full_name"]),
                 "nba_id": p["nba_id"],
             })
         return out
@@ -80,7 +100,7 @@ def load_modern_players(n=40):
         # minimal fallback so the generator always runs
         fallback = [("LeBron James", "LAL", "2010s", 2544), ("Stephen Curry", "GSW", "2010s", 201939),
                     ("Nikola Jokic", "DEN", "2020s", 203999), ("Jayson Tatum", "BOS", "2020s", 1628369)]
-        return [{"name": n_, "team": t, "era": e, "img": SILHOUETTE, "nba_id": i} for n_, t, e, i in fallback]
+        return [{"name": n_, "team": t, "era": e, "img": face_url(n_), "nba_id": i} for n_, t, e, i in fallback]
 
 def era_from(year_str):
     y = int(str(year_str)[:4])
@@ -137,7 +157,7 @@ RUMOR_TEMPLATES = [
     ("{p} trade market described as 'lukewarm at best'", "You'd be surprised how few teams have called."),
 ]
 for yr in [2012, 2014, 2016, 2018, 2019, 2021, 2022, 2023, 2024, 2025]:
-    p = random.choice(modern + [{"name": n_, "team": t, "era": e, "img": SILHOUETTE} for n_, t, e in LEGENDS[:6]])
+    p = random.choice(modern + [{"name": n_, "team": t, "era": e, "img": face_url(n_)} for n_, t, e in LEGENDS[:6]])
     t_abbr = random.choice(list(TEAMS.keys()))
     tmpl, quote = random.choice(RUMOR_TEMPLATES)
     text = "[SAMPLE DATA] " + tmpl.format(p=p["name"], t=TEAMS[t_abbr])
@@ -152,7 +172,7 @@ for i in range(10):
     cross = i % 3 == 0
     if cross:
         l = random.choice(LEGENDS)
-        p1 = {"name": l[0], "team": l[1], "era": l[2], "img": SILHOUETTE}
+        p1 = {"name": l[0], "team": l[1], "era": l[2], "img": face_url(l[0])}
         p2 = random.choice(modern)
     else:
         p1, p2 = random.sample(modern, 2)
@@ -178,7 +198,7 @@ for i in range(10):
 # ---------------- trivia (two players, one stat) ----------------
 STATS = ["points", "assists", "rebounds", "steals", "blocks", "3-pointers made", "games played", "triple-doubles"]
 for i in range(8):
-    p1, p2 = random.sample(modern + [{"name": n_, "team": t, "era": e, "img": SILHOUETTE} for n_, t, e in LEGENDS], 2)
+    p1, p2 = random.sample(modern + [{"name": n_, "team": t, "era": e, "img": face_url(n_)} for n_, t, e in LEGENDS], 2)
     v1, v2 = sorted(random.sample(range(2000, 39000, 137), 2), reverse=True)
     stat = random.choice(STATS)
     add("trivia", ["vs"],
@@ -227,7 +247,7 @@ CPI_MULT = {1992: 2.26, 1995: 2.08, 1998: 1.95, 2000: 1.84, 2005: 1.62, 2015: 1.
 for name, team, yr, m, era, blurb in SALARY_FACTS:
     add("salary", ["vault"],
         tags("salary", [name], [team], era, "salary-history"),
-        {"player": name, "img": SILHOUETTE, "team": team, "year": yr,
+        {"player": name, "img": face_url(name), "team": team, "year": yr,
          "salary": f"${m:.2f}M", "today": f"${m * CPI_MULT.get(yr, 1.5):.1f}M",
          "blurb": "[SAMPLE] " + blurb})
 

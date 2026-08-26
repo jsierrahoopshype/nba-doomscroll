@@ -26,6 +26,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
 const CompareCore = require(path.join(REPO, "js", "compare-core.js"));
 const VsScore = require(path.join(REPO, "js", "vs-score.js"));
+import * as Faces from "./lib/faces.mjs";
+import * as Png from "./lib/png.mjs";
 
 const PAGES_PLAYER_DATA = "https://jsierrahoopshype.github.io/nba-player-data/";
 const PAGES_HEADSHOTS = "https://jsierrahoopshype.github.io/nba-headshots/";
@@ -60,7 +62,8 @@ async function loadSources() {
     "rsStats", "salaries", "sneakers", "comparisons", "bio"];
   const db = {};
   if (mode === "--local") {
-    const [pd, hs, mvt] = args.slice(1);
+    const [pd, hs, mvt, bcr] = args.slice(1);
+    db.bcrFaces = bcr || null;
     for (const f of files) db[f] = JSON.parse(fs.readFileSync(path.join(pd, f + ".json"), "utf8"));
     db.combine = JSON.parse(fs.readFileSync(path.join(pd, "combine-v3.json"), "utf8"));
     db.headMap = JSON.parse(fs.readFileSync(path.join(pd, "player-headshots.json"), "utf8"));
@@ -80,11 +83,157 @@ async function loadSources() {
   return db;
 }
 
+/* ---------------- faces ----------------
+ *
+ * WHY THE POOLS USED TO SHIP SILHOUETTES
+ *
+ * The universe's `img` came from nba-headshots' players.json, which describes
+ * 572 faces. The pools between them need 1,084 players, and nothing stopped a
+ * card being built from two of the other 512 — so 1,885 of 2,000 VS cards and
+ * 294 of 300 trivia cards carried at least one grey outline.
+ *
+ * Two halves to the fix, in the order Jorge put them: expand the source, then
+ * scrap what it still cannot cover.
+ *
+ * EXPAND. bar-chart-race ships 6,769 name-keyed PNGs, 3,462 of which are real
+ * photographs rather than the CDN's grey placeholder. On these pools it is a
+ * strict superset of nba-headshots — every one of the 572 that a pool needs is
+ * in there too, plus 306 more — so it replaces it outright rather than joining
+ * it. tools/lib/faces.mjs does the name matching and documents the traps.
+ *
+ * Those files are 256x256 background-removed cut-outs, not face crops: the head
+ * is about 46% of the width and sits differently in every one. Dropped into a
+ * 3.2rem disc they read as a tiny head floating in a circle. So a square tile is
+ * baked per player, framed on the measured head the way the Teammates scoreboard
+ * frames its own, at 96px — the largest a card draws one is 3.2rem, about 51
+ * CSS px, so this still has pixels in hand on a 2x screen at a third of the
+ * bytes 256px would cost.
+ *
+ * SCRAP. `hasHead` then gates pool membership, and vs-values with it, so the
+ * live random matchup cannot put on screen what the pool no longer can. A card
+ * needing a player with no photograph is not built at all, and the build fails
+ * outright if a silhouette makes it into a VS or trivia card. 1,231 of the
+ * 3,463 players in the universe have a photograph, and the pools use 1,078 of
+ * them — deeper than the 572 the old source could reach.
+ *
+ * WHY A MANIFEST
+ *
+ * Only --local can bake, because it needs the 277MB source repo. The weekly
+ * Action runs --pages and commits what it builds, so without a record of which
+ * players have a tile it would cheerfully rebuild the pools unrestricted and
+ * undo this every Monday. data/faces/index.json is that record: written by the
+ * local bake, committed alongside the tiles, and read by BOTH modes. --pages
+ * therefore keeps the restriction without ever seeing a PNG.
+ */
+
+const FACE_DIR = path.join(REPO, "data", "faces");
+const FACE_INDEX = path.join(FACE_DIR, "index.json");
+const FACE_PX = 96;                        // .face.lg is 3.2rem ≈ 51px CSS
+const FACE_URL = "data/faces/";
+
+function faceSlug(name) {
+  return String(name).normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+/* Which names have a photograph, and what its tile would be called. Cheap —
+ * it reads the directory listing, never a PNG — so the pools can be gated on
+ * it before anything is encoded. --pages has no source directory and reads the
+ * committed manifest instead.
+ *
+ * @returns {{ faces:object|null, source:object|null }} faces maps name -> tile
+ */
+function resolveFaces(db, names) {
+  if (!db.bcrFaces) {
+    let manifest = null;
+    try { manifest = JSON.parse(fs.readFileSync(FACE_INDEX, "utf8")); } catch (e) { /* none */ }
+    if (manifest && manifest.faces) {
+      console.log(`faces: reusing the committed manifest, ${Object.keys(manifest.faces).length} players ` +
+        `(no bar-chart-race directory given, so nothing is re-baked)`);
+      return { faces: manifest.faces, source: null };
+    }
+    console.log("faces: NO manifest and no source directory — pools will NOT be " +
+      "restricted to players with a photo, and silhouettes will come back. " +
+      "Run --local with the bar-chart-race headshots path to bake them.");
+    return { faces: null, source: null };
+  }
+
+  const idx = Faces.buildBcrIndex(db.bcrFaces, db.headMap);
+  const faces = {};
+  const source = {};
+  const takenBy = new Map();
+  for (const name of names) {
+    const src = idx.fileFor(name);
+    if (!src) continue;
+    let slug = faceSlug(name);
+    /* Two different players must never share a tile filename. */
+    if (takenBy.has(slug) && takenBy.get(slug) !== name) {
+      let n = 2;
+      while (takenBy.has(slug + "-" + n)) n++;
+      slug = slug + "-" + n;
+    }
+    takenBy.set(slug, name);
+    faces[name] = slug + ".png";
+    source[name] = src;
+  }
+  console.log(`faces: ${Object.keys(faces).length} of ${names.length} players have a photograph ` +
+    `(${idx.stats.suffixGuarded} lookups refused as father/son suffix mismatches)`);
+  return { faces, source };
+}
+
+/* Encodes a tile for every player in the universe with a photograph, not only
+ * the ones the finished pools happen to name.
+ *
+ * Baking just the pool players was 1.4MB smaller and wrong: trade cards are
+ * built from whatever readers traded, which is current players, and the pools
+ * are built on career notability, which is not. So Michael Porter Jr. drew a
+ * silhouette on a trade card while sitting in the source repo with a photo.
+ * Anyone the universe does not hold at all — a rookie 20 games into a career —
+ * still falls back to the remote nba-headshots map in js/trades.js, and to
+ * initials after that.
+ *
+ * The manifest it writes is the other half of the job: --pages cannot see the
+ * source repo, so without a committed record of who has a tile the weekly
+ * Action would rebuild the pools unrestricted and undo this every Monday. */
+function bakeFaces(resolved, used) {
+  if (!resolved.source) return;
+  fs.mkdirSync(FACE_DIR, { recursive: true });
+  const faces = {};
+  let baked = 0, reused = 0, failed = 0, bytes = 0;
+
+  for (const name of used) {
+    const tile = resolved.faces[name];
+    if (!tile) continue;
+    const outFile = path.join(FACE_DIR, tile);
+    if (fs.existsSync(outFile)) { reused++; }
+    else {
+      const png = Faces.headTile(resolved.source[name], FACE_PX, Png);
+      if (!png) { failed++; continue; }
+      fs.writeFileSync(outFile, png);
+      baked++;
+    }
+    bytes += fs.statSync(outFile).size;
+    faces[name] = tile;
+  }
+
+  /* Tiles for players no longer in any pool are left on disk: deleting files is
+   * not this builder's job, and a stale tile costs bytes rather than
+   * correctness. The manifest is what the site is gated on. */
+  fs.writeFileSync(FACE_INDEX, JSON.stringify({
+    generated: new Date().toISOString().slice(0, 10),
+    px: FACE_PX,
+    source: "bar-chart-race/assets/headshots",
+    faces
+  }));
+  console.log(`faces: ${Object.keys(faces).length} tiles in play, ${(bytes / 1048576).toFixed(1)} MB ` +
+    `(${baked} newly baked, ${reused} already on disk, ${failed} failed to decode)`);
+}
+
 /* ---------------- player universe ---------------- */
 
 function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
 
-function buildUniverse(db) {
+function buildUniverse(db, faces) {
   const agg = new Map(); // name -> aggregates
   for (const row of db.rsStats) {
     const n = row.PLAYER;
@@ -129,13 +278,17 @@ function buildUniverse(db) {
     const posGroup = pos[0] === "G" ? "G" : pos[0] === "C" ? "C" : pos[0] === "F" ? "F" : "?";
     const allStar = allStarCount.get(a.name) || 0;
     const headFile = fileByName.get(a.name) || null;
+    /* A baked tile wins: it is the wider source AND the better framing. The
+     * nba-headshots URL stays as the fallback for a run with no manifest, so
+     * a builder without the faces still produces the pools it always did. */
+    const tile = faces && faces[a.name];
     players.push({
       name: a.name, era, pos: posGroup, gp: a.gp, pts: a.pts, min: a.min,
       reb: a.reb, ast: a.ast, stl: a.stl, blk: a.blk, tp: a.tp,
       first: a.first, last: a.last, team: a.lastTeam,
       allStar,
-      img: headFile ? HEADSHOT_BASE + headFile : SILHOUETTE,
-      hasHead: !!headFile,
+      img: tile ? FACE_URL + tile : (headFile ? HEADSHOT_BASE + headFile : SILHOUETTE),
+      hasHead: faces ? !!tile : !!headFile,
       notability: allStar * 12 + a.pts / 1000 + a.gp / 200
     });
   }
@@ -165,10 +318,12 @@ function vsCard(u1, u2, r, idx, kind) {
 
 function buildVsPool(universe, values) {
   const byName = new Map(universe.map(p => [p.name, p]));
+  /* hasHead is a hard gate, not a preference: a VS card is two faces and a
+   * scoreline, and a card with a grey outline on one side is not the card. */
   const notable = Object.keys(values.players)
     .map(n => byName.get(n))
-    .filter(p => p && Object.keys(values.players[p.name].v).length >= 20);
-  console.log(`vs pool universe: ${notable.length} scoreable players`);
+    .filter(p => p && p.hasHead && Object.keys(values.players[p.name].v).length >= 20);
+  console.log(`vs pool universe: ${notable.length} scoreable players with a photo`);
 
   const scoreOf = (a, b) => VsScore.score(values.metrics, values.players[a.name].v, values.players[b.name].v);
 
@@ -248,7 +403,12 @@ function buildVsValues(db, universe) {
     metrics.push({ sec: section, cat, win, src });
   }
   const players = {};
-  const top = universe.filter(p => p.notability >= 8)
+  /* Photographed players only, for the same reason the pool is gated: the
+   * browser draws a live random matchup from this file, and an ungated file
+   * would put a silhouette on screen by a route the pool no longer can.
+   * Taking 900 from the photographed players keeps the live matchup as deep
+   * as it was. */
+  const top = universe.filter(p => p.notability >= 6 && p.hasHead)
     .sort((a, b) => b.notability - a.notability).slice(0, 900);
   for (const p of top) {
     const vals = {};
@@ -345,7 +505,12 @@ const TRIVIA_STATS = [
 ];
 
 function buildTriviaPool(universe) {
-  const pool = universe.filter(p => p.notability >= 10).sort((a, b) => b.notability - a.notability).slice(0, 260);
+  /* Same gate as VS: the two options ARE two faces, so a silhouette is not a
+   * blemish here, it is half the question missing. Taking 260 from the
+   * photographed players rather than from everyone keeps the pool the same
+   * size without letting a grey outline back in. */
+  const pool = universe.filter(p => p.notability >= 10 && p.hasHead)
+    .sort((a, b) => b.notability - a.notability).slice(0, 260);
   const cards = [];
   const seen = new Set();
   let guard = 0;
@@ -550,8 +715,14 @@ CompareCore.init({
   salaries: db.salaries, sneakers: db.sneakers, comparisons: db.comparisons
 });
 
-const universe = buildUniverse(db);
-console.log(`universe: ${universe.length} players (50+ games)`);
+/* Two passes over the universe: the first only to learn who is in it, so the
+ * face bake can be asked for exactly those names rather than all 6,769. */
+const roster = buildUniverse(db, null).map(p => p.name);
+const resolved = resolveFaces(db, roster);
+
+const universe = buildUniverse(db, resolved.faces);
+console.log(`universe: ${universe.length} players (50+ games), ` +
+  `${universe.filter(p => p.hasHead).length} with a photograph`);
 
 const out = (name, obj) => {
   const p = path.join(REPO, "data", name);
@@ -567,10 +738,24 @@ verifyScorer(universe, vsValues);
 const vsPool = buildVsPool(universe, vsValues);
 out("vs-pool.json", { generated: new Date().toISOString().slice(0, 10), cards: vsPool });
 
-out("quiz-pool.json", { generated: new Date().toISOString().slice(0, 10), cards: buildQuizPool(universe) });
-out("trivia-pool.json", { generated: new Date().toISOString().slice(0, 10), cards: buildTriviaPool(universe) });
+const quizPool = buildQuizPool(universe);
+out("quiz-pool.json", { generated: new Date().toISOString().slice(0, 10), cards: quizPool });
+const triviaPool = buildTriviaPool(universe);
+out("trivia-pool.json", { generated: new Date().toISOString().slice(0, 10), cards: triviaPool });
 
 const ballot = await buildBallotPool(db, universe);
 out("ballot-pool.json", { generated: new Date().toISOString().slice(0, 10), cards: ballot });
+
+bakeFaces(resolved, resolved.faces ? Object.keys(resolved.faces) : []);
+
+/* The one thing that must never be true again. */
+const silhouettes = [...vsPool, ...triviaPool].filter(c =>
+  JSON.stringify(c.payload).includes("player_silhouette"));
+if (silhouettes.length) {
+  console.error(`FAILED: ${silhouettes.length} cards still carry a silhouette, ` +
+    `e.g. ${silhouettes[0].id}`);
+  process.exit(1);
+}
+console.log(`no silhouettes in ${vsPool.length + triviaPool.length} VS and trivia cards`);
 
 console.log("done");

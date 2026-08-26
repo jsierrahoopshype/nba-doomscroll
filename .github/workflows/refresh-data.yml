@@ -21,6 +21,15 @@ jobs:
         with:
           node-version: "20"
 
+      # --pages cannot bake face tiles: that needs bar-chart-race's 277MB of
+      # source PNGs, which is not worth cloning weekly. It reads the committed
+      # data/faces/index.json instead, so the pools stay restricted to players
+      # who have a photograph without this job ever decoding one. If that
+      # manifest ever goes missing the build says so loudly and the silhouettes
+      # come back — re-bake it locally with:
+      #   node tools/build_data.mjs --local <nba-player-data> \
+      #     <nba-headshots/players/metadata> <media-vote-tracker/docs/data> \
+      #     <bar-chart-race/assets/headshots>
       - name: Rebuild pools from public data
         run: node tools/build_data.mjs --pages
 

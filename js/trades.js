@@ -51,6 +51,7 @@
   };
 
   var headshotByName = null; // filled from nba-headshots metadata, best effort
+  var tileByName = null;     // data/faces/index.json, baked by tools/build_data.mjs
 
   function abbrev(city) { return TEAM_BY_CITY[String(city || "").trim()] || null; }
   function logoFor(city) {
@@ -60,14 +61,26 @@
 
   function isPick(name) { return /^\d{4}\s*#\d+\s*pick$/i.test(String(name || "").trim()); }
 
+  /* Two sources, tried in that order. The baked tiles are local, cover 1,078
+   * players against the remote metadata's 572, and are already framed on the
+   * head; the remote map stays as the fallback for anyone traded who is not in
+   * the tiles yet. Neither is guaranteed — trade cards are built from whatever
+   * readers traded, so a name with no photograph anywhere is always possible,
+   * and cards.js draws initials rather than a grey outline of nobody. */
   function faceFor(name) {
-    if (!headshotByName || isPick(name)) return null;
+    if (isPick(name)) return null;
+    if (tileByName && tileByName[name]) return "data/faces/" + tileByName[name];
+    if (!headshotByName) return null;
     var f = headshotByName[name];
     return f ? HEADSHOT_BASE + f : null;
   }
 
   function loadHeadshots() {
-    return fetch("https://jsierrahoopshype.github.io/nba-headshots/players/metadata/players.json")
+    var tiles = fetch("data/faces/index.json")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { tileByName = (j && j.faces) || {}; })
+      .catch(function () { tileByName = {}; });
+    var remote = fetch("https://jsierrahoopshype.github.io/nba-headshots/players/metadata/players.json")
       .then(function (r) { return r.json(); })
       .then(function (d) {
         headshotByName = {};
@@ -77,7 +90,8 @@
           }
         });
       })
-      .catch(function () { headshotByName = {}; }); // cards still render, silhouettes only
+      .catch(function () { headshotByName = {}; }); // cards still render, initials only
+    return Promise.all([tiles, remote]);
   }
 
   /* ---------------- shaping ---------------- */

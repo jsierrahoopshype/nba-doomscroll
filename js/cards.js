@@ -15,8 +15,24 @@
   }
   function escAttr(s) { return esc(s); }
 
+  /* No photograph draws initials, not the generic silhouette.
+   *
+   * The VS, quiz and trivia pools are now built only from players who have one,
+   * so nothing there reaches this branch. Trade and History cards can: a trade
+   * card is whatever a reader traded, and a 1950s salary record is nobody the
+   * NBA's CDN ever photographed. A grey outline of nobody is worse than useless
+   * on those — two initials at least say who this is — which is the same call
+   * the Teammates scoreboard already makes below.
+   *
+   * The onerror path keeps the silhouette: an image that was supposed to load
+   * and did not is a different thing from a player with no photograph, and
+   * swapping in initials there would quietly hide a broken source. */
   function face(src, alt, cls) {
-    return '<img class="' + (cls || "face") + '" loading="lazy" src="' + escAttr(src || SILHOUETTE) +
+    if (!src || src === SILHOUETTE) {
+      return '<span class="' + (cls || "face") + ' mt-ini" title="' + escAttr(alt || "") + '">' +
+        esc(initials(alt)) + '</span>';
+    }
+    return '<img class="' + (cls || "face") + '" loading="lazy" src="' + escAttr(src) +
       '" alt="' + escAttr(alt || "") + '" onerror="this.onerror=null;this.src=\'' + SILHOUETTE + '\'">';
   }
 
@@ -74,7 +90,8 @@
     race:   { chip: "RACE",    cls: "t-vault", tab: "races" },
     buzz:   { chip: "BUZZ",    cls: "t-buzz",  tab: "buzz" },
     tradetrend: { chip: "TRADE TRENDS", cls: "t-trade", tab: "trades" },
-    tradedigest: { chip: "DAILY DIGEST", cls: "t-trade", tab: "trades" }
+    tradedigest: { chip: "DAILY DIGEST", cls: "t-trade", tab: "trades" },
+    mates:  { chip: "TEAMMATES", cls: "t-vs", tab: "vs" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -165,6 +182,49 @@
         '<div class="td-list">' + bars(p.dests, "dest") + '</div>' : "") +
       (p.back.length ? '<div class="td-label mono">Most traded for</div>' +
         '<div class="td-list">' + bars(p.back, "back") + '</div>' : "");
+  }
+
+  /* Teammates Score: who had the better help, season by season. The canvas is
+   * mounted by app.js when the card scrolls into view — same lifecycle as a bar
+   * chart race, same controls — so the ~6KB of season detail is only fetched
+   * for a matchup somebody actually looks at. */
+  function renderMates(c) {
+    var p = c.payload;
+    /* Initials rather than the generic silhouette when a player has no face
+     * tile. 30 of the players here have only an NBA-CDN placeholder upstream,
+     * which is a grey outline of nobody; two initials at least say who this is,
+     * and it matches what the canvas draws two inches below. */
+    function side(x, cls) {
+      var head = x.img
+        ? face(x.img, x.name, "face lg")
+        : '<span class="face lg mt-ini" aria-hidden="true">' +
+          esc(x.name.split(/\s+/).map(function (w) { return w[0] || ""; }).join("").slice(0, 2).toUpperCase()) +
+          '</span>';
+      return '<div class="mt-side ' + cls + '">' + head +
+        '<span class="mt-name">' + ent(x.name, "player") + '</span>' +
+        '<b class="mt-score mono">' + esc(String(x.score)) + '</b>' +
+        '<span class="mt-sub mono">' + esc(x.span) + ' · ' + esc(String(x.seasons)) + ' seasons</span>' +
+      '</div>';
+    }
+    var alt = p.a.name + " " + p.a.score + ", " + p.b.name + " " + p.b.score +
+      ". Teammate accolade score, season by season.";
+    return '<div class="vs-headline">' + esc(p.headline) + '</div>' +
+      '<div class="mt-head">' + side(p.a, "a") + '<div class="vs-mid">VS</div>' + side(p.b, "b") + '</div>' +
+      '<div class="card-sub mt-verdict">' + ent(p.lead, "player") + ' had the better help by ' +
+        '<span class="mono">' + esc(String(p.gap)) + '</span></div>' +
+      '<div class="race-wrap">' +
+        '<canvas class="race-canvas" data-player="mates" data-race="' + escAttr(p.file) +
+          '" role="img" aria-label="' + escAttr(alt) + '"></canvas>' +
+        '<div class="race-status mono" data-race-status>loading the seasons…</div>' +
+      '</div>' +
+      '<div class="race-bar">' +
+        '<button class="race-btn" type="button" data-race-toggle aria-label="Play or pause">Play</button>' +
+        '<input class="race-scrub" type="range" min="0" max="1000" value="0" step="1" ' +
+          'data-race-scrub aria-label="Scrub through the seasons">' +
+        '<button class="race-btn race-speed" type="button" data-race-speed ' +
+          'aria-label="Playback speed">1&times;</button>' +
+      '</div>' +
+      '<p class="race-note">' + esc(p.note) + '</p>';
   }
 
   function renderRumor(c) {
@@ -570,7 +630,8 @@
     trade: renderTrade, rumor: renderRumor, vs: renderVs, trivia: renderTrivia,
     quiz: renderQuiz, ballot: renderBallot, salary: renderSalary, otd: renderOtd,
     race: renderRace, oddity: renderOddity, buzz: renderBuzz,
-    tradetrend: renderTradeTrend, tradedigest: renderTradeDigest
+    tradetrend: renderTradeTrend, tradedigest: renderTradeDigest,
+    mates: renderMates
   };
 
   /* ---------------- card frame ---------------- */
@@ -593,6 +654,8 @@
       // No tap-through. The race IS the destination; sending someone to the
       // HoopsMatic homepage from it added nothing.
       case "race":  return null;
+      // Same reasoning as a race: the card IS the destination.
+      case "mates": return null;
       // The item lives somewhere else and that is the point: Buzz is a pointer
       // to the source, never a replacement for it.
       case "buzz":  return { url: c.payload.url, label: c.payload.cta || "Open" };

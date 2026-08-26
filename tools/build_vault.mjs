@@ -95,7 +95,21 @@ const push = (type, tab, tags, payload) =>
 // the file listing and screens the name map's wrong-face collisions.
 const FACES = buildFaceIndex(HS, readJson(path.join(PD, "player-headshots.json")));
 reportFaceIndex(FACES, "Headshots");
-const faceOf = name => FACES.faceOf(name);
+
+/* The tiles tools/build_data.mjs bakes cover more players than either remote
+ * source and are framed on the head rather than shipped as a whole cut-out, so
+ * they are tried first. History cards cannot be gated on having one the way the
+ * VS pool is — a 1954 salary record is the card, and the man in it may never
+ * have been photographed by the NBA — so the remote index stays as the fallback
+ * and cards.js draws initials when neither has anything. */
+let TILES = {};
+try {
+  TILES = JSON.parse(fs.readFileSync(path.join(REPO, "data", "faces", "index.json"), "utf8")).faces || {};
+  console.log(`Baked tiles: ${Object.keys(TILES).length} players`);
+} catch (e) {
+  console.log("Baked tiles: none found (data/faces/index.json) — falling back to nba-headshots only");
+}
+const faceOf = name => (TILES[name] ? "data/faces/" + TILES[name] : FACES.faceOf(name));
 
 /* ---------------- 1. salary cards ---------------- */
 

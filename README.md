@@ -89,12 +89,18 @@ it is a scroll feed.
   - `js/race-player.js` — canvas bar chart race player: a port of the
     bar-chart-race repo's `hoopshype-official` theme, 90-second runtime, eased
     rank and value transitions
-- `data/vs-pool.json` — 2,000 pre-scored matchups (1,000 same-era, 1,000
-  cross-era), filtered to competitive ones
-- `data/vs-values.json` — per-player metric values for live scoring (~740KB
-  instead of the 27MB the full comparison dataset would need)
-- `data/quiz-pool.json` — Guess the Player, restricted to the 354 players with
-  a verified headshot file, tiered easy/medium/hard by obscurity
+- `data/vs-pool.json` — 1,924 pre-scored matchups (924 same-era, 1,000
+  cross-era), filtered to competitive ones and to players who have a photograph
+- `data/vs-values.json` — per-player metric values for live scoring (~500KB
+  instead of the 27MB the full comparison dataset would need). Photographed
+  players only, so the browser's live random matchup cannot put on screen what
+  the pool no longer can
+- `data/faces/*.png` + `data/faces/index.json` — 1,231 square head tiles, baked
+  from `bar-chart-race/assets/headshots` and framed on the measured head. The
+  manifest is what the pools are gated on, and it is why the weekly `--pages`
+  rebuild keeps the gate without cloning 277MB of source PNGs
+- `data/quiz-pool.json` — Guess the Player, restricted to the 1,078 players with
+  a real photograph, tiered easy/medium/hard by obscurity
 - `data/trivia-pool.json` — "two players, one stat" with real career values.
   Lives on the Quiz tab: VS is for reading a comparison, Quiz is for taking a
   shot at one
@@ -162,7 +168,20 @@ Reads nba-player-data, nba-headshots and media-vote-tracker over GitHub Pages
 (read-only, never writes to them) and rewrites the pools in `data/`. Runs
 weekly via `.github/workflows/refresh-data.yml`, or on demand from the Actions
 tab. Every build verifies the fast scorer against the real comparison engine on
-120 random matchups and fails if they ever disagree.
+120 random matchups and fails if they ever disagree, and fails again if a VS or
+trivia card comes out carrying a silhouette.
+
+`--pages` reads the committed `data/faces/index.json` and bakes nothing. To
+re-bake the face tiles — after a new photo lands in bar-chart-race, or to widen
+the pools — run the local form with the headshots directory as a fourth
+argument:
+
+    node tools/build_data.mjs --local <nba-player-data> \
+      <nba-headshots/players/metadata> <media-vote-tracker/docs/data> \
+      <bar-chart-race/assets/headshots>
+
+Without that fourth argument nothing is re-baked and the committed manifest is
+reused, which is the same thing `--pages` does.
 
 ## Rebuilding the Vault
 
