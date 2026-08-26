@@ -326,6 +326,56 @@ a:hover{ text-decoration:underline }
   .bsky-extcard img{ width:100%; height:auto; aspect-ratio:1.91/1 }
 }
 
+/* Quoted post: bordered, inset, subordinate to the post quoting it. The whole
+   box opens the quoted post on Bluesky. Ported from Content Stream. */
+.bsky-quoted{
+  display:block; margin:.5rem 0; padding:.6rem .7rem;
+  border:1px solid var(--border); border-radius:10px; background:var(--bg);
+  text-decoration:none; color:var(--text);
+}
+.bsky-quoted:hover{ border-color:var(--accent) }
+.bsky-quoted-missing{
+  font-family:'JetBrains Mono',monospace; font-size:.7rem;
+  color:var(--text-secondary); font-style:italic;
+}
+.bsky-quoted-head{ display:flex; align-items:center; gap:.4rem; margin-bottom:.3rem }
+.bsky-quoted-avatar{
+  width:1.4rem; height:1.4rem; border-radius:50%; object-fit:cover; display:block;
+  background:var(--surface-hover); flex:0 0 auto;
+}
+.bsky-quoted-author{ font-weight:650; font-size:.8rem }
+.bsky-quoted-handle{ font-size:.68rem; color:var(--text-secondary) }
+.bsky-quoted-text{
+  font-size:.85rem; line-height:1.4; white-space:pre-wrap;
+  overflow-wrap:anywhere; word-break:break-word;
+}
+.bsky-quoted-images{ margin:.4rem 0 0 }
+.bsky-quoted-images img{
+  display:block; width:100%; max-height:14rem; object-fit:cover;
+  border-radius:6px; background:var(--surface-hover);
+}
+.bsky-quoted-images.grid{ display:grid; grid-template-columns:1fr 1fr; gap:.25rem }
+.bsky-quoted-images.grid img{ height:7rem; max-height:none }
+.bsky-quoted-video{ position:relative; margin:.4rem 0 0; border-radius:6px; overflow:hidden }
+.bsky-quoted-video img{ display:block; width:100%; max-height:14rem; object-fit:cover }
+.bsky-quoted-video-hint{
+  position:absolute; left:.4rem; bottom:.4rem; padding:.18rem .45rem;
+  border-radius:4px; background:rgba(0,0,0,.72); color:#fff;
+  font-family:'JetBrains Mono',monospace; font-size:.6rem; font-weight:600;
+}
+.bsky-quoted-linkcard{
+  display:flex; flex-direction:column; gap:.15rem; margin-top:.4rem;
+  padding:.4rem .5rem; border:1px solid var(--border); border-radius:6px;
+}
+.bsky-quoted-linkcard .qlc-title{ font-size:.78rem; font-weight:600; line-height:1.3 }
+.bsky-quoted-linkcard .qlc-host{ font-size:.6rem; color:var(--text-secondary) }
+
+/* Reddit: the poster's handle sits in the meta row, and the body keeps the
+   line breaks it was written with (a stat table is unreadable reflowed). */
+.buzz-poster{ color:var(--text-secondary) }
+.buzz-votes{ color:var(--t-buzz); font-weight:600 }
+.buzz-excerpt.as-written{ white-space:pre-wrap; overflow-wrap:anywhere }
+
 /* -------- vs cards -------- */
 .vs-head{ display:flex; align-items:flex-start; gap:.5rem }
 .vs-player{

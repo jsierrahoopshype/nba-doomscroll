@@ -13,27 +13,27 @@ Last reviewed: 2026-08-25.
 ### Buzz follow-ups
 The tab ships, but these calls are Jorge's:
 
-- **Reddit.** It is on, capped at 12. The items are good (statistical posts,
-  archive finds) but the author line is a Reddit username on a HoopsHype-adjacent
-  page. One flag in `data/buzz-sources.json` turns it off.
 - **Recency vs shuffle.** Buzz cards are sampled like everything else, so a
   four-hour-old item can sit under a two-day-old one. A news tab arguably wants
   newest-first. Would need a per-tab ordering mode in `loadMore()`.
-- **Bluesky avatars.** The cards carry initials, not faces. Content Stream
-  fetches avatars live from the Bluesky AppView (`public.api.bsky.app`, through
-  a CORS proxy). Matching it means a new external API dependency, which needs
-  Jorge's go-ahead first.
-- **Quoted posts.** A Bluesky post that quotes another post renders here as the
-  text alone. The quote is not in the published index — Content Stream gets it
-  from the live API — so this is blocked on the same call as avatars, or on
-  `nba-content-stream` publishing `quotedPost` in its index files.
+- **The CORS proxy is now a shared dependency.** Buzz calls
+  `nba-content-stream-cors` for Reddit bodies, one request per page load. The
+  Worker was not changed and does not know about this caller; if its allowlist
+  or URL ever moves, Buzz's Reddit cards quietly fall back to the short index
+  excerpt and log why. Worth remembering when that Worker is next touched.
+- **YouTube.** On, capped at 10, with descriptions suppressed (affiliate
+  links), so the cards are a title and a thumbnail. Thin, and the items skew to
+  Shorts. Worth deciding whether they earn their slot.
 - **The 40% share is a hard floor.** Buzz holds 40% of every mixed batch
   regardless of what the reader's weights say. If someone skips every news card,
   the algorithm still serves them. Deliberate, and worth revisiting if it reads
   as pushy.
-- **Pool depth.** At 40% of an eight-card batch, a ~40-card pool lasts about ten
-  batches before the share quietly drops off. The per-source caps in
-  `data/buzz-sources.json` are the lever.
+- **Pool depth and page weight.** The pool now comes from `feed.json` (1,000
+  items over 7 days, 806KB) rather than `feed-recent.json` (100 items, 79KB),
+  because without Google News the small file held almost nothing. It is fetched
+  after the first screen paints, never before it, but it is the heaviest thing
+  the app pulls after `vs-pool.json`. If it ever matters, the fix is upstream:
+  a published index that is one file per source, or a smaller non-news slice.
 
 ---
 

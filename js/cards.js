@@ -301,6 +301,90 @@
     });
   }
 
+  function safeHref(u) {
+    return /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
+  }
+
+  /* Bluesky rich text, using the post's own facets when the AppView supplied
+   * them. Facet offsets are UTF-8 BYTE positions, not JS string indices, so
+   * the text is walked as bytes — with an emoji in the post the two disagree
+   * and every link lands in the wrong place.
+   *
+   * This is what turns "www.si.com/nba/76ers/on..." back into a link: Bluesky
+   * stores the shortened label in the text and the real URL in the facet.
+   * Without facets the regex fallback still catches full http links. */
+  function facetText(text, facets) {
+    if (!facets || !facets.length || typeof TextEncoder === "undefined") return richText(text);
+    var enc, dec;
+    try { enc = new TextEncoder(); dec = new TextDecoder(); }
+    catch (e) { return richText(text); }
+    var bytes = enc.encode(text);
+    var spans = [];
+    facets.forEach(function (f) {
+      var ix = f.index || {}, ft = (f.features || [])[0];
+      if (!ft || typeof ix.byteStart !== "number") return;
+      var t = ft.$type || "", href = "";
+      if (t.indexOf("#link") >= 0) href = safeHref(ft.uri);
+      else if (t.indexOf("#mention") >= 0 && ft.did) href = "https://bsky.app/profile/" + ft.did;
+      else if (t.indexOf("#tag") >= 0 && ft.tag) href = "https://bsky.app/hashtag/" + encodeURIComponent(ft.tag);
+      if (href) spans.push({ start: ix.byteStart, end: ix.byteEnd, href: href });
+    });
+    if (!spans.length) return richText(text);
+    spans.sort(function (a, b) { return a.start - b.start; });
+    var out = "", pos = 0;
+    spans.forEach(function (s) {
+      if (s.start < pos || s.end > bytes.length) return;
+      out += esc(dec.decode(bytes.slice(pos, s.start)));
+      out += '<a class="inline-url" href="' + escAttr(s.href) +
+        '" target="_blank" rel="noopener noreferrer">' +
+        esc(dec.decode(bytes.slice(s.start, s.end))) + '</a>';
+      pos = s.end;
+    });
+    return out + esc(dec.decode(bytes.slice(pos)));
+  }
+
+  /* The other half of a quote post. Without it "A splash of Leandro Barbosa,
+   * a dash of Jamal Crawford . . . Good pickup" is a comment on nothing. */
+  function quoteBlock(q) {
+    if (!q) return "";
+    if (q.missing) {
+      return '<div class="bsky-quoted bsky-quoted-missing">[quoted post unavailable]</div>';
+    }
+    var av = q.avatar
+      ? '<img class="bsky-quoted-avatar" loading="lazy" src="' + escAttr(q.avatar) +
+        '" alt="" onerror="this.style.display=\'none\'">'
+      : '<span class="bsky-quoted-avatar" aria-hidden="true"></span>';
+    var media = "";
+    var m = q.media;
+    if (m && m.type === "image" && m.images && m.images.length) {
+      var shown = m.images.slice(0, 4);
+      media = '<div class="bsky-quoted-images' + (shown.length > 1 ? " grid" : "") + '">' +
+        shown.map(function (i) {
+          return '<img loading="lazy" src="' + escAttr(i.url) + '" alt="' + escAttr(i.alt || "") +
+            '" onerror="this.style.display=\'none\'">';
+        }).join("") + '</div>';
+    } else if (m && m.type === "video" && m.thumbnail) {
+      media = '<div class="bsky-quoted-video"><img loading="lazy" src="' + escAttr(m.thumbnail) +
+        '" alt="" onerror="this.style.display=\'none\'">' +
+        '<span class="bsky-quoted-video-hint">VIDEO · play on Bluesky</span></div>';
+    } else if (m && m.type === "link" && m.uri) {
+      media = '<div class="bsky-quoted-linkcard">' +
+        '<span class="qlc-title">' + esc(m.title || m.uri) + '</span>' +
+        '<span class="qlc-host mono">' + esc(host(m.uri)) + '</span></div>';
+    }
+    var open = q.url
+      ? '<a class="bsky-quoted" href="' + escAttr(q.url) + '" target="_blank" rel="noopener noreferrer">'
+      : '<div class="bsky-quoted">';
+    return open +
+      '<div class="bsky-quoted-head">' + av +
+        '<span class="bsky-quoted-author">' + esc(q.author) + '</span>' +
+        (q.handle ? '<span class="bsky-quoted-handle mono">@' + esc(q.handle) + '</span>' : "") +
+      '</div>' +
+      '<div class="bsky-quoted-text">' + facetText(q.text || "", q.facets) + '</div>' +
+      media +
+      (q.url ? '</a>' : '</div>');
+  }
+
   function host(u) {
     var m = /^https?:\/\/([^/?#]+)/.exec(String(u || ""));
     return m ? m[1].replace(/^www\./, "") : "";
@@ -345,8 +429,22 @@
       .concat((p.players || []).map(function (n) { return ent(n, "player"); }));
     var entsHtml = ents.length ? '<div class="buzz-ents">' + ents.join("") + '</div>' : "";
     var when = ago(p.published_at);
+    // A Reddit post is by a person, not an outlet, so the poster belongs in
+    // the meta row where a handle reads as attribution rather than a byline.
+    var poster = p.source === "reddit" && p.author
+      ? '<span class="buzz-poster">u/' + esc(p.author) + '</span>' : "";
+    // Score and comment count are what make a Reddit item read as one. They
+    // only exist when the live lookup answered.
+    var votes = "";
+    if (typeof p.score === "number") {
+      votes = '<span class="buzz-votes">&#9650; ' + p.score.toLocaleString("en-US") +
+        (typeof p.comments === "number"
+          ? ' · ' + p.comments.toLocaleString("en-US") + ' comment' + (p.comments === 1 ? "" : "s")
+          : "") + '</span>';
+    }
     var meta = '<div class="buzz-meta mono">' +
         '<span class="buzz-src">' + esc(p.source_label) + '</span>' +
+        poster + votes +
         (p.trending ? '<span class="buzz-hot">TRENDING</span>' : "") +
         (when ? '<span class="buzz-time">' + esc(when) + '</span>' : "") +
       '</div>';
@@ -356,19 +454,27 @@
      * A headline-and-link treatment turned a post into a truncated first line
      * and lost the point of it. */
     if (p.post) {
+      // The avatar comes from the Bluesky AppView when it answered; initials
+      // stand in when it did not, so the card never waits on a face.
+      var av = p.post.avatar
+        ? '<img class="bsky-avatar" loading="lazy" src="' + escAttr(p.post.avatar) + '" alt="" ' +
+          'onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),' +
+          '{className:\'bsky-avatar\',textContent:this.dataset.ini}))" data-ini="' +
+          escAttr(initials(p.author)) + '">'
+        : '<span class="bsky-avatar" aria-hidden="true">' + esc(initials(p.author)) + '</span>';
       return meta +
         '<div class="bsky-body">' +
           '<a class="bsky-avatar-link" href="' + escAttr(p.post.profile) +
-            '" target="_blank" rel="noopener noreferrer">' +
-            '<span class="bsky-avatar" aria-hidden="true">' + esc(initials(p.author)) + '</span></a>' +
+            '" target="_blank" rel="noopener noreferrer">' + av + '</a>' +
           '<div class="bsky-body-text">' +
             '<a class="bsky-author" href="' + escAttr(p.post.profile) +
               '" target="_blank" rel="noopener noreferrer">' + esc(p.author) + '</a>' +
             '<span class="bsky-author-sep">:</span>' +
-            '<span class="bsky-text">' + richText(p.post.text) + '</span>' +
+            '<span class="bsky-text">' + facetText(p.post.text, p.post.facets) + '</span>' +
           '</div>' +
         '</div>' +
         bskyMedia(p.post.media, p.url) +
+        quoteBlock(p.post.quote) +
         entsHtml;
     }
 
@@ -381,11 +487,15 @@
         (p.is_video ? '<span class="buzz-play" aria-hidden="true">&#9654;</span>' : "") +
         '</div>'
       : "";
+    // Reddit and Substack bodies are written text with paragraphs in them —
+    // an opening paragraph, a stat table — so their line breaks are kept.
+    var asWritten = p.source === "reddit" || p.source === "substack";
     return meta + thumb +
       '<h3 class="buzz-title">' + esc(p.title) + '</h3>' +
-      (p.excerpt ? '<p class="buzz-excerpt">' + esc(p.excerpt) + '</p>' : "") +
+      (p.excerpt ? '<p class="buzz-excerpt' + (asWritten ? " as-written" : "") + '">' +
+        esc(p.excerpt) + '</p>' : "") +
       entsHtml +
-      (p.author ? '<div class="card-sub">' + esc(p.author) + '</div>' : "");
+      (p.author && !poster ? '<div class="card-sub">' + esc(p.author) + '</div>' : "");
   }
 
   var RENDERERS = {

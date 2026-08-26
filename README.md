@@ -48,11 +48,17 @@ it is a scroll feed.
   - `js/trades.js` — live Trade Machine feed: dedupes re-logged builds, keeps
     two-team deals, applies the 15% balance rule
   - `js/buzz.js` — the Buzz tab: reads nba-content-stream's published
-    `trending.json` and `feed-recent.json` in the reader's browser, filters
-    them, and translates entity slugs into the names the rest of the feed uses.
-    Bluesky items render as posts (avatar, author, the text as written, the
-    attached image / video poster / link card), ported from Content Stream's
-    own `renderCard`, so the two features present the same post the same way
+    `trending.json` and `feed.json` in the reader's browser, filters them, and
+    translates entity slugs into the names the rest of the feed uses. Bluesky
+    items render as posts (avatar, author, the text as written, the attached
+    image / video poster / link card, the quoted post), ported from Content
+    Stream's own `renderCard`. Those posts are then enriched from Bluesky's
+    public AppView (`public.api.bsky.app`, no auth, no proxy, one request per
+    25 posts) for the full text, facets, avatars and quotes, and Reddit posts
+    from `reddit.com/api/info.json` through the CORS proxy Worker
+    nba-content-stream already runs (one request for every post at once) for
+    the full body, score, comment count and the NSFW/removed flags. Both are
+    best-effort, with a timeout, falling back to the index alone
   - `js/race-player.js` — canvas bar chart race player: a port of the
     bar-chart-race repo's `hoopshype-official` theme, 90-second runtime, eased
     rank and value transitions
@@ -88,8 +94,11 @@ it is a scroll feed.
 - `data/rumor-blocklist.json` — editable keyword blocklist for the Rumors
   editorial filter, applied to Buzz as well
 - `data/buzz-sources.json` — the Buzz editorial config: which sources are on,
-  their per-batch caps, whether their body text renders, the other-league word
-  list, and the require-an-NBA-entity rule. Edit this rather than `js/buzz.js`
+  their caps, how much body text each may render, the other-league word list,
+  the require-an-NBA-entity rule, and the Bluesky enrichment switch. Edit this
+  rather than `js/buzz.js`. Google News is currently **off**: `on: true` brings
+  it back, and `outlet_allow: ["HoopsHype"]` would bring back only HoopsHype's
+  own stories
 - `data/buzz-map.json` — Content Stream entity slug → the display name or team
   abbreviation every other card here is tagged with, so Buzz cards personalize
   and cross-match. Built by `tools/build_buzz_map.mjs`
