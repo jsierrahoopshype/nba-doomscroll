@@ -247,6 +247,10 @@ a:hover{ text-decoration:underline }
 .tt-builds span{ font-size:.55rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.06em }
 
 /* -------- trade daily digest -------- */
+.td-rank{
+  font-size:.58rem; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--t-trade); font-weight:600; margin-bottom:.3rem;
+}
 .td-hero{ display:flex; align-items:center; gap:.6rem; margin-bottom:.15rem }
 .td-hero-text{ min-width:0 }
 .td-name-big{ font-size:1.15rem; font-weight:700; letter-spacing:-.015em; line-height:1.2 }
@@ -260,8 +264,10 @@ a:hover{ text-decoration:underline }
 .td-row{
   position:relative; display:flex; align-items:center; gap:.45rem;
   padding:.3rem .45rem; border-radius:6px; overflow:hidden; margin-bottom:.2rem;
-  background:var(--surface-hover);
+  background:var(--surface-hover); text-decoration:none; color:inherit;
 }
+.td-row:hover{ text-decoration:none; box-shadow:inset 0 0 0 1px var(--t-trade) }
+.td-row:hover .td-name{ color:var(--t-trade) }
 .td-fill{
   position:absolute; left:0; top:0; bottom:0; border-radius:6px;
   background:rgba(29,138,64,.16);

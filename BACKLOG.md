@@ -43,6 +43,13 @@ The tab ships, but these calls are Jorge's:
 
 ## Asked for, not yet built
 
+- **Weekly digest needs one Worker change.** The card is built and dormant. It
+  asks `nba-trade-daily-digest` for `?days=7` and renders only if the response
+  says what window it covers — add `days` support and echo `days: 7` (or
+  `period`, or `window_hours`) in the payload and it appears on its own, no
+  redeploy here. A ranked `topPlayers` array in the payload would also make the
+  "No. N most-traded player" line real for any rank rather than always No. 1.
+
 - **VS cards with no real headshot.** 1,885 of 2,000 VS cards and 294 of 300
   trivia cards show at least one silhouette: `player-headshots.json` covers 572
   players and the pools need 842. `bar-chart-race/assets/headshots` has 6,769

@@ -55,7 +55,13 @@ it is a scroll feed.
     `nba-trade-daily-digest`, the same Worker and the same numbers behind
     nba-trade-card: the most-traded player of the last 24 hours computed
     server-side over the whole log, his destinations and the pieces coming
-    back
+    back. Every row on it is a link that BUILDS that trade — `?loop=1&player=X`,
+    `&to=Team` for a destination, `player=X,Y` for a swap — so nothing sends a
+    reader to an empty search box. A WEEKLY DIGEST card renders from the same
+    endpoint with `?days=7`, but only if the response declares its window
+    (`days`, `period` or `window_hours`): a Worker that ignores an unknown
+    parameter would otherwise return the same 24-hour numbers and the card
+    would label them as a week
   - `js/buzz.js` — the Buzz tab: reads nba-content-stream's published
     `trending.json` and `feed.json` in the reader's browser, filters them, and
     translates entity slugs into the names the rest of the feed uses. Bluesky

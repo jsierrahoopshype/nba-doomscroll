@@ -331,53 +331,125 @@
       .map(function (e) { return { name: String(e[0]), n: +e[1] || 0 }; });
   }
 
-  function digestCard(d) {
+  /* Every link here lands on a trade that is already set up, which is the
+   * point: the machine's loop generator takes the player (or players) and an
+   * optional destination straight off the URL, so nobody has to type a name
+   * into a search box to see the deal the card is describing.
+   *
+   *   ?loop=1&player=X                 build trades for X
+   *   ?loop=1&player=X&to=New-York     build trades that send X to New York
+   *   ?loop=1&player=X,Y               build trades that swap X for Y
+   */
+  function loopUrl(params) {
+    var q = ["loop=1"];
+    if (params.players) q.push("player=" + encodeURIComponent(params.players.map(playerSlug).join(",")));
+    if (params.to) q.push("to=" + encodeURIComponent(String(params.to).replace(/[^a-zA-Z0-9]+/g, "-")));
+    return MACHINE_URL + "?" + q.join("&");
+  }
+
+  /* The digest reports one player, so his rank in the period is 1 by
+   * construction — but a card that only implies it reads as "here is a player"
+   * rather than "here is THE player". If the Worker ever returns a ranked
+   * list, `rank` comes off that instead. */
+  function digestCard(d, meta) {
     if (!d || !d.hasTrades || !d.topPlayer || !d.tradeCount) return null;
     var dests = pairs(d.topDestinations), back = pairs(d.topTradedForPlayers);
     if (!dests.length && !back.length) return null;
     var share = Math.round(d.topCount / d.tradeCount * 1000) / 10;
+    var hero = d.topPlayer;
+    var rank = 1;
+    if (Array.isArray(d.topPlayers) && d.topPlayers.length) {
+      var at = d.topPlayers.findIndex(function (e) {
+        return String(Array.isArray(e) ? e[0] : e) === hero;
+      });
+      if (at >= 0) rank = at + 1;
+    }
     return {
-      id: "trade-digest",
+      id: "trade-digest-" + meta.key,
       type: "tradedigest",
       tab: ["trades"],
       live: true,
       tags: {
         content_type: "tradedigest",
-        players: [d.topPlayer].concat(back.map(function (b) { return b.name; })).slice(0, 5),
+        players: [hero].concat(back.map(function (b) { return b.name; })).slice(0, 5),
         teams: dests.map(function (x) { return abbrev(x.name) || x.name; }).filter(Boolean),
         era: "2020s",
         category: "trade-machine"
       },
       payload: {
-        player: d.topPlayer,
-        img: faceFor(d.topPlayer),
+        period: meta.label,          // "the last 24 hours" / "the last 7 days"
+        period_chip: meta.chip,      // DAILY DIGEST / WEEKLY DIGEST
+        rank: rank,
+        player: hero,
+        img: faceFor(hero),
         share: share,
-        count: d.topCount,
-        trades: d.tradeCount,
         dests: dests.map(function (x) {
           return { name: x.name, abbr: abbrev(x.name) || x.name, logo: logoFor(x.name),
-                   pct: Math.round(x.n / d.topCount * 1000) / 10 };
+                   pct: Math.round(x.n / d.topCount * 1000) / 10,
+                   url: loopUrl({ players: [hero], to: x.name }) };
         }),
         back: back.map(function (x) {
           return { name: x.name, img: faceFor(x.name),
-                   pct: Math.round(x.n / d.topCount * 1000) / 10 };
+                   pct: Math.round(x.n / d.topCount * 1000) / 10,
+                   url: loopUrl({ players: [hero, x.name] }) };
         }),
-        machine_url: MACHINE_URL + "?player=" + encodeURIComponent(playerSlug(d.topPlayer))
+        machine_url: loopUrl({ players: [hero] })
       }
     };
   }
 
-  function loadDigest() {
-    return fetch(DIGEST_URL, { credentials: "omit" })
+  /* Daily is the endpoint as it stands. Weekly is asked for the same way with
+   * ?days=7, and is only rendered if the response SAYS what window it covers —
+   * `days`, `period` or `window_hours`. A Worker that ignores an unknown
+   * parameter would otherwise hand back the same 24-hour numbers and this card
+   * would label them as a week, which is worse than not having the card. When
+   * the endpoint learns to answer, this lights up on its own. */
+  function fetchDigest(query) {
+    return fetch(DIGEST_URL + query, { credentials: "omit" })
       .then(function (r) {
-        if (!r.ok) throw new Error("digest " + r.status);
+        if (!r.ok) throw new Error("digest" + (query || "") + " " + r.status);
         return r.json();
+      });
+  }
+
+  function declaredDays(j) {
+    var d = j && j.digest || {};
+    var days = j && (j.days || j.period_days) || d.days || d.period_days;
+    if (days) return +days;
+    var hours = (j && j.window_hours) || d.window_hours;
+    if (hours) return Math.round(+hours / 24);
+    var period = String((j && j.period) || d.period || "");
+    if (/week/i.test(period)) return 7;
+    if (/(^|\D)7\s*d/i.test(period)) return 7;
+    return null;
+  }
+
+  function loadDigests() {
+    var daily = fetchDigest("")
+      .then(function (j) {
+        return digestCard(j && j.digest, { key: "day", chip: "DAILY DIGEST", label: "the last 24 hours" });
       })
-      .then(function (j) { return digestCard(j && j.digest); })
       .catch(function (e) {
         console.warn("[doomscroll] trade digest unavailable:", e.message);
         return null;
       });
+    var weekly = fetchDigest("?days=7")
+      .then(function (j) {
+        var days = declaredDays(j);
+        if (days !== 7) {
+          console.info("[doomscroll] no weekly digest: the endpoint did not declare a 7-day window" +
+            " (add days=7 support and echo `days` in the payload to light this up)");
+          return null;
+        }
+        return digestCard(j && j.digest, { key: "week", chip: "WEEKLY DIGEST", label: "the last 7 days" });
+      })
+      .catch(function (e) {
+        console.warn("[doomscroll] weekly digest unavailable:", e.message);
+        return null;
+      });
+    return Promise.all([daily, weekly]).then(function (cards) {
+      return cards.filter(Boolean);
+    });
   }
 
   /* ---------------- public ---------------- */
@@ -387,7 +459,7 @@
   function load() {
     // The digest is independent of the log: it is fetched alongside it and
     // simply absent if it fails.
-    var digest = loadHeadshots().then(loadDigest);
+    var digest = loadHeadshots().then(loadDigests);
     return loadHeadshots().then(function () {
       var sep = TRADE_LOG_URL.indexOf("?") >= 0 ? "&" : "?";
       return fetch(TRADE_LOG_URL + sep + "limit=" + WANT_ROWS, { credentials: "omit" });
@@ -454,15 +526,15 @@
         " logged deals (" + stats.dup + " duplicates, " + stats.multi +
         " multi-team, " + stats.unbalanced + " failed the balance filter)" +
         (trends ? "; trends over " + deals.length + " deals" : "; too few deals for a trends card"));
-      return digest.then(function (dc) {
-        if (dc) cards.unshift(dc);
+      return digest.then(function (dcs) {
+        (dcs || []).slice().reverse().forEach(function (dc) { cards.unshift(dc); });
         return cards;
       });
     }).catch(function (e) {
       console.warn("[doomscroll] trade log unavailable:", e.message);
       // The digest stands on its own: if the log is down but the digest is up,
       // the Trades tab still has something real to say.
-      return digest.then(function (dc) { return dc ? [dc] : []; }).catch(function () { return []; });
+      return digest.catch(function () { return []; });
     });
   }
 

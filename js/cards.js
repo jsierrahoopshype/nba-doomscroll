@@ -130,31 +130,37 @@
    * the whole log, which is why it can say "the last 24 hours" and mean it. */
   function renderTradeDigest(c) {
     var p = c.payload;
+    /* Every row is a link that builds the trade it describes: a destination
+     * row opens the machine with him already on his way there, a return-piece
+     * row opens it with both players in. Nothing here asks the reader to type
+     * a name into a search box. */
     function bars(list, kind) {
       var top = list[0] ? list[0].pct : 100;
       return list.map(function (x) {
         var w = Math.max(6, Math.round(x.pct / (top || 1) * 100));
-        return '<div class="td-row">' +
+        return '<a class="td-row" href="' + escAttr(x.url) + '" target="_blank" rel="noopener" ' +
+          'title="' + escAttr(kind === "dest"
+            ? "Build " + p.player + " to " + x.name + " in the Trade Machine"
+            : "Build " + p.player + " for " + x.name + " in the Trade Machine") + '">' +
           '<span class="td-fill" style="width:' + w + '%"></span>' +
           (kind === "dest"
             ? '<img class="team-logo" loading="lazy" src="' + escAttr(x.logo) + '" alt="" ' +
               'onerror="this.style.visibility=\'hidden\'">'
             : face(x.img, x.name)) +
-          '<span class="td-name">' +
-            (kind === "dest" ? ent(x.abbr, "team", "", x.name) : ent(x.name, "player")) +
-          '</span>' +
+          '<span class="td-name">' + esc(x.name) + '</span>' +
           '<span class="td-pct mono">' + esc(x.pct.toFixed(1)) + '%</span>' +
-        '</div>';
+        '</a>';
       }).join("");
     }
-    return '<div class="td-hero">' + face(p.img, p.player, "face lg") +
+    var rank = p.rank || 1;
+    return '<div class="td-rank mono">No. ' + esc(String(rank)) +
+        ' most-traded player · ' + esc(p.period) + '</div>' +
+      '<div class="td-hero">' + face(p.img, p.player, "face lg") +
       '<div class="td-hero-text">' +
         '<div class="td-name-big">' + ent(p.player, "player") + '</div>' +
         '<div class="td-share"><b class="mono">' + esc(p.share.toFixed(1)) + '%</b>' +
-          ' of every trade built in the last 24 hours</div>' +
+          ' of every trade built in ' + esc(p.period) + '</div>' +
       '</div></div>' +
-      '<div class="card-sub">' + esc(String(p.count)) + ' of <span class="mono">' +
-        esc(String(p.trades)) + '</span> trades · from the Trade Machine’s daily digest</div>' +
       (p.dests.length ? '<div class="td-label mono">Most common destinations</div>' +
         '<div class="td-list">' + bars(p.dests, "dest") + '</div>' : "") +
       (p.back.length ? '<div class="td-label mono">Most traded for</div>' +
@@ -579,7 +585,7 @@
         ? { url: c.payload.machine_url, label: "Open this trade" }
         : { url: "https://hoopsmatic.com/transactionmaster", label: "Open Trade Machine" };
       case "tradetrend": return { url: c.payload.machine_url, label: "Build one yourself" };
-      case "tradedigest": return { url: c.payload.machine_url, label: "Trade him yourself" };
+      case "tradedigest": return { url: c.payload.machine_url, label: "Trade " + c.payload.player.split(" ").pop() };
       case "rumor": return { url: c.payload.source_url || "https://hoopshype.com/rumors/", label: "Read on HoopsHype" };
       case "vs":    return { url: c.payload.compare_url, label: "Full comparison" };
       case "salary": return { url: "https://hoopsmatic.com/salary-season-finder", label: "Salary Season Finder" };
@@ -596,6 +602,9 @@
 
   function render(c) {
     var meta = TYPE_META[c.type] || { chip: c.type, cls: "" };
+    if (c.type === "tradedigest" && c.payload && c.payload.period_chip) {
+      meta = { chip: c.payload.period_chip, cls: meta.cls, tab: meta.tab };
+    }
     if (c.type === "otd" && c.payload && c.payload.approx) {
       meta = { chip: "AROUND THIS DATE", cls: meta.cls, tab: meta.tab };
     }
