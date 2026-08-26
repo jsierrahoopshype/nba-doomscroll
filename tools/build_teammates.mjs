@@ -130,9 +130,8 @@ const sourceFor = name => faceFile.get(fold(name)) || null;
  */
 const tileCache = new Map();
 const HEAD_BAND = 0.34;   // the top third of a cut-out is the head
-const HEAD_PAD = 1.7;     // square side, as a multiple of head width
-const MIN_SIDE = 0.5;     // ...but never less than half the subject's height
-const CROWN_LIFT = 0.08;  // a little air above the hair
+const HEAD_PAD = 2.25;    // square side, as a multiple of head WIDTH
+const HEAD_RATIO = 1.4;   // a head is about this many times as tall as it is wide
 
 function discFor(name) {
   if (tileCache.has(name)) return tileCache.get(name);
@@ -145,18 +144,28 @@ function discFor(name) {
       if (img) {
         let side, x, y;
         if (full) {
-          /* Centre on the HEAD, not on the subject. The cut-out is head and
-           * shoulders, so its centre of mass is the chest — cropping a square
-           * around that put Jerry West's face half outside the circle. The top
-           * third of the subject is measured separately and the square is
-           * placed on that, which lands every head at the same size. */
-          const fy = full[1], fh = full[3];
-          const headBox = alphaBox(src, fy, fy + fh * HEAD_BAND) || full;
+          /* Centre on the HEAD, not on the subject and not on the crown.
+           *
+           * The subject is head and shoulders, so its centre of mass is the
+           * chest — a square around that put Jerry West's face half outside
+           * the circle. Hanging the square off the top of the head instead
+           * pushed every chin past the bottom edge, which is what "a bit cut
+           * off" looked like.
+           *
+           * So: measure the head's width from the top third of the cut-out,
+           * assume a head is about 1.4 times as tall as it is wide (true
+           * enough for every face here), and centre the square on the middle
+           * of THAT. The square is 2.25 head-widths across, which leaves the
+           * whole head inside the inscribed circle with air around it —
+           * a square that just contains the head does not, because the circle
+           * cuts its corners off.
+           */
+          const fy = full[1] * img.h, fh = full[3];
+          const headBox = alphaBox(src, full[1], full[1] + fh * HEAD_BAND) || full;
           const hx = headBox[0] * img.w, hw = headBox[2] * img.w;
-          side = Math.round(Math.min(img.w, img.h,
-            Math.max(hw * HEAD_PAD, fh * img.h * MIN_SIDE)));
+          side = Math.round(Math.min(img.w, img.h, hw * HEAD_PAD));
           x = Math.round(hx + hw / 2 - side / 2);
-          y = Math.round(fy * img.h - side * CROWN_LIFT);
+          y = Math.round(fy + hw * HEAD_RATIO / 2 - side / 2);
         } else {
           side = Math.min(img.w, Math.round(img.h * 0.78));
           x = Math.round((img.w - side) / 2);
