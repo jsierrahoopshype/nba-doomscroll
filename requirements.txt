@@ -1,7 +1,0 @@
-# Version floors matter here. Left unpinned, pip walks fastapi all the way down
-# to 0.1.0 hunting for a resolvable combination and the build crawls.
-fastapi>=0.115
-uvicorn[standard]>=0.30
-
-# Renfe scraper. Requires Python >=3.12 (see Dockerfile).
-git+https://github.com/belgrano9/renfe_mcp_server@master
