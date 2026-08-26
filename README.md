@@ -46,7 +46,12 @@ it is a scroll feed.
   - `js/live-vs.js` — the VS tab's "Random matchup" button
   - `js/share-image.js` — renders any card to a branded PNG on a canvas
   - `js/trades.js` — live Trade Machine feed: dedupes re-logged builds, keeps
-    two-team deals, applies the 15% balance rule
+    two-team deals, applies the 15% balance rule. Each card deep-links back to
+    its own trade in the machine (`?t=&p=&pd=`, the machine's own share
+    format); trades containing picks fall back to the empty tool, because the
+    log records "2027 #14 pick" and that cannot be re-encoded. It also emits
+    one TRADE TRENDS card: who the whole log is moving and where to, counted
+    over deduped deals rather than log rows
   - `js/buzz.js` — the Buzz tab: reads nba-content-stream's published
     `trending.json` and `feed.json` in the reader's browser, filters them, and
     translates entity slugs into the names the rest of the feed uses. Bluesky
@@ -55,9 +60,10 @@ it is a scroll feed.
     Stream's own `renderCard`. Those posts are then enriched from Bluesky's
     public AppView (`public.api.bsky.app`, no auth, no proxy, one request per
     25 posts) for the full text, facets, avatars and quotes, and Reddit posts
-    from `reddit.com/api/info.json` through the CORS proxy Worker
-    nba-content-stream already runs (one request for every post at once) for
-    the full body, score, comment count and the NSFW/removed flags. Both are
+    from r/nba's RSS through the CORS proxy Worker nba-content-stream already
+    runs, for the full post body. Reddit's JSON API 403s from a datacenter IP;
+    RSS is not gated, and two subreddit feeds carry up to 100 entries each,
+    keyed by the same fullname the index uses. Both enrichments are
     best-effort, with a timeout, falling back to the index alone
   - `js/race-player.js` — canvas bar chart race player: a port of the
     bar-chart-race repo's `hoopshype-official` theme, 90-second runtime, eased

@@ -321,21 +321,25 @@
   /* ---------------- Reddit enrichment ----------------
    *
    * The index publishes a Reddit post's body cut off at ~280 characters, which
-   * is where "Of the 27 players in NBA history…" stops mid-table. The full
-   * selftext is public, but reddit.com sends no CORS headers, so a browser
-   * cannot read it directly.
+   * is where "Of the 27 players in NBA history…" stops mid-table. The full body
+   * is public, but reddit.com sends no CORS headers, so it goes through the
+   * CORS proxy Worker nba-content-stream already runs and already allowlists
+   * reddit.com for. No Worker change; one more caller.
    *
-   * It goes through the CORS proxy Worker nba-content-stream already runs and
-   * already allowlists reddit.com for — no Worker code changed, no deploy, one
-   * more caller. And exactly ONE request per page: /api/info.json takes up to
-   * 100 fullnames at once, and every Reddit item's id in the index already IS
-   * its fullname (rd-t3_1vv3b58). The alternative, /comments/<id>.json, would
-   * be one request per post and would drag the whole comment tree along.
+   * It reads RSS, not the JSON API. /api/info.json was the obvious route and it
+   * returned 403 in production: Reddit gates its API behind OAuth for
+   * datacenter IPs, and a Cloudflare Worker is a datacenter IP. RSS is not
+   * gated — it is the same mechanism Content Stream's own Reddit live-merge
+   * uses through this proxy, which is the evidence that it works.
    *
-   * It also brings two things worth having: the score and comment count, which
-   * are what make a Reddit item feel like a Reddit item, and the over_18 and
-   * removed flags, which let a post that should not be on a HoopsHype-adjacent
-   * page be dropped rather than rendered.
+   * Two requests, not one per post: a subreddit feed carries up to 100 entries,
+   * each with its fullname in <id> and its rendered body in <content>, so the
+   * week's top plus the newest posts covers nearly everything the index holds.
+   * Anything not in either feed keeps its short excerpt.
+   *
+   * What RSS costs, relative to the JSON API: no score, no comment count, and
+   * no over_18 flag. The editorial blocklist still runs over every title and
+   * body, and r/nba is the only subreddit in the feed.
    */
   function redditFullname(id) {
     var m = /^rd-(t3_[a-z0-9]+)$/i.exec(String(id || ""));
@@ -363,57 +367,99 @@
     return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
   }
 
+  /* Reddit's RSS <content> is rendered HTML. It is parsed with DOMParser and
+   * read as text rather than injected — this is third-party HTML and it never
+   * touches innerHTML. Tables come back as <tr>/<td>, so the walk keeps one
+   * line per row, which is how that free-throw table wants to be read. */
+  function htmlToText(html) {
+    var doc;
+    try { doc = new DOMParser().parseFromString(String(html || ""), "text/html"); }
+    catch (e) { return ""; }
+    var body = doc && doc.body;
+    if (!body) return "";
+    var parts = [];
+    var blocks = body.querySelectorAll("tr,p,li,h1,h2,h3,blockquote");
+    for (var i = 0; i < blocks.length; i++) {
+      var el = blocks[i], tag = (el.tagName || "").toLowerCase(), t;
+      if (tag === "tr") {
+        var cells = el.querySelectorAll("th,td"), row = [];
+        for (var j = 0; j < cells.length; j++) row.push(cells[j].textContent.trim());
+        t = row.join("   ");
+      } else {
+        // A wrapper whose children are themselves blocks would print twice.
+        if (el.querySelector("tr,p,li")) continue;
+        t = el.textContent;
+      }
+      t = t.replace(/\s+/g, " ").trim();
+      // Reddit closes every self-post body with "submitted by /u/x [link]
+      // [comments]", which is chrome, not content.
+      if (!t || /^submitted by\b/i.test(t)) continue;
+      parts.push(t);
+    }
+    if (!parts.length) parts.push(body.textContent.replace(/\s+/g, " ").trim());
+    return parts.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
   function enrichReddit(cards, cfg) {
     if (cfg.enrich_reddit === false || !cfg.cors_proxy) return Promise.resolve(cards);
-    var byName = {}, names = [];
+    var byName = {}, wanted = 0;
     cards.forEach(function (c) {
       if (c.payload.source !== "reddit") return;
       var fn = redditFullname(c.payload.source_id);
       if (!fn || byName[fn]) return;
       byName[fn] = c;
-      names.push(fn);
+      wanted++;
     });
-    if (!names.length) return Promise.resolve(cards);
-    names = names.slice(0, cfg.reddit_max_lookup || 40);
+    if (!wanted) return Promise.resolve(cards);
 
-    var target = "https://www.reddit.com/api/info.json?raw_json=1&id=" + names.join(",");
-    var call = fetchJson(cfg.cors_proxy + "/?url=" + encodeURIComponent(target))
-      .catch(function (e) {
-        console.warn("[doomscroll] reddit lookup:", e.message);
-        return null;
-      });
+    var feeds = cfg.reddit_feeds || [
+      "https://www.reddit.com/r/nba/top/.rss?t=week&limit=100",
+      "https://www.reddit.com/r/nba/new/.rss?limit=100"
+    ];
+    var calls = feeds.map(function (f) {
+      return fetch(cfg.cors_proxy + "/?url=" + encodeURIComponent(f), { credentials: "omit" })
+        .then(function (r) {
+          if (!r.ok) throw new Error(f.split("/r/nba/")[1] + " " + r.status);
+          return r.text();
+        })
+        .catch(function (e) {
+          console.warn("[doomscroll] reddit feed:", e.message);
+          return null;
+        });
+    });
     var timeout = new Promise(function (res) {
       root.setTimeout(function () { res("timeout"); }, cfg.enrich_timeout_ms || 5000);
     });
-    return Promise.race([call, timeout]).then(function (r) {
-      if (r === "timeout" || !r) {
+    return Promise.race([Promise.all(calls), timeout]).then(function (results) {
+      if (results === "timeout" || !results) {
         console.warn("[doomscroll] reddit bodies unavailable — the index excerpt stands");
         return cards;
       }
-      var kids = (r.data && r.data.children) || [];
-      var drop = {}, got = 0;
-      kids.forEach(function (k) {
-        var d = k && k.data;
-        if (!d) return;
-        var c = byName[d.name];
-        if (!c) return;
-        // Not on a page that sits next to HoopsHype.
-        if (d.over_18 || d.removed_by_category || d.selftext === "[removed]" ||
-            d.selftext === "[deleted]") { drop[c.id] = 1; return; }
-        var src = (cfg.sources && cfg.sources.reddit) || {};
-        if (d.selftext) {
-          var full = redditText(d.selftext);
-          if (full) c.payload.excerpt = clip(full, src.excerpt_chars || 700);
+      var src = (cfg.sources && cfg.sources.reddit) || {};
+      var got = 0;
+      results.forEach(function (xml) {
+        if (!xml) return;
+        var doc;
+        try { doc = new DOMParser().parseFromString(xml, "text/xml"); }
+        catch (e) { return; }
+        if (!doc || doc.querySelector("parsererror")) return;
+        var entries = doc.querySelectorAll("entry");
+        for (var i = 0; i < entries.length; i++) {
+          var idEl = entries[i].querySelector("id");
+          var fn = idEl ? idEl.textContent.trim() : "";
+          var c = byName[fn];
+          if (!c || c.payload.enriched) continue;
+          var contentEl = entries[i].querySelector("content");
+          var text = contentEl ? htmlToText(contentEl.textContent) : "";
+          if (text && text.length > (c.payload.excerpt || "").length) {
+            c.payload.excerpt = clip(text, src.excerpt_chars || 700);
+            c.payload.enriched = true;
+            got++;
+          }
         }
-        if (typeof d.score === "number") c.payload.score = d.score;
-        if (typeof d.num_comments === "number") c.payload.comments = d.num_comments;
-        if (d.subreddit) c.payload.source_label = "r/" + d.subreddit;
-        got++;
       });
-      var kept = cards.filter(function (c) { return !drop[c.id]; });
-      console.info("[doomscroll] reddit: " + got + "/" + names.length + " bodies" +
-        (Object.keys(drop).length ? ", " + Object.keys(drop).length + " dropped (removed or NSFW)" : ""));
-      return kept;
+      console.info("[doomscroll] reddit: " + got + "/" + wanted + " full bodies from RSS");
+      return cards;
     });
   }
 

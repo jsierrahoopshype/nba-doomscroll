@@ -29,6 +29,7 @@
   // building right now" feed.
   var WANT_ROWS = 600;
   var ROWS_WARN_AT = 20000;
+  var MACHINE_URL = "https://hoopsmatic.com/transactionmaster";
   var LOGO_BASE = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/";
   var HEADSHOT_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/";
 
@@ -97,6 +98,34 @@
       .sort().join("|");
   }
 
+  /* A link that opens THIS trade in the Trade Machine, not the empty tool.
+   *
+   * The machine reads its own share format: t=<abbrevs in team order>,
+   * p=<player slugs>, pd=<fromTeamIdx-destIdx per player, in p's order>. Player
+   * ids are preferred there but a name slug is an accepted fallback, and the
+   * trade log only carries names, so slugs it is.
+   *
+   * Trades containing draft picks get no deep link. The pick format needs the
+   * originating team, year and round, and the log records only "2027 #14 pick".
+   * Opening a trade that silently dropped its picks would be a different trade,
+   * and a wrong trade is worse than the generic link.
+   */
+  function machineUrl(names, legs) {
+    if (legs.some(function (l) { return isPick(l.player); })) return null;
+    var idx = {};
+    idx[names[0]] = 0; idx[names[1]] = 1;
+    var p = [], pd = [];
+    for (var i = 0; i < legs.length && p.length < 8; i++) {
+      var l = legs[i];
+      if (!(l.from_team in idx) || !(l.to_team in idx)) return null;
+      p.push(String(l.player).replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, ""));
+      pd.push(idx[l.from_team] + "-" + idx[l.to_team]);
+    }
+    if (p.length !== legs.length) return null;   // truncated is a different trade
+    return MACHINE_URL + "?t=" + abbrev(names[0]) + "," + abbrev(names[1]) +
+      "&p=" + p.map(encodeURIComponent).join(",") + "&pd=" + pd.join(",");
+  }
+
   function buildTrade(ts, legs) {
     var teams = {};
     legs.forEach(function (l) { teams[l.from_team] = 1; teams[l.to_team] = 1; });
@@ -131,6 +160,7 @@
     return {
       ts: ts,
       balance_pct: balance,
+      machine_url: machineUrl(names, legs),
       sides: names.map(function (city, i) {
         return { team: abbrev(city), team_name: city, logo: logoFor(city), gets: gets(i) };
       })
@@ -177,9 +207,107 @@
         sides: t.sides,
         balance_pct: t.balance_pct,
         verdict: verdict(t.balance_pct),
-        built_ago: ago(t.ts)
+        built_ago: ago(t.ts),
+        machine_url: t.machine_url
       }
     };
+  }
+
+  /* ---------------- trade trends ----------------
+   *
+   * The individual cards answer "what did someone just build". This answers
+   * "who is the whole Trade Machine moving this week, and where to" — which is
+   * the one thing a trade log can say that no single trade can.
+   *
+   * It counts DEALS, not log rows: the same deal re-saved twelve times while
+   * someone tweaks it is one build, or the leaderboard would just rank whoever
+   * had the most patient tinkerer. And it counts every deal in the window, not
+   * only the ones that earned a card — a three-team blockbuster and a wildly
+   * unbalanced fantasy are still people telling you who they are thinking
+   * about.
+   */
+  var TREND_PLAYERS = 6;
+  var TREND_MIN_BUILDS = 2;
+
+  function playerSlug(name) {
+    return String(name).replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+
+  function buildTrends(deals, span) {
+    var byPlayer = {};
+    deals.forEach(function (legs) {
+      var seenHere = {};
+      legs.forEach(function (l) {
+        if (isPick(l.player)) return;
+        var to = abbrev(l.to_team), from = abbrev(l.from_team);
+        if (!to || !from) return;
+        // One deal counts once per player even if the log repeats the leg.
+        var k = l.player + ">" + to;
+        if (seenHere[k]) return;
+        seenHere[k] = 1;
+        var e = byPlayer[l.player] || (byPlayer[l.player] = { name: l.player, builds: 0, to: {}, from: {} });
+        e.builds++;
+        e.to[to] = (e.to[to] || 0) + 1;
+        e.from[from] = (e.from[from] || 0) + 1;
+      });
+    });
+    var ranked = Object.keys(byPlayer).map(function (n) { return byPlayer[n]; })
+      .filter(function (e) { return e.builds >= TREND_MIN_BUILDS; })
+      .sort(function (a, b) { return b.builds - a.builds || a.name.localeCompare(b.name); })
+      .slice(0, TREND_PLAYERS);
+    if (ranked.length < 3) return null;   // too thin to be a leaderboard
+
+    var players = ranked.map(function (e) {
+      var dests = Object.keys(e.to).map(function (t) { return { team: t, n: e.to[t] }; })
+        .sort(function (a, b) { return b.n - a.n; }).slice(0, 3);
+      var homes = Object.keys(e.from).map(function (t) { return { team: t, n: e.from[t] }; })
+        .sort(function (a, b) { return b.n - a.n; });
+      return {
+        name: e.name,
+        img: faceFor(e.name),
+        builds: e.builds,
+        from: homes.length ? homes[0].team : null,
+        dests: dests,
+        // ?player= opens the machine's trade-loop generator for that player.
+        url: MACHINE_URL + "?player=" + encodeURIComponent(playerSlug(e.name))
+      };
+    });
+    return {
+      id: "trade-trends",
+      type: "tradetrend",
+      tab: ["trades"],
+      live: true,
+      tags: {
+        content_type: "tradetrend",
+        players: players.map(function (p) { return p.name; }),
+        teams: players.reduce(function (acc, p) {
+          p.dests.forEach(function (d) { if (acc.indexOf(d.team) < 0) acc.push(d.team); });
+          return acc;
+        }, []).slice(0, 8),
+        era: "2020s",
+        category: "trade-machine"
+      },
+      payload: {
+        headline: "Who the Trade Machine is moving",
+        span: span,
+        deals: deals.length,
+        players: players,
+        machine_url: MACHINE_URL
+      }
+    };
+  }
+
+  /* "over the last 3 days", from the timestamps actually in the slice — the
+   * window is however far back the newest rows reach, not a fixed week. */
+  function spanOf(tsList) {
+    if (!tsList.length) return "recently";
+    var times = tsList.map(function (t) { return new Date(t).getTime(); })
+      .filter(function (n) { return isFinite(n); });
+    if (!times.length) return "recently";
+    var hours = (Math.max.apply(null, times) - Math.min.apply(null, times)) / 3600000;
+    if (hours < 2) return "in the last couple of hours";
+    if (hours < 36) return "in the last " + Math.round(hours) + " hours";
+    return "over the last " + Math.round(hours / 24) + " days";
   }
 
   /* ---------------- public ---------------- */
@@ -223,14 +351,19 @@
 
       var byTs = groupByTs(rows);
       var seen = {}, cards = [], stats = { total: 0, dup: 0, multi: 0, unbalanced: 0 };
+      var deals = [], tsSeen = [];
 
       Object.keys(byTs).sort().reverse().forEach(function (ts) {  // newest first
-        if (cards.length >= MAX_CARDS) return;
         stats.total++;
         var legs = byTs[ts];
         var key = dealKey(legs);
         if (seen[key]) { stats.dup++; return; }
         seen[key] = 1;
+        // Every deduped deal feeds the trends card, including the ones that do
+        // not survive the card filters below.
+        deals.push(legs);
+        tsSeen.push(ts);
+        if (cards.length >= MAX_CARDS) return;
         var t = buildTrade(ts, legs);
         if (!t) {
           var teams = {};
@@ -241,9 +374,13 @@
         cards.push(toCard(t, cards.length + 1));
       });
 
+      var trends = buildTrends(deals, spanOf(tsSeen));
+      if (trends) cards.unshift(trends);
+
       console.info("[doomscroll] trades: " + cards.length + " cards from " + stats.total +
         " logged deals (" + stats.dup + " duplicates, " + stats.multi +
-        " multi-team, " + stats.unbalanced + " failed the balance filter)");
+        " multi-team, " + stats.unbalanced + " failed the balance filter)" +
+        (trends ? "; trends over " + deals.length + " deals" : "; too few deals for a trends card"));
       return cards;
     }).catch(function (e) {
       console.warn("[doomscroll] trade log unavailable:", e.message);

@@ -16,6 +16,10 @@ The tab ships, but these calls are Jorge's:
 - **Recency vs shuffle.** Buzz cards are sampled like everything else, so a
   four-hour-old item can sit under a two-day-old one. A news tab arguably wants
   newest-first. Would need a per-tab ordering mode in `loadMore()`.
+- **Reddit RSS coverage is partial by construction.** The two subreddit feeds
+  carry 100 entries each; anything in the 7-day index that is not in the week's
+  top or the newest 100 keeps its ~280-character excerpt. Widening it means
+  more feeds (`/hot`, `/top?t=month`) at one proxied request each.
 - **The CORS proxy is now a shared dependency.** Buzz calls
   `nba-content-stream-cors` for Reddit bodies, one request per page load. The
   Worker was not changed and does not know about this caller; if its allowlist
@@ -36,6 +40,23 @@ The tab ships, but these calls are Jorge's:
   a published index that is one file per source, or a smaller non-news slice.
 
 ---
+
+## Asked for, not yet built
+
+- **VS cards with no real headshot.** 1,885 of 2,000 VS cards and 294 of 300
+  trivia cards show at least one silhouette: `player-headshots.json` covers 572
+  players and the pools need 842. `bar-chart-race/assets/headshots` has 6,769
+  keyed by full name — the races already use it. The fix is to bake face tiles
+  for the ~900 players the pools need into `data/faces/`, the way
+  `data/races/faces/` already works, and rebuild the pools so a card with no
+  face is dropped rather than silhouetted.
+- **Reddit video autoplay.** No data source: Content Stream tags every r/nba
+  item `media: {type: "text"}` and never captures the v.redd.it URL. Bluesky
+  video IS available (an HLS playlist per post) and could autoplay muted on
+  scroll with hls.js vendored locally.
+- **More video formats in the feed.** Teammate Scores, Player Comparison and
+  Media Awards, rendered on canvas the way the bar races are. Blocked on
+  knowing which repos hold them.
 
 ## Gamification
 

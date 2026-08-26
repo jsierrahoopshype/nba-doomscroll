@@ -72,7 +72,8 @@
     oddity: { chip: "BALLOT ODDITY", cls: "t-vault", tab: "vault" },
     otd:    { chip: "ON THIS DAY", cls: "t-vault", tab: "vault" },
     race:   { chip: "RACE",    cls: "t-vault", tab: "races" },
-    buzz:   { chip: "BUZZ",    cls: "t-buzz",  tab: "buzz" }
+    buzz:   { chip: "BUZZ",    cls: "t-buzz",  tab: "buzz" },
+    tradetrend: { chip: "TRADE TRENDS", cls: "t-trade", tab: "trades" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -94,6 +95,33 @@
       '<div class="trade-verdict ' + balCls + '"><span class="mono">' + esc(p.balance_pct) + '% balanced</span> — ' +
       esc(p.verdict) + '</div>' +
       '<div class="card-sub">Built by a Trade Machine user ' + esc(p.built_ago || "recently") + '</div>';
+  }
+
+  /* Who the Trade Machine is moving. A leaderboard of players by how many
+   * distinct deals people built around them, with where those deals sent them.
+   * Every row opens the machine's trade-loop generator for that player. */
+  function renderTradeTrend(c) {
+    var p = c.payload;
+    var rows = (p.players || []).map(function (pl, i) {
+      var dests = (pl.dests || []).map(function (d) {
+        return '<span class="tt-dest">' + ent(d.team, "team") +
+          '<span class="tt-dest-n mono">' + d.n + '</span></span>';
+      }).join("");
+      return '<a class="tt-row" href="' + escAttr(pl.url) + '" target="_blank" rel="noopener">' +
+        '<span class="tt-rank mono">' + (i + 1) + '</span>' +
+        face(pl.img, pl.name) +
+        '<span class="tt-main">' +
+          '<span class="tt-name">' + esc(pl.name) + '</span>' +
+          '<span class="tt-dests">' + (dests || '<span class="tt-dest-none">no clear destination</span>') + '</span>' +
+        '</span>' +
+        '<span class="tt-builds mono"><b>' + pl.builds + '</b>' +
+          '<span>build' + (pl.builds === 1 ? "" : "s") + '</span></span>' +
+      '</a>';
+    }).join("");
+    return '<div class="vs-headline">' + esc(p.headline) + '</div>' +
+      '<div class="card-sub">Across <span class="mono">' + esc(String(p.deals)) +
+        '</span> trades readers built ' + esc(p.span) + ' · the number is how many of them included that player</div>' +
+      '<div class="tt-list">' + rows + '</div>';
   }
 
   function renderRumor(c) {
@@ -433,18 +461,9 @@
     // the meta row where a handle reads as attribution rather than a byline.
     var poster = p.source === "reddit" && p.author
       ? '<span class="buzz-poster">u/' + esc(p.author) + '</span>' : "";
-    // Score and comment count are what make a Reddit item read as one. They
-    // only exist when the live lookup answered.
-    var votes = "";
-    if (typeof p.score === "number") {
-      votes = '<span class="buzz-votes">&#9650; ' + p.score.toLocaleString("en-US") +
-        (typeof p.comments === "number"
-          ? ' · ' + p.comments.toLocaleString("en-US") + ' comment' + (p.comments === 1 ? "" : "s")
-          : "") + '</span>';
-    }
     var meta = '<div class="buzz-meta mono">' +
         '<span class="buzz-src">' + esc(p.source_label) + '</span>' +
-        poster + votes +
+        poster +
         (p.trending ? '<span class="buzz-hot">TRENDING</span>' : "") +
         (when ? '<span class="buzz-time">' + esc(when) + '</span>' : "") +
       '</div>';
@@ -501,7 +520,8 @@
   var RENDERERS = {
     trade: renderTrade, rumor: renderRumor, vs: renderVs, trivia: renderTrivia,
     quiz: renderQuiz, ballot: renderBallot, salary: renderSalary, otd: renderOtd,
-    race: renderRace, oddity: renderOddity, buzz: renderBuzz
+    race: renderRace, oddity: renderOddity, buzz: renderBuzz,
+    tradetrend: renderTradeTrend
   };
 
   /* ---------------- card frame ---------------- */
@@ -509,7 +529,13 @@
   function tapTarget(c) {
     // Where tap-through goes, per type. Dummy-safe defaults for step 2.
     switch (c.type) {
-      case "trade": return { url: "https://hoopsmatic.com/transactionmaster", label: "Open Trade Machine" };
+      // A reader's trade opens as THAT trade in the machine when the log holds
+      // enough to rebuild it; a trade with picks in it cannot be rebuilt from
+      // the log, so it falls back to the empty tool rather than a wrong trade.
+      case "trade": return c.payload.machine_url
+        ? { url: c.payload.machine_url, label: "Open this trade" }
+        : { url: "https://hoopsmatic.com/transactionmaster", label: "Open Trade Machine" };
+      case "tradetrend": return { url: c.payload.machine_url, label: "Build one yourself" };
       case "rumor": return { url: c.payload.source_url || "https://hoopshype.com/rumors/", label: "Read on HoopsHype" };
       case "vs":    return { url: c.payload.compare_url, label: "Full comparison" };
       case "salary": return { url: "https://hoopsmatic.com/salary-season-finder", label: "Salary Season Finder" };

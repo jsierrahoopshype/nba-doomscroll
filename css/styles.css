@@ -227,6 +227,25 @@ a:hover{ text-decoration:underline }
   background:var(--orange-dim); border-radius:0 6px 6px 0;
 }
 
+/* -------- trade trends -------- */
+.tt-list{ margin-top:.5rem; border-top:1px solid var(--border) }
+.tt-row{
+  display:flex; align-items:center; gap:.55rem; padding:.45rem 0;
+  border-bottom:1px solid var(--border); text-decoration:none; color:inherit;
+}
+.tt-row:last-child{ border-bottom:0 }
+.tt-row:hover .tt-name{ color:var(--accent) }
+.tt-rank{ width:1rem; color:var(--text-secondary); font-size:.7rem; flex:none; text-align:right }
+.tt-main{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:.1rem }
+.tt-name{ font-weight:650; font-size:.92rem; letter-spacing:-.005em }
+.tt-dests{ display:flex; flex-wrap:wrap; gap:.1rem .5rem; align-items:baseline }
+.tt-dest{ display:inline-flex; align-items:baseline; gap:.15rem }
+.tt-dest-n{ font-size:.6rem; color:var(--text-secondary) }
+.tt-dest-none{ font-size:.7rem; color:var(--text-secondary) }
+.tt-builds{ flex:none; text-align:right; line-height:1.1 }
+.tt-builds b{ display:block; font-size:1.05rem; color:var(--t-trade) }
+.tt-builds span{ font-size:.55rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.06em }
+
 /* -------- buzz cards -------- */
 .buzz-meta{
   display:flex; align-items:center; gap:.45rem; margin-bottom:.4rem;
@@ -373,7 +392,6 @@ a:hover{ text-decoration:underline }
 /* Reddit: the poster's handle sits in the meta row, and the body keeps the
    line breaks it was written with (a stat table is unreadable reflowed). */
 .buzz-poster{ color:var(--text-secondary) }
-.buzz-votes{ color:var(--t-buzz); font-weight:600 }
 .buzz-excerpt.as-written{ white-space:pre-wrap; overflow-wrap:anywhere }
 
 /* -------- vs cards -------- */
