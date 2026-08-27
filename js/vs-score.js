@@ -83,8 +83,17 @@
   }
 
   /* metrics: [{sec, cat, win, src}] in comparisons.json order
-   * A / B: { metricIndex: value } maps produced by CompareCore.getPlayerStat */
-  function score(metrics, A, B) {
+   * A / B: { metricIndex: value } maps produced by CompareCore.getPlayerStat
+   * sink: OPTIONAL array. Every metric that awards a point is pushed onto it as
+   *   {sec, cat, a, b, winner}, in comparisons.json order.
+   *
+   * The sink exists so the Comparison card can reveal the scoreline being built
+   * one metric at a time and still end on the number this function returns.
+   * Deriving those rows separately would mean a second copy of the award rules
+   * above — the untracked-stat guard, the always-award sections, the
+   * require-both ones — and two copies drift. Callers passing three arguments
+   * are unaffected. */
+  function score(metrics, A, B, sink) {
     var p1 = 0, p2 = 0, sections = {}, wins = { player1: [], player2: [] };
 
     for (var i = 0; i < metrics.length; i++) {
@@ -120,6 +129,16 @@
       if (!award) continue;
       sections[m.sec][winner]++;
       if (EXCLUDE_OVERALL.indexOf(m.sec) < 0) { if (winner === "player1") p1++; else p2++; }
+      if (sink) {
+        sink.push({
+          sec: m.sec, cat: m.cat, winner: winner,
+          a: av === null ? null : fmt(av),
+          b: bv === null ? null : fmt(bv),
+          /* DRAFT COMBINE awards a section point but not an overall one, so a
+           * reveal that counted it would outrun the final score. */
+          counts: EXCLUDE_OVERALL.indexOf(m.sec) < 0
+        });
+      }
 
       var label = HEADLINE[m.sec + "::" + m.cat];
       if (label && m.win === "Most") {

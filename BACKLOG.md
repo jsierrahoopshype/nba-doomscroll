@@ -59,14 +59,12 @@ The tab ships, but these calls are Jorge's:
   route is Reddit's own embed (`redditmedia.com/r/<sub>/comments/<id>/?embed=true`
   in an iframe): their player, their terms, their analytics — and no autoplay,
   which is rather the point of the sanctioning.
-- **More video formats in the feed.** Teammates Score has shipped. Still to do,
-  in Jorge's order: `nba-player-data/nba-comparison-video-generator.html` (reads
-  the same rsStats/poStats/awards files the VS pool is built from, so it is
-  mostly renderer work), then media-vote-tracker's award races (the ballot
-  export is already in this repo). `nba-trade-video` is the awkward one — it
-  gets its verdicts by driving the real Trade Machine in an iframe and holds no
-  CBA logic of its own, so a feed version could only claim what the trade log
-  proves, which the trade cards already say.
+- **More video formats in the feed.** Teammates Score and the Comparison card
+  have shipped. Still to do: media-vote-tracker's award races (the ballot export
+  is already in this repo). `nba-trade-video` is the awkward one — it gets its
+  verdicts by driving the real Trade Machine in an iframe and holds no CBA logic
+  of its own, so a feed version could only claim what the trade log proves,
+  which the trade cards already say.
 - **Teammates should be rebuilt on the shared face index — most of its 34
   missing stars were a matching bug, not a missing photo.** `build_teammates.mjs`
   has its own name matcher that folds diacritics but never lowercases, so
@@ -166,3 +164,6 @@ Kept short so the list above stays the point.
 - Silhouettes gone: 1,231 head tiles baked from `bar-chart-race`, VS / trivia /
   quiz pools built only from players who have a photograph, trade and History
   cards drawing initials rather than a grey outline when nobody does
+- Comparison card: the VS scoreline built one metric at a time instead of
+  declared, 420 matchups disjoint from the VS pool, scored by the same
+  `vs-score.js` the comparison tool runs

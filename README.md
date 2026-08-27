@@ -99,6 +99,11 @@ it is a scroll feed.
   from `bar-chart-race/assets/headshots` and framed on the measured head. The
   manifest is what the pools are gated on, and it is why the weekly `--pages`
   rebuild keeps the gate without cloning 277MB of source PNGs
+- `data/compare-pool.json` + `data/compare/*.json` — 420 head-to-head matchups,
+  each with every metric that awards a point, revealed one at a time. Disjoint
+  from `vs-pool.json` on purpose: the same pairing as both a static card and an
+  animated one on one scroll reads as a bug. The rows come straight out of
+  `js/vs-score.js`, so a card ends on the number hoopsmatic.com/compare gives
 - `data/quiz-pool.json` — Guess the Player, restricted to the 1,078 players with
   a real photograph, tiered easy/medium/hard by obscurity
 - `data/trivia-pool.json` — "two players, one stat" with real career values.
@@ -182,6 +187,15 @@ argument:
 
 Without that fourth argument nothing is re-baked and the committed manifest is
 reused, which is the same thing `--pages` does.
+
+## Rebuilding the Comparison cards
+
+    node tools/build_compare.mjs
+
+Reads `data/vs-values.json` and `data/vs-pool.json` — both already in the repo —
+so it needs no external source and no network. Re-run it after
+`tools/build_data.mjs`, since it excludes pairings the VS pool has just claimed.
+The build fails if any card's rows do not add up to the final score it prints.
 
 ## Rebuilding the Vault
 

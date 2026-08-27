@@ -62,11 +62,11 @@
   // pulls all three — just after the first batch is on screen rather than
   // competing with it.
   var TAB_POOLS = {
-    vs:     ["data/vs-pool.json", "data/teammates-pool.json"],
+    vs:     ["data/vs-pool.json", "data/teammates-pool.json", "data/compare-pool.json"],
     vault:  ["data/vault-pool.json"],
     races:  ["data/race-pool.json"],
     foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json",
-             "data/teammates-pool.json"]
+             "data/teammates-pool.json", "data/compare-pool.json"]
   };
   var poolPromises = {};
   // Set when a live source could not be reached, so the tab can say so instead
@@ -159,7 +159,7 @@
   // decide which pool to pull first when a link opens cold.
   function tabForShareId(id) {
     if (/^race-/.test(id)) return TAB_POOLS.races;
-    if (/^(vs|mates)-/.test(id)) return TAB_POOLS.vs;
+    if (/^(vs|mates|compare)-/.test(id)) return TAB_POOLS.vs;
     if (/^(salary|oddity|otd)-/.test(id)) return TAB_POOLS.vault;
     return [];
   }
@@ -562,7 +562,7 @@
       // Buzz gets a reserved 40% of every mixed batch — Jorge's call, and the
       // type-balanced draw cannot produce it on its own: it damps thin pools,
       // and ~50 live items is a thin pool against thousands of archive cards.
-      ? E.sampleMixed(pool, BATCH, { cap: { race: 1, mates: 1 }, share: { buzz: BUZZ_SHARE } })
+      ? E.sampleMixed(pool, BATCH, { cap: { race: 1, mates: 1, compare: 1 }, share: { buzz: BUZZ_SHARE } })
       : E.sample(pool, BATCH);
     if (!batch.length) {
       state.exhausted = true;
@@ -679,12 +679,14 @@
     var status = cv.parentNode.querySelector("[data-race-status]");
     return loadRaceData(cv.dataset.race).then(function (race) {
       delete cv.dataset.mounting;
-      /* Two renderers, one lifecycle. A bar chart race and a Teammates Score
-       * head-to-head are different pictures with identical needs — fetch on
-       * scroll-in, play while visible, pause on the way out, scrub, tear down
-       * with the feed — so they share every line of that and differ only here.
-       * Both expose the same control object. */
-      var engine = cv.dataset.player === "mates" ? root.MatesPlayer : root.RacePlayer;
+      /* Three renderers, one lifecycle. A bar chart race, a Teammates Score
+       * scoreboard and a head-to-head comparison are different pictures with
+       * identical needs — fetch on scroll-in, play while visible, pause on the
+       * way out, scrub, tear down with the feed — so they share every line of
+       * that and differ only here. All three expose the same control object. */
+      var engine = cv.dataset.player === "mates" ? root.MatesPlayer
+        : cv.dataset.player === "compare" ? root.ComparePlayer
+        : root.RacePlayer;
       if (!engine) throw new Error((cv.dataset.player || "race") + " player missing");
       var ctl = engine.mount(cv, race, {
         onEnd: function () { syncRaceControls(cv); }

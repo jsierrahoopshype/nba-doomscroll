@@ -91,7 +91,8 @@
     buzz:   { chip: "BUZZ",    cls: "t-buzz",  tab: "buzz" },
     tradetrend: { chip: "TRADE TRENDS", cls: "t-trade", tab: "trades" },
     tradedigest: { chip: "DAILY DIGEST", cls: "t-trade", tab: "trades" },
-    mates:  { chip: "TEAMMATES", cls: "t-vs", tab: "vs" }
+    mates:  { chip: "TEAMMATES", cls: "t-vs", tab: "vs" },
+    compare: { chip: "HEAD TO HEAD", cls: "t-vs", tab: "vs" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -236,6 +237,40 @@
     return head +
       '<p class="rumor-text">' + esc(p.text) + '</p>' + quote +
       '<div class="card-sub">' + esc(p.outlet) + ' · <span class="mono">' + esc(p.archive_date) + '</span></div>';
+  }
+
+  /* Head to head: the VS scoreline being built rather than declared. The canvas
+   * is mounted lazily by app.js when the card reaches the viewport, so a feed
+   * full of these downloads only the rows of the ones actually looked at. The
+   * markup above it stands on its own if the canvas never loads. */
+  function renderCompare(c) {
+    var p = c.payload;
+    /* No headline and no static scores, unlike the VS card. "Tyson Chandler
+     * takes it 38-35" printed above a ten-second reveal of how he got there
+     * gives away the only thing the card has to say. The scoreboard inside the
+     * canvas is where the numbers live; out here it is just who is playing. */
+    function side(x, cls) {
+      return '<div class="mt-side ' + cls + '">' + face(x.img, x.name, "face lg") +
+        '<span class="mt-name">' + ent(x.name, "player") + '</span></div>';
+    }
+    var alt = p.a.name + " " + p.a.score + ", " + p.b.name + " " + p.b.score +
+      ". The comparison scored one metric at a time.";
+    return '<div class="mt-head">' + side(p.a, "a") + '<div class="vs-mid">VS</div>' + side(p.b, "b") + '</div>' +
+      '<div class="card-sub cmp-tease">' + esc(String(p.metrics)) +
+        ' metrics, one at a time. Who wins?</div>' +
+      '<div class="race-wrap">' +
+        '<canvas class="race-canvas" data-player="compare" data-race="' + escAttr(p.file) +
+          '" role="img" aria-label="' + escAttr(alt) + '"></canvas>' +
+        '<div class="race-status mono" data-race-status>loading the metrics…</div>' +
+      '</div>' +
+      '<div class="race-bar">' +
+        '<button class="race-btn" type="button" data-race-toggle aria-label="Play or pause">Play</button>' +
+        '<input class="race-scrub" type="range" min="0" max="1000" value="0" step="1" ' +
+          'data-race-scrub aria-label="Scrub through the metrics">' +
+        '<button class="race-btn race-speed" type="button" data-race-speed ' +
+          'aria-label="Playback speed">1&times;</button>' +
+      '</div>' +
+      '<p class="race-note">' + esc(p.note) + '</p>';
   }
 
   function renderVs(c) {
@@ -631,7 +666,7 @@
     quiz: renderQuiz, ballot: renderBallot, salary: renderSalary, otd: renderOtd,
     race: renderRace, oddity: renderOddity, buzz: renderBuzz,
     tradetrend: renderTradeTrend, tradedigest: renderTradeDigest,
-    mates: renderMates
+    mates: renderMates, compare: renderCompare
   };
 
   /* ---------------- card frame ---------------- */
@@ -656,6 +691,10 @@
       case "race":  return null;
       // Same reasoning as a race: the card IS the destination.
       case "mates": return null;
+      // Unlike a race, this one has somewhere to go: the card is an
+      // argument about two careers, and the comparison tool is where you
+      // go to see the rows it did not have room to dwell on.
+      case "compare": return { url: c.payload.compare_url, label: "Full comparison" };
       // The item lives somewhere else and that is the point: Buzz is a pointer
       // to the source, never a replacement for it.
       case "buzz":  return { url: c.payload.url, label: c.payload.cta || "Open" };
