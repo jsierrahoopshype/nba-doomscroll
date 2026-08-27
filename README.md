@@ -132,6 +132,17 @@ it is a scroll feed.
   teams that race actually puts on screen
 - `data/races/index.json` + `data/races/r/*.json` — 215 races as data, ~12KB
   each, loaded one at a time when a card scrolls into view
+- `data/lean-pool.json` + `data/lean/*.json` — 99 players, three acts each: the
+  voters highest and lowest on them, then the outlets, then the regions against
+  US media. A port of the published HoopsHype media-vote video, drawn on canvas
+  by `js/lean-player.js`. The numbers are media-vote-tracker's own `diff` — a
+  voter's average points on that player minus the field's — not anything
+  recomputed here
+- `data/ballotrace-pool.json` + `data/races/r/ballot-*.json` — 121 award vote
+  races, one per season and award, counted ballot by ballot from
+  media-vote-tracker's reporter export. Written in the race file format and
+  grouped as "Award races", so `js/race-player.js` draws them and the Races
+  tab's group filter picks them up with no new code
 - `data/races/faces/*.png` + `data/races/logos/*.png` — the headshot and logo
   tiles the races draw, baked at build time
 - `data/dummy-cards.json` — fallback cards for trades and races only. The rumor
@@ -206,6 +217,44 @@ because the best players fail a competitiveness test against almost everybody.
 Every player now gets a turn, matched against the nearest players in All-Star
 standing, and the lopsidedness a result is allowed to have scales with how
 decorated the pair is.
+
+## Rebuilding the media lean cards
+
+    node tools/build_lean.mjs --local <media-vote-tracker/docs/data>
+
+Three acts per card, matching the video: voters, then outlets, then regions
+measured against US media.
+
+Two different floors, doing two different jobs, and the split was worked out
+from the published video rather than guessed. A NAMED VOTER needs 5+ ballots on
+that player, because the row carries their byline. The AGGREGATES read the full
+board with no ballot floor at all but need 2+ voters — which is what reproduces
+the video exactly: L'Equipe at -2.3 on Jaylen Brown rather than the -3.2 a
+filtered board gives, and San Antonio Express-News absent because it is one
+voter. Every outlet figure in that video comes out of this builder unchanged.
+
+Regions are derived: the export stores a country per voter and no region, so
+the map in the builder makes the video's five buckets with the US held out as
+the baseline. Oceania is the one deliberate divergence — a single Australian in
+the whole electorate, so a 2-voter floor drops it rather than putting a
+continent's name on one man's opinion.
+
+The build fails if any row is below its floor or on the wrong side of zero.
+
+## Rebuilding the award vote races
+
+    node tools/build_ballot_races.mjs --local <media-vote-tracker/docs/data> \
+      [bar-chart-race/assets/headshots]
+
+One race per season and award, with a frame per ballot counted. The build fails
+if any race does not end on the result its own ballots produce.
+
+The export records who voted for whom, not when they filed, so ballots are
+counted in a seeded shuffle — the same order on every rebuild, but not a real
+one. Frames are labelled "42/100" rather than named after the reporter who just
+voted: a real name attached to an invented position in a sequence would read as
+a claim about when that person filed, and it would not be true. Every card says
+the order is random.
 
 ## Rebuilding the Vault
 

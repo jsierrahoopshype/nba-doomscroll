@@ -59,12 +59,11 @@ The tab ships, but these calls are Jorge's:
   route is Reddit's own embed (`redditmedia.com/r/<sub>/comments/<id>/?embed=true`
   in an iframe): their player, their terms, their analytics — and no autoplay,
   which is rather the point of the sanctioning.
-- **More video formats in the feed.** Teammates Score and the Comparison card
-  have shipped. Still to do: media-vote-tracker's award races (the ballot export
-  is already in this repo). `nba-trade-video` is the awkward one — it gets its
-  verdicts by driving the real Trade Machine in an iframe and holds no CBA logic
-  of its own, so a feed version could only claim what the trade log proves,
-  which the trade cards already say.
+- **`nba-trade-video` is the last port, and the case against it stands.** It
+  gets its verdicts by driving the real Trade Machine in an iframe and holds no
+  CBA logic of its own, so a feed version could only claim what the trade log
+  already proves — which the trade cards say already. Teammates Score, the
+  Comparison card and the award vote races have all shipped.
 - **Teammates should be rebuilt on the shared face index — most of its 34
   missing stars were a matching bug, not a missing photo.** `build_teammates.mjs`
   has its own name matcher that folds diacritics but never lowercases, so
@@ -167,3 +166,8 @@ Kept short so the list above stays the point.
 - Comparison card: the VS scoreline built one metric at a time instead of
   declared, 1,500 matchups between All-Stars since 1984, disjoint from the VS
   pool, scored by the same `vs-score.js` the comparison tool runs
+- Award vote races: 121 media award counts, ballot by ballot, in the race file
+  format so the existing player draws them and the Races tab filters them
+- Media lean: a canvas port of the published HoopsHype media-vote video — who
+  in the press is highest and lowest on each of 99 players, by voter, by outlet
+  and by region, every figure reproducing the video's own

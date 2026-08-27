@@ -851,3 +851,10 @@ a:hover{ text-decoration:underline }
   border:1px solid var(--accent); background:var(--accent); color:#fff;
 }
 .ent-bar-clear:hover{ filter:brightness(1.08) }
+
+/* The media lean card is a canvas now, a port of the HoopsHype media-vote
+   video, so it borrows .race-wrap and .race-bar from the races rather than
+   carrying a layout of its own. The one thing it needs: the video is square-ish
+   and the panel is very dark, so the rounded corner has to clip the canvas. */
+.ln-wrap canvas{ border-radius:10px }
+

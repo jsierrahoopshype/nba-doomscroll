@@ -92,7 +92,8 @@
     tradetrend: { chip: "TRADE TRENDS", cls: "t-trade", tab: "trades" },
     tradedigest: { chip: "DAILY DIGEST", cls: "t-trade", tab: "trades" },
     mates:  { chip: "TEAMMATES", cls: "t-vs", tab: "vs" },
-    compare: { chip: "HEAD TO HEAD", cls: "t-vs", tab: "vs" }
+    compare: { chip: "HEAD TO HEAD", cls: "t-vs", tab: "vs" },
+    lean:   { chip: "MEDIA LEAN", cls: "t-quiz", tab: "vault" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -267,6 +268,35 @@
         '<button class="race-btn" type="button" data-race-toggle aria-label="Play or pause">Play</button>' +
         '<input class="race-scrub" type="range" min="0" max="1000" value="0" step="1" ' +
           'data-race-scrub aria-label="Scrub through the metrics">' +
+        '<button class="race-btn race-speed" type="button" data-race-speed ' +
+          'aria-label="Playback speed">1&times;</button>' +
+      '</div>' +
+      '<p class="race-note">' + esc(p.note) + '</p>';
+  }
+
+  /* Who in the media is high on a player, and who is low: a port of the
+   * HoopsHype media-vote video, three acts on a canvas.
+   *
+   * The one card in the app that is about the voters rather than the players,
+   * so it prints real journalists' names against a number. The note under it
+   * says what the number is — an average gap against the rest of the panel —
+   * because a bare "-5.1" beside a byline invites a reading it has not earned. */
+  function renderLean(c) {
+    var p = c.payload;
+    var a0 = (p.acts && p.acts[0]) || { hi: [], lo: [] };
+    var alt = p.player + ": " +
+      (a0.hi || []).slice(0, 3).map(function (r) { return r.label + " " + (r.diff > 0 ? "+" : "") + r.diff; }).join(", ") +
+      " highest; " +
+      (a0.lo || []).slice(0, 3).map(function (r) { return r.label + " " + r.diff; }).join(", ") + " lowest.";
+    return '<div class="race-wrap ln-wrap">' +
+        '<canvas class="race-canvas" data-player="lean" data-race="' + escAttr(p.file) +
+          '" role="img" aria-label="' + escAttr(alt) + '"></canvas>' +
+        '<div class="race-status mono" data-race-status>loading the ballots…</div>' +
+      '</div>' +
+      '<div class="race-bar">' +
+        '<button class="race-btn" type="button" data-race-toggle aria-label="Play or pause">Play</button>' +
+        '<input class="race-scrub" type="range" min="0" max="1000" value="0" step="1" ' +
+          'data-race-scrub aria-label="Scrub through the acts">' +
         '<button class="race-btn race-speed" type="button" data-race-speed ' +
           'aria-label="Playback speed">1&times;</button>' +
       '</div>' +
@@ -666,7 +696,7 @@
     quiz: renderQuiz, ballot: renderBallot, salary: renderSalary, otd: renderOtd,
     race: renderRace, oddity: renderOddity, buzz: renderBuzz,
     tradetrend: renderTradeTrend, tradedigest: renderTradeDigest,
-    mates: renderMates, compare: renderCompare
+    mates: renderMates, compare: renderCompare, lean: renderLean
   };
 
   /* ---------------- card frame ---------------- */
@@ -695,6 +725,9 @@
       // argument about two careers, and the comparison tool is where you
       // go to see the rows it did not have room to dwell on.
       case "compare": return { url: c.payload.compare_url, label: "Full comparison" };
+      // The tracker holds every ballot behind these six rows, which is more
+      // than a card can carry and exactly what someone who cares will want.
+      case "lean":  return { url: c.payload.url, label: "Every ballot" };
       // The item lives somewhere else and that is the point: Buzz is a pointer
       // to the source, never a replacement for it.
       case "buzz":  return { url: c.payload.url, label: c.payload.cta || "Open" };

@@ -63,10 +63,11 @@
   // competing with it.
   var TAB_POOLS = {
     vs:     ["data/vs-pool.json", "data/teammates-pool.json", "data/compare-pool.json"],
-    vault:  ["data/vault-pool.json"],
-    races:  ["data/race-pool.json"],
+    vault:  ["data/vault-pool.json", "data/lean-pool.json"],
+    races:  ["data/race-pool.json", "data/ballotrace-pool.json"],
     foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json",
-             "data/teammates-pool.json", "data/compare-pool.json"]
+             "data/teammates-pool.json", "data/compare-pool.json",
+             "data/ballotrace-pool.json", "data/lean-pool.json"]
   };
   var poolPromises = {};
   // Set when a live source could not be reached, so the tab can say so instead
@@ -160,6 +161,7 @@
   function tabForShareId(id) {
     if (/^race-/.test(id)) return TAB_POOLS.races;
     if (/^(vs|mates|compare)-/.test(id)) return TAB_POOLS.vs;
+    if (/^lean-/.test(id)) return TAB_POOLS.vault;
     if (/^(salary|oddity|otd)-/.test(id)) return TAB_POOLS.vault;
     return [];
   }
@@ -482,7 +484,7 @@
     rumors: "rumor history, legal/off-court topics filtered out",
     vs: "career comparisons scored the same way as the full tool",
     quiz: "guess the player, two-player trivia, and real award ballots",
-    vault: "cap-share salaries, ballot oddities, games on this date",
+    vault: "cap-share salaries, ballot oddities, who in the media rates whom, games on this date",
     races: "every franchise, country and college, one bar chart race at a time"
   };
 
@@ -562,7 +564,7 @@
       // Buzz gets a reserved 40% of every mixed batch — Jorge's call, and the
       // type-balanced draw cannot produce it on its own: it damps thin pools,
       // and ~50 live items is a thin pool against thousands of archive cards.
-      ? E.sampleMixed(pool, BATCH, { cap: { race: 1, mates: 1, compare: 1 }, share: { buzz: BUZZ_SHARE } })
+      ? E.sampleMixed(pool, BATCH, { cap: { race: 1, mates: 1, compare: 1, lean: 1 }, share: { buzz: BUZZ_SHARE } })
       : E.sample(pool, BATCH);
     if (!batch.length) {
       state.exhausted = true;
@@ -679,13 +681,15 @@
     var status = cv.parentNode.querySelector("[data-race-status]");
     return loadRaceData(cv.dataset.race).then(function (race) {
       delete cv.dataset.mounting;
-      /* Three renderers, one lifecycle. A bar chart race, a Teammates Score
-       * scoreboard and a head-to-head comparison are different pictures with
+      /* Four renderers, one lifecycle. A bar chart race, a Teammates Score
+       * scoreboard, a head-to-head comparison and a media-lean chart are
+       * different pictures with
        * identical needs — fetch on scroll-in, play while visible, pause on the
        * way out, scrub, tear down with the feed — so they share every line of
-       * that and differ only here. All three expose the same control object. */
+       * that and differ only here. All four expose the same control object. */
       var engine = cv.dataset.player === "mates" ? root.MatesPlayer
         : cv.dataset.player === "compare" ? root.ComparePlayer
+        : cv.dataset.player === "lean" ? root.LeanPlayer
         : root.RacePlayer;
       if (!engine) throw new Error((cv.dataset.player || "race") + " player missing");
       var ctl = engine.mount(cv, race, {
