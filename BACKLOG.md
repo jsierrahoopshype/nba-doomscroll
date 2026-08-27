@@ -165,5 +165,5 @@ Kept short so the list above stays the point.
   quiz pools built only from players who have a photograph, trade and History
   cards drawing initials rather than a grey outline when nobody does
 - Comparison card: the VS scoreline built one metric at a time instead of
-  declared, 420 matchups disjoint from the VS pool, scored by the same
-  `vs-score.js` the comparison tool runs
+  declared, 1,500 matchups between All-Stars since 1984, disjoint from the VS
+  pool, scored by the same `vs-score.js` the comparison tool runs

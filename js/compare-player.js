@@ -89,7 +89,13 @@
     var rows = data.rows || [];
     if (!rows.length) return null;
 
-    /* The playhead runs over REVEALABLE rows, not over every row: a section
+    /* Rows arrive as arrays, not objects: [cat, aValue, bValue, winner, counts],
+     * and [null, label] for a section header. At 72 rows a card across fifteen
+     * hundred cards, repeated JSON keys were about a third of the payload and
+     * carried no information. Unpacked once here, into the shape the drawing
+     * code wants.
+     *
+     * The playhead runs over REVEALABLE rows, not over every row: a section
      * header is not a beat, it is a label that appears with the first metric
      * underneath it. Each row remembers its own reveal index and its y, so
      * drawing a frame is a lookup rather than a walk. */
@@ -97,11 +103,14 @@
     var steps = 0, y = 0;
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
-      if (r.t === "h") {
-        layout.push({ h: true, label: r.label, y: y, at: steps });
+      if (r[0] === null) {
+        layout.push({ h: true, label: r[1], y: y, at: steps });
         y += HEAD_H;
       } else {
-        layout.push({ h: false, row: r, y: y, at: steps });
+        layout.push({
+          h: false, y: y, at: steps,
+          row: { cat: r[0], a: r[1], b: r[2], w: r[3] === 0 ? "a" : "b", c: r[4] }
+        });
         y += ROW_H + GAP;
         steps++;
       }

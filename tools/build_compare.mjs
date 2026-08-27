@@ -23,17 +23,32 @@
  * worth stating: the number a card ends on is the number hoopsmatic.com/compare
  * would give you, because it is literally the same function call.
  *
+ * WHO IS IN IT
+ *
+ * All-Stars whose careers reach 1984 or later, who have a real photograph, and
+ * whom vs-values.json can score. 201 players, and therefore 20,100 possible
+ * pairings — which is the point. The first build drew from all 573 scoreable
+ * players and capped each at 10 appearances, and 420 cards off that base meant
+ * a rotation full of Adonal Foyle and Tim Thomas. A card that asks "who wins?"
+ * needs two names the reader has an opinion about.
+ *
  * DISJOINT FROM THE VS POOL, ON PURPOSE
  *
  * Every pairing here is one data/vs-pool.json does not hold. The same two
  * careers turning up twice on one scroll — once as a static card, once as an
- * animated one — reads as a bug rather than as variety, and with 573 scoreable
- * players there is no reason to allow it.
+ * animated one — reads as a bug rather than as variety.
  *
- * Reads data/vs-values.json and data/vs-pool.json, both already built by
- * tools/build_data.mjs. No external repo, no network:
+ * ROWS ARE ARRAYS, NOT OBJECTS
  *
- *   node tools/build_compare.mjs
+ * [cat, aValue, bValue, winner, counts] rather than a five-key object, and
+ * [null, label] for a section header. At 72 rows a card and well over a
+ * thousand cards, the repeated JSON keys were about a third of the payload for
+ * no information. js/compare-player.js reads this shape directly.
+ *
+ * Reads data/vs-values.json and data/vs-pool.json from this repo, plus
+ * nba-player-data for All-Star counts and career spans:
+ *
+ *   node tools/build_compare.mjs --local <nba-player-data>
  */
 
 import fs from "fs";
@@ -47,11 +62,20 @@ const REPO = path.join(__dirname, "..");
 const VsScore = require(path.join(REPO, "js", "vs-score.js"));
 
 const OUT_DIR = path.join(REPO, "data", "compare");
-const MAX_CARDS = 420;
+const MAX_CARDS = 1500;
 const MIN_ROWS = 24;          // fewer than this and the reveal is over too fast
 const MIN_SCORE = 14;         // both sides need enough points for a real contest
-const MAX_PER_PLAYER = 10;
-const TARGET_CROSS = 140;     // the rest are same-era arguments
+const MAX_PER_PLAYER = 22;    // 201 players, so this is what bounds the pool
+const TARGET_CROSS = 500;     // the rest are same-era arguments
+const FROM_YEAR = 1984;       // the career has to reach the modern era
+const MIN_ALLSTAR = 1;
+
+const args = process.argv.slice(2);
+if (args[0] !== "--local" || !args[1]) {
+  console.error("usage: node tools/build_compare.mjs --local <nba-player-data>");
+  process.exit(1);
+}
+const PD = args[1];
 
 const values = JSON.parse(fs.readFileSync(path.join(REPO, "data", "vs-values.json"), "utf8"));
 const vsPool = JSON.parse(fs.readFileSync(path.join(REPO, "data", "vs-pool.json"), "utf8"));
@@ -64,10 +88,32 @@ for (const c of vsPool.cards) {
 }
 console.log(`vs pool holds ${taken.size} pairings; this build will not reuse any of them`);
 
-const players = Object.keys(values.players)
+/* All-Star selections and career spans, from nba-player-data. awards.json is
+ * the selection record; allStar.json is the weekend's dunk and three-point
+ * contests, which is a different thing and not what "an All-Star" means. */
+const readJson = f => JSON.parse(fs.readFileSync(path.join(PD, f), "utf8"));
+const allStar = new Map();
+for (const r of readJson("awards.json")) {
+  if (r.AWARD !== "All-Star") continue;
+  const n = r["PLAYER / COACH"];
+  if (n) allStar.set(n, (allStar.get(n) || 0) + 1);
+}
+const lastYear = new Map();
+for (const r of readJson("rsStats.json")) {
+  const n = r.PLAYER, y = parseInt(String(r.YEAR || "").slice(0, 4), 10);
+  if (!n || !y) continue;
+  if (y > (lastYear.get(n) || 0)) lastYear.set(n, y);
+}
+
+const scoreable = Object.keys(values.players)
   .map(n => ({ name: n, ...values.players[n] }))
   .filter(p => Object.keys(p.v).length >= 20);
-console.log(`comparison universe: ${players.length} scoreable players with a photo`);
+const players = scoreable.filter(p =>
+  (allStar.get(p.name) || 0) >= MIN_ALLSTAR && (lastYear.get(p.name) || 0) >= FROM_YEAR);
+for (const p of players) p.as = allStar.get(p.name) || 0;
+console.log(`comparison universe: ${players.length} All-Stars since ${FROM_YEAR} with a photograph ` +
+  `(from ${scoreable.length} scoreable players), ` +
+  `${(players.length * (players.length - 1) / 2).toLocaleString()} possible pairings`);
 
 /* Deterministic PRNG, same shape as the other builders: weekly rebuilds shuffle
  * but a given input always produces the same pool. */
@@ -123,17 +169,16 @@ function buildRows(a, b) {
   let lastSec = null;
   for (const s of sink) {
     if (s.sec !== lastSec) {
-      rows.push({ t: "h", label: SECTION_LABEL[s.sec] || s.sec });
+      rows.push([null, SECTION_LABEL[s.sec] || s.sec]);
       lastSec = s.sec;
     }
-    rows.push({
-      t: "r",
-      cat: s.cat,
-      a: s.a === null ? "–" : s.a,
-      b: s.b === null ? "–" : s.b,
-      w: s.winner === "player1" ? "a" : "b",
-      c: s.counts ? 1 : 0
-    });
+    rows.push([
+      s.cat,
+      s.a === null ? "–" : s.a,
+      s.b === null ? "–" : s.b,
+      s.winner === "player1" ? 0 : 1,
+      s.counts ? 1 : 0
+    ]);
   }
   return { rows, score: r };
 }
@@ -150,32 +195,72 @@ let rejThin = 0, rejLopsided = 0, rejTaken = 0;
 
 const count = n => perPlayer.get(n) || 0;
 
-while (cards.length < MAX_CARDS && guard++ < 200000) {
-  const wantCross = cross < TARGET_CROSS;
-  const pool = players.filter(p => count(p.name) < MAX_PER_PLAYER);
-  if (pool.length < 2) break;
+/* ROUND-ROBIN, NOT A WEIGHTED DRAW.
+ *
+ * Drawing pairs at random and rejecting the lopsided ones produced exactly the
+ * wrong pool: LeBron and Jordan appeared twice each while Bradley Beal appeared
+ * twenty-two times. The reason is that the competitiveness gate is a filter on
+ * the DRAW, and the best players fail it against almost everybody — so the
+ * marquee names, the whole reason to build the card, got rejected out of their
+ * own pool while the middle of the distribution filled it.
+ *
+ * So every player gets a turn instead. Each pass hands one more matchup to each
+ * player who has not hit the cap, and their opponent is chosen from players of
+ * comparable standing — nearest All-Star count first — which is both what makes
+ * a competitive card and what makes a card worth watching. Jordan meets Kareem
+ * and LeBron; he does not meet Chris Kaman and get thrown away for it. */
+const byAs = players.slice().sort((x, y) => y.as - x.as);
+let pass = 0;
 
-  const a = pickWeighted(pool, p => p.n);
-  const candidates = wantCross
-    ? pool.filter(p => p !== a && Math.abs(eraYear(p.era) - eraYear(a.era)) >= 20)
-    : pool.filter(p => p !== a && p.era === a.era);
-  if (!candidates.length) continue;
-  const b = pickWeighted(candidates, p => p.n / (1 + Math.abs(p.n - a.n)));
+outer:
+while (cards.length < MAX_CARDS && pass++ < MAX_PER_PLAYER * 2) {
+  for (const a of byAs) {
+    if (cards.length >= MAX_CARDS) break outer;
+    if (count(a.name) >= MAX_PER_PLAYER) continue;
+    const wantCross = cross < TARGET_CROSS && (pass % 3 === 0);
 
-  const key = [a.name, b.name].sort().join("|");
-  if (seen.has(key)) continue;
-  if (taken.has(key)) { rejTaken++; seen.add(key); continue; }
-  seen.add(key);
+    /* Nearest in All-Star standing, then nearest in era for a same-era card or
+     * furthest for a cross-era one, with a little jitter so successive rebuilds
+     * are not the same bracket every time. */
+    const candidates = players
+      .filter(p => p !== a && count(p.name) < MAX_PER_PLAYER &&
+        !seen.has([a.name, p.name].sort().join("|")) &&
+        !taken.has([a.name, p.name].sort().join("|")) &&
+        (wantCross
+          ? Math.abs(eraYear(p.era) - eraYear(a.era)) >= 20
+          : Math.abs(eraYear(p.era) - eraYear(a.era)) <= 10))
+      .sort((x, y) =>
+        (Math.abs(x.as - a.as) + rand() * 3) - (Math.abs(y.as - a.as) + rand() * 3));
+    if (!candidates.length) continue;
 
-  const { rows, score } = buildRows(a.name, b.name);
-  const revealed = rows.filter(r => r.t === "r").length;
-  if (revealed < MIN_ROWS) { rejThin++; continue; }
-  if (Math.min(score.p1, score.p2) < MIN_SCORE) { rejThin++; continue; }
-  /* Same competitiveness bar the VS pool uses: a 60-15 rout is not an argument,
-   * and it is worse here because you watch it happen for ten seconds. */
-  const ratio = Math.min(score.p1, score.p2) / Math.max(score.p1, score.p2);
-  if (ratio < (wantCross ? 0.45 : 0.6)) { rejLopsided++; continue; }
+    let made = false;
+    for (const b of candidates.slice(0, 12)) {
+      const key = [a.name, b.name].sort().join("|");
+      seen.add(key);
+      const { rows, score } = buildRows(a.name, b.name);
+      const revealed = rows.filter(r => r[0] !== null).length;
+      if (revealed < MIN_ROWS || Math.min(score.p1, score.p2) < MIN_SCORE) { rejThin++; continue; }
+      /* A rout is not an argument, and it is worse here than on a static card
+       * because you watch it happen for ten seconds. But the bar has to move
+       * with who is playing. A flat gate left LeBron James in two cards out of
+       * fifteen hundred: he beats everyone, including Jordan, so almost every
+       * pairing he appears in reads as lopsided by the numbers. "LeBron beats
+       * Kobe 60-30" is a card people want to watch anyway, and the reason is
+       * the names. So the more decorated the pair, the more one-sided a result
+       * is allowed to be. */
+      const ratio = Math.min(score.p1, score.p2) / Math.max(score.p1, score.p2);
+      const fameAllowance = Math.min(0.16, (a.as + b.as) / 220);
+      if (ratio < (wantCross ? 0.45 : 0.55) - fameAllowance) { rejLopsided++; continue; }
+      emit(a, b, rows, score, revealed, wantCross);
+      if (wantCross) cross++;
+      made = true;
+      break;
+    }
+    if (!made) continue;
+  }
+}
 
+function emit(a, b, rows, score, revealed, wantCross) {
   const file = `${slug(a.name)}-vs-${slug(b.name)}.json`;
   fs.writeFileSync(path.join(OUT_DIR, file), JSON.stringify({
     a: { name: a.name, img: a.img },
@@ -210,7 +295,6 @@ while (cards.length < MAX_CARDS && guard++ < 200000) {
 
   perPlayer.set(a.name, count(a.name) + 1);
   perPlayer.set(b.name, count(b.name) + 1);
-  if (wantCross) cross++;
 }
 
 const out = path.join(REPO, "data", "compare-pool.json");
@@ -233,9 +317,9 @@ console.log(`  rejected: ${rejTaken} already in the VS pool, ${rejThin} too thin
 let bad = 0;
 for (const c of cards) {
   const f = JSON.parse(fs.readFileSync(path.join(REPO, c.payload.file), "utf8"));
-  const counted = f.rows.filter(r => r.t === "r" && r.c);
-  const a = counted.filter(r => r.w === "a").length;
-  const b = counted.filter(r => r.w === "b").length;
+  const counted = f.rows.filter(r => r[0] !== null && r[4]);
+  const a = counted.filter(r => r[3] === 0).length;
+  const b = counted.filter(r => r[3] === 1).length;
   if (a !== f.final.a || b !== f.final.b) {
     if (bad < 3) console.error(`  ${c.id}: rows total ${a}-${b} but final says ${f.final.a}-${f.final.b}`);
     bad++;

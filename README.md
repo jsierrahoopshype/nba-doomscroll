@@ -99,9 +99,10 @@ it is a scroll feed.
   from `bar-chart-race/assets/headshots` and framed on the measured head. The
   manifest is what the pools are gated on, and it is why the weekly `--pages`
   rebuild keeps the gate without cloning 277MB of source PNGs
-- `data/compare-pool.json` + `data/compare/*.json` — 420 head-to-head matchups,
-  each with every metric that awards a point, revealed one at a time. Disjoint
-  from `vs-pool.json` on purpose: the same pairing as both a static card and an
+- `data/compare-pool.json` + `data/compare/*.json` — 1,500 head-to-head
+  matchups drawn from the 201 All-Stars since 1984 who have a photograph, each
+  with every metric that awards a point, revealed one at a time. Disjoint from
+  `vs-pool.json` on purpose: the same pairing as both a static card and an
   animated one on one scroll reads as a bug. The rows come straight out of
   `js/vs-score.js`, so a card ends on the number hoopsmatic.com/compare gives
 - `data/quiz-pool.json` — Guess the Player, restricted to the 1,078 players with
@@ -190,12 +191,21 @@ reused, which is the same thing `--pages` does.
 
 ## Rebuilding the Comparison cards
 
-    node tools/build_compare.mjs
+    node tools/build_compare.mjs --local <nba-player-data>
 
-Reads `data/vs-values.json` and `data/vs-pool.json` — both already in the repo —
-so it needs no external source and no network. Re-run it after
-`tools/build_data.mjs`, since it excludes pairings the VS pool has just claimed.
-The build fails if any card's rows do not add up to the final score it prints.
+Reads `data/vs-values.json` and `data/vs-pool.json` from this repo, plus
+nba-player-data's `awards.json` for All-Star selections and `rsStats.json` for
+career spans. Re-run it after `tools/build_data.mjs`, since it excludes pairings
+the VS pool has just claimed. The build fails if any card's rows do not add up
+to the final score it prints.
+
+Pairings are chosen round-robin rather than by weighted draw. A weighted draw
+plus a competitiveness filter produced the opposite of what the card needs:
+LeBron James appeared twice in the whole pool and Bradley Beal twenty-two times,
+because the best players fail a competitiveness test against almost everybody.
+Every player now gets a turn, matched against the nearest players in All-Star
+standing, and the lopsidedness a result is allowed to have scales with how
+decorated the pair is.
 
 ## Rebuilding the Vault
 
