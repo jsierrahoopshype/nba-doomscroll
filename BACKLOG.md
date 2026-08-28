@@ -64,17 +64,27 @@ The tab ships, but these calls are Jorge's:
   CBA logic of its own, so a feed version could only claim what the trade log
   already proves — which the trade cards say already. Teammates Score, the
   Comparison card and the award vote races have all shipped.
-- **Teammates should be rebuilt on the shared face index — most of its 34
-  missing stars were a matching bug, not a missing photo.** `build_teammates.mjs`
-  has its own name matcher that folds diacritics but never lowercases, so
-  `Kevin Mchale.png`, `Deandre Jordan.png`, `Demarcus Cousins.png`,
-  `Zach Lavine.png`, `Tracy Mcgrady.png` and `Amar'e Stoudemire.png` all missed.
-  `Faces.buildBcrIndex` (written for the pools) handles every one of them, plus
-  the suffix trap. Swapping the matcher and rebuilding should recover most of
-  the 34 and roughly 400 more possible matchups. Left alone for now because the
-  current 700 are shipped and approved — this is a deliberate rebuild, not a
-  side-effect of another task. Tim Hardaway stays out either way: the only file
-  is his son's.
+- **Flags come from flagcdn at runtime, and could be local.** The build tries to
+  fetch them into `data/flags/` and commit them, but flagcdn returns 403 to the
+  build sandbox's IP, so every card currently points at the CDN — which is what
+  media-vote-tracker already does, so it is not a new dependency for the project,
+  only for this repo. The builder prefers a committed file whenever one exists,
+  so dropping the PNGs in and rebuilding switches every card to local with no
+  code change. From any machine that can reach it:
+
+      for c in ar ca cn de es fr gr il it jp mx pt us; do \
+        curl -s -o "data/flags/$c.png" "https://flagcdn.com/h40/$c.png"; done
+
+  Until then the card draws an ISO-code chip wherever the image has not
+  arrived, so the country marker is never simply missing.
+
+- **The Comparison card is dark; the generator it ports is light.** The original
+  `nba-comparison-video-generator` renders on `#f5f5f7` with `#ffffff` rows and
+  `#1d1d1f` text — the app's own palette — and sets its headings in Barlow
+  Condensed. The feed card inherited the dark panel from the Teammates card
+  instead. Switching it would match both the video and the rest of the app, but
+  it is a visible change to a shipped card, so it is Jorge's call rather than a
+  tidy-up.
 
 ## Gamification
 
@@ -168,6 +178,9 @@ Kept short so the list above stays the point.
   pool, scored by the same `vs-score.js` the comparison tool runs
 - Award vote races: 121 media award counts, ballot by ballot, in the race file
   format so the existing player draws them and the Races tab filters them
+- Teammates rebuilt on the shared face index: McHale, McGrady, DeAndre Jordan,
+  Amare Stoudemire, DeMarcus Cousins, LaMarcus Aldridge and Bob McAdoo join the
+  pool, all seven lost to a matcher that never lowercased
 - Media lean: a canvas port of the published HoopsHype media-vote video — who
   in the press is highest and lowest on each of 99 players, by voter, by outlet
   and by region, every figure reproducing the video's own

@@ -181,5 +181,8 @@
     };
   }
 
-  return { score: score, payload: payload, MAIN_SECTIONS: MAIN_SECTIONS };
+  /* topWins is exported so the Comparison card's outro can name the same
+   * biggest wins the static VS card prints, by the same rule, rather than a
+   * second opinion about the same pair. */
+  return { score: score, payload: payload, topWins: topWins, MAIN_SECTIONS: MAIN_SECTIONS };
 });

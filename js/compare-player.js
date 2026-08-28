@@ -25,8 +25,13 @@
 (function (global) {
   "use strict";
 
-  var TARGET_MS = 11000;        // the whole argument in about eleven seconds
-  var MIN_STEP = 90, MAX_STEP = 320;
+  /* Pace. Eleven seconds across seventy-odd rows was about 150ms a row, which
+   * is faster than anyone can read a stat line — the card looked busy rather
+   * than legible. The video gives each row two thirds of a second; this gives
+   * roughly a third, which is the compromise a feed card can afford, and the
+   * speed control still doubles it for anyone who wants the original pace. */
+  var TARGET_MS = 24000;
+  var MIN_STEP = 190, MAX_STEP = 420;
   var BG = "#12151c";
   var PANEL = "#1a1f29";
   var ROW = "#1e2430";
@@ -122,6 +127,15 @@
     try {
       reduced = global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)").matches;
     } catch (e) { /* animate */ }
+
+    /* The video ends on a card naming each man's biggest wins rather than just
+     * the scoreline, and the card was ending on a wall of rows. OUTRO_BEATS of
+     * timeline past the last row buys that screen; the data for it was baked by
+     * the builder from the same VsScore.topWins the static VS card uses. */
+    var wins = data.wins || { a: [], b: [] };
+    var hasOutro = (wins.a && wins.a.length) || (wins.b && wins.b.length);
+    var OUTRO_BEATS = hasOutro ? 4 : 0;
+    var span = steps + OUTRO_BEATS;
 
     var baseStepMs = Math.max(MIN_STEP, Math.min(MAX_STEP, Math.round(TARGET_MS / steps)));
     var speed = 1, stepMs = baseStepMs;
@@ -271,15 +285,30 @@
         ctx.fillStyle = ROW;
         ctx.fill();
 
-        // The winning half carries the colour, so which side won is legible
-        // before you have read either number.
+        /* The winner's tint covers their VALUE column, not half the row.
+         *
+         * The generator sets its boundaries at 42% and 58% of the width, which
+         * leaves the category label in the middle on plain surface — so the
+         * colour reads as "this number won" rather than as a block dividing the
+         * row in two. Filling to the midpoint, which is what this did first,
+         * swallows the label and looks like a progress bar. Same proportions
+         * here, measured off the row rather than the canvas. */
+        var tintEnd = pad + rowW * 0.42;
+        var tintStart = pad + rowW * 0.58;
         ctx.save();
         roundRect(ctx, pad, dy, rowW, ROW_H, 6);
         ctx.clip();
-        ctx.globalAlpha = 0.14 + glow * 0.32;
+        ctx.globalAlpha = 0.16 + glow * 0.34;
         ctx.fillStyle = tint;
-        ctx.fillRect(winA ? pad : pad + rowW / 2, dy, rowW / 2, ROW_H);
+        if (winA) ctx.fillRect(pad, dy, tintEnd - pad, ROW_H);
+        else ctx.fillRect(tintStart, dy, pad + rowW - tintStart, ROW_H);
         ctx.restore();
+
+        /* And the 3px edge the generator puts on the winner's outside edge,
+         * which is what makes a settled row readable at a glance down the
+         * column rather than only in isolation. */
+        ctx.fillStyle = tint;
+        ctx.fillRect(winA ? pad : pad + rowW - 3, dy + 3, 3, ROW_H - 6);
 
         ctx.textBaseline = "middle";
         var my = dy + ROW_H / 2;
@@ -325,8 +354,72 @@
       return Math.max(0, Math.min(contentH - g.bodyH, want));
     }
 
+    /* The closing card: both heads, the final score, and the two stats each man
+     * won by the widest margin. Fades in over its first beat so it arrives
+     * rather than cuts. */
+    function outro(g, t) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, t));
+      ctx.fillStyle = BG;
+      ctx.fillRect(0, 0, g.w, g.h);
+
+      var sc = scoreAt(steps);
+      var r = Math.round(Math.min(34, g.w * 0.10));
+      var cy = Math.round(g.h * 0.17);
+      var lx = g.w * 0.27, rx = g.w * 0.73;
+      var aWon = sc.a >= sc.b;
+
+      head(faceA, lx, cy, r, aWon ? GOLD : A_TINT, data.a.name);
+      head(faceB, rx, cy, r, !aWon ? GOLD : B_TINT, data.b.name);
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = TEXT;
+      var ns = fitText(ctx, data.a.name, g.w * 0.42, 700, 14, 9);
+      ctx.font = sans(700, ns);
+      ctx.fillText(data.a.name, lx, cy + r + 16);
+      ns = fitText(ctx, data.b.name, g.w * 0.42, 700, 14, 9);
+      ctx.font = sans(700, ns);
+      ctx.fillText(data.b.name, rx, cy + r + 16);
+
+      ctx.font = mono(700, Math.round(g.w * 0.085));
+      ctx.fillStyle = aWon ? GOLD : A_TINT;
+      ctx.fillText(String(sc.a), lx, cy + r + 16 + Math.round(g.w * 0.085));
+      ctx.fillStyle = !aWon ? GOLD : B_TINT;
+      ctx.fillText(String(sc.b), rx, cy + r + 16 + Math.round(g.w * 0.085));
+
+      ctx.font = sans(600, Math.round(g.w * 0.030));
+      ctx.fillStyle = SEC;
+      ctx.fillText("BIGGEST WINS", g.w / 2, cy + r + Math.round(g.w * 0.175));
+
+      /* One column per player, their own wins under their own name, so the
+       * reader does not have to match a stat back to a side. */
+      var top = cy + r + Math.round(g.w * 0.225);
+      /* Each entry is two lines, so the step has to clear both plus air. At
+       * 0.062 the value line of one win sat on the stat line of the next. */
+      var lineH = Math.round(g.w * 0.092);
+      /* And the column has to stay inside its own half. These are centred on
+       * lx / rx, so the widest a line may be is twice the gap to the middle —
+       * "$321,938,890 vs $107,892,430" otherwise reaches across the gutter. */
+      var colMax = g.w * 0.40;
+      [[wins.a || [], lx, A_TINT], [wins.b || [], rx, B_TINT]].forEach(function (col) {
+        var list = col[0], x = col[1];
+        for (var i = 0; i < Math.min(2, list.length); i++) {
+          var y = top + i * lineH;
+          ctx.font = sans(600, Math.round(g.w * 0.031));
+          ctx.fillStyle = TEXT;
+          ctx.fillText(ellipsis(ctx, list[i].stat, colMax), x, y);
+          ctx.font = mono(500, Math.round(g.w * 0.025));
+          ctx.fillStyle = SEC;
+          ctx.fillText(ellipsis(ctx, String(list[i].val), colMax), x, y + Math.round(g.w * 0.031) + 5);
+        }
+      });
+      ctx.restore();
+    }
+
     function draw() {
       var g = size();
+      if (hasOutro && pos > steps) { size(); outro(g, (pos - steps) / 1.2); return; }
       var want = targetScroll();
       if (!scrollInit) { scrollY = want; scrollInit = true; }
       else scrollY += (want - scrollY) * 0.22;
@@ -346,8 +439,8 @@
       var dt = ts - last;
       last = ts;
       pos += dt / stepMs;
-      if (pos >= steps) {
-        pos = steps;
+      if (pos >= span) {
+        pos = span;
         draw();
         // Let the scroll finish easing after the last row lands.
         var settleFrames = 0;
@@ -369,7 +462,7 @@
 
     function play() {
       if (playing || destroyed || reduced) return;
-      if (pos >= steps) { pos = 0; scrollInit = false; }
+      if (pos >= span) { pos = 0; scrollInit = false; }
       playing = true;
       last = 0;
       raf = global.requestAnimationFrame(frame);
@@ -384,7 +477,7 @@
       stepMs = Math.max(30, Math.round(baseStepMs / speed));
     }
     function seek(frac) {
-      pos = Math.max(0, Math.min(steps, frac * steps));
+      pos = Math.max(0, Math.min(span, frac * span));
       scrollInit = false;                 // scrubbing should land, not glide
       draw();
     }
@@ -398,7 +491,7 @@
     var onResize = function () { if (!playing) { scrollInit = false; draw(); } };
     global.addEventListener("resize", onResize);
 
-    if (reduced) pos = steps;
+    if (reduced) pos = span;
     draw();
     var settle = global.setTimeout(function () { if (!playing) draw(); }, 900);
     faceA && (faceA.onload = function () { if (!playing) draw(); });
@@ -408,9 +501,9 @@
       play: play, pause: pause, toggle: toggle, seek: seek, setSpeed: setSpeed,
       destroy: destroy,
       get playing() { return playing; },
-      get progress() { return pos / steps; },
+      get progress() { return pos / span; },
       get speed() { return speed; },
-      get durationMs() { return stepMs * steps; },
+      get durationMs() { return stepMs * span; },
       reducedMotion: reduced,
       steps: steps
     };

@@ -246,19 +246,22 @@
    * markup above it stands on its own if the canvas never loads. */
   function renderCompare(c) {
     var p = c.payload;
-    /* No headline and no static scores, unlike the VS card. "Tyson Chandler
-     * takes it 38-35" printed above a ten-second reveal of how he got there
-     * gives away the only thing the card has to say. The scoreboard inside the
-     * canvas is where the numbers live; out here it is just who is playing. */
-    function side(x, cls) {
-      return '<div class="mt-side ' + cls + '">' + face(x.img, x.name, "face lg") +
-        '<span class="mt-name">' + ent(x.name, "player") + '</span></div>';
-    }
+    /* No header out here at all.
+     *
+     * It used to carry both faces and both names above a canvas whose own
+     * scoreboard carries both faces and both names — the same two men twice, an
+     * inch apart, at two different sizes. The canvas version is the one that
+     * has to be there, because it holds the running score. So the markup keeps
+     * only the line that says what you are about to watch.
+     *
+     * Still no scoreline out here either: "Tyson Chandler takes it 38-35"
+     * printed above a reveal of how he got there gives away the only thing the
+     * card has to say. */
     var alt = p.a.name + " " + p.a.score + ", " + p.b.name + " " + p.b.score +
       ". The comparison scored one metric at a time.";
-    return '<div class="mt-head">' + side(p.a, "a") + '<div class="vs-mid">VS</div>' + side(p.b, "b") + '</div>' +
-      '<div class="card-sub cmp-tease">' + esc(String(p.metrics)) +
-        ' metrics, one at a time. Who wins?</div>' +
+    return '<div class="card-sub cmp-tease">' +
+        ent(p.a.name, "player") + ' vs ' + ent(p.b.name, "player") + ' · ' +
+        esc(String(p.metrics)) + ' metrics, one at a time. Who wins?</div>' +
       '<div class="race-wrap">' +
         '<canvas class="race-canvas" data-player="compare" data-race="' + escAttr(p.file) +
           '" role="img" aria-label="' + escAttr(alt) + '"></canvas>' +

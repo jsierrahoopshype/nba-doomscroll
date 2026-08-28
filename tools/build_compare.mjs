@@ -262,10 +262,21 @@ while (cards.length < MAX_CARDS && pass++ < MAX_PER_PLAYER * 2) {
 
 function emit(a, b, rows, score, revealed, wantCross) {
   const file = `${slug(a.name)}-vs-${slug(b.name)}.json`;
+  /* The outro. The video ends on a card naming each man's biggest wins rather
+   * than just the scoreline, and VsScore already picks them — the same
+   * `biggest_wins` the static VS card prints, by the same rule (largest
+   * margin, at most two a side). Baking them here keeps the two cards saying
+   * the same thing about the same pair. */
+  const wins = {
+    a: VsScore.topWins(score.wins.player1, "a"),
+    b: VsScore.topWins(score.wins.player2, "b")
+  };
+
   fs.writeFileSync(path.join(OUT_DIR, file), JSON.stringify({
     a: { name: a.name, img: a.img },
     b: { name: b.name, img: b.img },
     final: { a: score.p1, b: score.p2 },
+    wins,
     rows
   }));
 

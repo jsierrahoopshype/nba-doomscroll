@@ -42,7 +42,16 @@
   var TEXT = "#f5f4f7";
   var SUB = "#7d7c7f";
 
-  function sans(w, px) { return w + " " + px + "px 'DM Sans',-apple-system,sans-serif"; }
+  /* Jost rather than DM Sans.
+   *
+   * The published video sets its type in Futura Today, a commercial Bauer face
+   * whose webfont licence is per-domain and does not travel from hoopshype.com
+   * to hoopsmatic.com. Jost is an open Futura revival already on Google Fonts,
+   * which this page loads from anyway, so it costs one extra family in the
+   * existing request and no legal surface at all. DM Sans stays the fallback
+   * and the rest of the app is untouched — this is the one card whose
+   * reference is a Futura layout. */
+  function sans(w, px) { return w + " " + px + "px Jost,'DM Sans',-apple-system,sans-serif"; }
 
   function ellipsis(ctx, text, max) {
     if (!text) return "";
@@ -118,6 +127,20 @@
     var pos = 0;
     var playing = false, raf = 0, last = 0, destroyed = false;
     var face = loadImage(data.img);
+
+    /* Flags are images now, not emoji: Windows ships no regional-indicator
+     * glyphs, so 🇺🇸 came out as the letters "US" for most readers. One Image
+     * per distinct country across the whole card, shared by every row that
+     * needs it, and a row simply draws no flag until its image is ready. */
+    var flags = {};
+    acts.forEach(function (a) {
+      a.hi.concat(a.lo).forEach(function (r) {
+        if (r.flag && !flags[r.flag]) {
+          flags[r.flag] = loadImage(r.flag);
+          flags[r.flag].onload = function () { if (!playing) draw(); };
+        }
+      });
+    });
 
     function actAt(p) {
       for (var i = plan.length - 1; i >= 0; i--) if (p >= plan[i].start) return plan[i];
@@ -209,11 +232,51 @@
         var lx = up ? ax - 8 : ax + 8;
         ctx.textAlign = up ? "right" : "left";
         var labelRoom = (up ? ax : g.w - ax) - Math.round(g.w * 0.06);
-        var fl = r.flag ? r.flag + " " : "";
+        /* The country marker is the flag image when it has loaded and the ISO
+         * code when it has not. flagcdn is a third-party host and this is a
+         * static site: it can be blocked, slow, or simply absent offline, and a
+         * marker that disappears in those cases is worse than a plainer one
+         * that always shows. Same footprint either way, so nothing reflows when
+         * the image lands. */
+        var im = r.flag && flags[r.flag];
+        var ready = im && im.complete && im.naturalWidth;
+        var marker = ready || r.iso;
+        var fw = marker ? Math.round(nameSize * 1.28) : 0;
+        var fh = ready ? Math.round(fw * (im.naturalHeight / im.naturalWidth))
+                       : Math.round(nameSize * 0.86);
+        var gap = marker ? Math.round(nameSize * 0.42) : 0;
+        var nameY = y + barH * 0.5 - (r.sub ? 1 : -nameSize * 0.35);
+
         ctx.font = sans(700, nameSize);
         ctx.fillStyle = TEXT;
-        var line = up ? fl + r.label : r.label + (r.flag ? " " + r.flag : "");
-        ctx.fillText(ellipsis(ctx, line, labelRoom), lx, y + barH * 0.5 - (r.sub ? 1 : -nameSize * 0.35));
+        var txt = ellipsis(ctx, r.label, labelRoom - fw - gap);
+        var tw = ctx.measureText(txt).width;
+        /* The flag sits outside the name, away from the axis, so the names stay
+         * aligned to the bars however wide the country markers are. */
+        function drawMarker(mx) {
+          if (!marker) return;
+          if (ready) { ctx.drawImage(im, mx, nameY - fh + 1, fw, fh); return; }
+          ctx.save();
+          roundRect(ctx, mx, nameY - fh + 1, fw, fh, 2);
+          ctx.fillStyle = "rgba(255,255,255,.10)";
+          ctx.fill();
+          ctx.font = sans(700, Math.round(nameSize * 0.62));
+          ctx.fillStyle = SUB;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(r.iso, mx + fw / 2, nameY - fh / 2 + 1);
+          ctx.restore();
+          ctx.textBaseline = "alphabetic";
+        }
+        if (up) {
+          ctx.textAlign = "right";
+          ctx.fillText(txt, lx, nameY);
+          drawMarker(lx - tw - gap - fw);
+        } else {
+          ctx.textAlign = "left";
+          ctx.fillText(txt, lx, nameY);
+          drawMarker(lx + tw + gap);
+        }
         if (r.sub) {
           ctx.font = sans(500, subSize);
           ctx.fillStyle = SUB;

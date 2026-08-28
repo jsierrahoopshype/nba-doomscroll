@@ -93,21 +93,37 @@ const REGION = {
   Australia: "Oceania", "New Zealand": "Oceania"
 };
 
-/* Flag for the little country marker beside each voter, as the video has it.
- * An emoji rather than an image file: 17 countries appear across the whole
- * electorate and shipping 17 PNGs to draw at 14px would be silly. */
-const FLAG = {
-  US: "🇺🇸", Canada: "🇨🇦", Mexico: "🇲🇽", Brazil: "🇧🇷", Argentina: "🇦🇷",
-  Chile: "🇨🇱", Colombia: "🇨🇴", Venezuela: "🇻🇪", Uruguay: "🇺🇾",
-  "Dominican Republic": "🇩🇴", "Puerto Rico": "🇵🇷",
-  France: "🇫🇷", Italy: "🇮🇹", Spain: "🇪🇸", Greece: "🇬🇷", Germany: "🇩🇪",
-  Portugal: "🇵🇹", Serbia: "🇷🇸", Croatia: "🇭🇷", Slovenia: "🇸🇮",
-  Lithuania: "🇱🇹", Turkey: "🇹🇷", "United Kingdom": "🇬🇧", Netherlands: "🇳🇱",
-  Belgium: "🇧🇪", Switzerland: "🇨🇭", Poland: "🇵🇱",
-  China: "🇨🇳", Japan: "🇯🇵", Philippines: "🇵🇭", Israel: "🇮🇱",
-  "South Korea": "🇰🇷", India: "🇮🇳", Taiwan: "🇹🇼", Lebanon: "🇱🇧",
-  Australia: "🇦🇺", "New Zealand": "🇳🇿"
+/* Flags, as image files rather than emoji.
+ *
+ * Emoji was the wrong call and the reason is Windows: it ships no
+ * regional-indicator glyphs, so a flag emoji degrades to the two letters of its
+ * country code. It rendered correctly in a Linux test browser and would have
+ * been broken for most readers.
+ *
+ * The tracker solves this with flagcdn.com and this exact ISO map, lifted from
+ * its player.html so the two features agree on what a country is called. The
+ * difference here: the flags are fetched ONCE at build time and committed,
+ * rather than hotlinked on every card view. About 6KB for the whole set, and a
+ * static site with no third-party runtime dependency is worth more than the
+ * bytes. */
+const ISO = {
+  US: "us", Canada: "ca", Spain: "es", France: "fr", Italy: "it", Mexico: "mx",
+  China: "cn", UK: "gb", "United Kingdom": "gb", Australia: "au",
+  Philippines: "ph", Brazil: "br", Germany: "de", Argentina: "ar", Serbia: "rs",
+  Slovenia: "si", Greece: "gr", Cameroon: "cm", Lithuania: "lt", Croatia: "hr",
+  Latvia: "lv", "Czech Republic": "cz", Turkey: "tr", Nigeria: "ng",
+  Switzerland: "ch", Austria: "at", Finland: "fi", Japan: "jp",
+  "South Sudan": "ss", Bahamas: "bs", "Dominican Republic": "do", Jamaica: "jm",
+  "Democratic Republic of the Congo": "cd", Senegal: "sn", Mali: "ml",
+  Sweden: "se", Montenegro: "me", "Bosnia and Herzegovina": "ba", Ukraine: "ua",
+  Israel: "il", Egypt: "eg", Georgia: "ge", "New Zealand": "nz",
+  Portugal: "pt", Angola: "ao", Tunisia: "tn", Guinea: "gn", Poland: "pl",
+  Russia: "ru", Belgium: "be", Netherlands: "nl", Ireland: "ie",
+  "US Virgin Islands": "vi", "Puerto Rico": "pr", Lebanon: "lb",
+  "South Africa": "za", Venezuela: "ve", "Saint Lucia": "lc", Estonia: "ee",
+  "North Macedonia": "mk"
 };
+const isoOf = c => (!c || c === "n/a") ? null : (c.length === 2 ? c.toLowerCase() : ISO[c] || null);
 
 const PLAYER_URL = "https://jsierrahoopshype.github.io/media-vote-tracker/player.html?p=";
 
@@ -118,6 +134,17 @@ const faces = (() => {
 })();
 
 const round1 = v => Math.round(v * 10) / 10;
+
+/* Every ISO code any card actually references, collected as the cards are
+ * built so the fetch below asks for exactly those and nothing else. */
+const flagsNeeded = new Set();
+
+/* A committed file if there is one, flagcdn if not. Resolved per flag as the
+ * cards are written, so adding the PNGs later needs only a rebuild. */
+const flagSrc = iso =>
+  fs.existsSync(path.join(REPO, "data", "flags", iso + ".png"))
+    ? "data/flags/" + iso + ".png"
+    : "https://flagcdn.com/h40/" + iso + ".png";
 
 const OUT_DIR = path.join(REPO, "data", "lean");
 fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -202,10 +229,20 @@ for (const f of fs.readdirSync(dir).sort()) {
   const tile = faces[p.player];
   if (!tile) noFace++;
 
-  const vrow = b => ({
-    label: b.voter, sub: b.outlet || "", flag: FLAG[b.country] || "",
-    diff: b.diff, n: b.n
-  });
+  const vrow = b => {
+    const iso = isoOf(b.country);
+    if (iso) flagsNeeded.add(iso);
+    return {
+      label: b.voter, sub: b.outlet || "",
+      flag: iso ? flagSrc(iso) : "",
+      /* The code travels with the image so the card has something to draw if
+       * the image does not arrive — a blocked CDN, a slow connection, an
+       * offline read. A country marker that sometimes vanishes is worse than a
+       * plainer one that never does. */
+      iso: iso ? iso.toUpperCase() : "",
+      diff: b.diff, n: b.n
+    };
+  };
 
   const acts = [
     { title: "His biggest media boosters and snubbers, vs the panel",
@@ -252,6 +289,42 @@ for (const f of fs.readdirSync(dir).sort()) {
       url: PLAYER_URL + p.slug
     }
   });
+}
+
+/* ---------------- flag images ----------------
+ *
+ * Prefer a committed file, fall back to flagcdn.
+ *
+ * The intent was to bake all thirteen into data/flags/ so the site carries no
+ * third-party runtime dependency. flagcdn returns 403 to this build
+ * environment's IP, the same way Reddit's API does, so the fetch cannot happen
+ * from here — but it works fine from a browser and from a normal machine.
+ *
+ * So the rule is: if data/flags/<iso>.png exists, the card points at it; if not,
+ * it points at flagcdn, which is exactly what media-vote-tracker already does
+ * and is therefore not a new dependency for this project, only a new one for
+ * this repo. Dropping the files in and rebuilding switches every card to local
+ * with no code change. To populate them, from the repo root:
+ *
+ *   mkdir data\flags
+ *   curl -o data\flags\us.png https://flagcdn.com/h40/us.png      (and so on)
+ *
+ * or on any machine with a shell:
+ *
+ *   for c in ar ca cn de es fr gr il it jp mx pt us; do \
+ *     curl -s -o "data/flags/$c.png" "https://flagcdn.com/h40/$c.png"; done
+ */
+const FLAG_DIR = path.join(REPO, "data", "flags");
+const FLAG_CDN = "https://flagcdn.com/h40/";
+let local = 0, remote = 0;
+for (const iso of flagsNeeded) {
+  if (fs.existsSync(path.join(FLAG_DIR, iso + ".png"))) local++; else remote++;
+}
+console.log(`flags: ${flagsNeeded.size} countries in play — ${local} committed locally, ` +
+  `${remote} falling back to flagcdn`);
+if (remote) {
+  console.log(`  to bring them local: for c in ${[...flagsNeeded].sort().join(" ")}; do ` +
+    `curl -s -o "data/flags/$c.png" "https://flagcdn.com/h40/$c.png"; done`);
 }
 
 fs.writeFileSync(path.join(REPO, "data", "lean-pool.json"), JSON.stringify({

@@ -43,7 +43,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { decodePng, resize, crop, encodePng } from "./lib/png.mjs";
-import { alphaBox } from "./lib/faces.mjs";
+import { alphaBox, buildBcrIndex } from "./lib/faces.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -69,7 +69,7 @@ const MIN_OVERLAP = 4;          // seasons shared, for an era-mate pairing
 const OUT_DIR = path.join(REPO, "data", "teammates");
 const FACE_DIR = path.join(OUT_DIR, "faces");
 const DISC = 128;                  // square head tile, drawn as a circle
-const MIN_SRC_BYTES = 15000;       // below this the source is a CDN silhouette
+/* The placeholder screen now lives in lib/faces.mjs alongside the matching. */
 
 /* ---------------- inputs ---------------- */
 
@@ -99,18 +99,17 @@ for (const row of readJson(path.join(PD, "awards.json"))) {
  * on the folded name. Files under 15KB are the NBA CDN's grey placeholder and
  * are not headshots at all; skipping them here is what makes "only players with
  * a headshot" true rather than approximately true. */
-const fold = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-const faceFile = new Map();
-if (BCR_FACES) {
-  for (const f of fs.readdirSync(BCR_FACES)) {
-    if (!/\.png$/i.test(f)) continue;
-    const full = path.join(BCR_FACES, f);
-    try { if (fs.statSync(full).size < MIN_SRC_BYTES) continue; } catch (e) { continue; }
-    const key = fold(f.replace(/\.png$/i, ""));
-    if (!faceFile.has(key)) faceFile.set(key, full);
-  }
-}
-const sourceFor = name => faceFile.get(fold(name)) || null;
+/* Matching moved to the shared index in lib/faces.mjs. The matcher that used to
+ * live here folded diacritics but never lowercased, so it found "Nikola Jokić"
+ * and missed "Kevin Mchale.png", "Deandre Jordan.png", "Demarcus Cousins.png",
+ * "Zach Lavine.png", "Tracy Mcgrady.png" and "Amar'e Stoudemire.png" — six
+ * genuine stars filed under a capital letter. That is worth seven more players
+ * in the pool and about 700 more possible pairings.
+ *
+ * It also inherits the suffix guard, which matters more than the extra names:
+ * the old matcher would happily have handed Larry Nance his son's photograph. */
+const faceIdx = BCR_FACES ? buildBcrIndex(BCR_FACES, null) : { fileFor: () => null };
+const sourceFor = name => faceIdx.fileFor(name);
 
 /* ---------------- faces ----------------
  *
@@ -387,6 +386,22 @@ for (const m of chosen) {
 
 fs.writeFileSync(path.join(REPO, "data", "teammates-pool.json"),
   JSON.stringify({ generated: new Date().toISOString().slice(0, 10), cards: cards }));
+
+/* Sweep the matchups the last build wrote that this one did not.
+ *
+ * Every rebuild draws a different 700 from the candidates, so files accumulate:
+ * this run left 94 behind from the previous one, referenced by nothing and
+ * still committed. They are invisible rather than broken, which is exactly why
+ * they would have kept piling up. Only files this builder's own naming scheme
+ * produces are touched, and only inside its own directory. */
+const wanted = new Set(cards.map(c => path.basename(c.payload.file)));
+let swept = 0;
+for (const f of fs.readdirSync(OUT_DIR)) {
+  if (!/^[a-z0-9-]+-vs-[a-z0-9-]+\.json$/.test(f) || wanted.has(f)) continue;
+  fs.unlinkSync(path.join(OUT_DIR, f));
+  swept++;
+}
+if (swept) console.log(`swept ${swept} matchup files this build did not write`);
 
 const faceCount = [...tileCache.values()].filter(Boolean).length;
 console.log(`teammates: ${cards.length} matchups, ${Math.round(bytes / 1024)}KB of step files, ` +
