@@ -13,9 +13,6 @@ Last reviewed: 2026-08-29.
 ### Buzz follow-ups
 The tab ships, but these calls are Jorge's:
 
-- **Recency vs shuffle.** Buzz cards are sampled like everything else, so a
-  four-hour-old item can sit under a two-day-old one. A news tab arguably wants
-  newest-first. Would need a per-tab ordering mode in `loadMore()`.
 - **Reddit RSS coverage is partial by construction.** The two subreddit feeds
   carry 100 entries each; anything in the 7-day index that is not in the week's
   top or the newest 100 keeps its ~280-character excerpt. Widening it means
@@ -184,6 +181,16 @@ Kept short so the list above stays the point.
   no change on this side. The Worker had no repo anywhere; it was pulled out of
   the Cloudflare dashboard with `wrangler init --from-dash` and now lives in
   `Documents\GitHub\nba-trade-daily-digest` on Jorge's machine
+- Buzz reads newest-first. `E.recent()` sorts by the source's own publication
+  time and the Buzz tab uses it instead of the weighted sample. Only that tab:
+  mixed batches elsewhere still draw Buzz's 40% share through the personalised
+  sampler, and an entity filter (which crosses every section) keeps the shuffle
+- `tools/win/` holds the repeatable Windows steps, so a rebuild is one line
+  rather than five pasted into cmd: `build.cmd` runs both external-source
+  builders and refuses to run from the wrong checkout, `ship.cmd "message"`
+  builds then commits and pushes, `apply.cmd <file>` applies a patch out of the
+  Downloads folder. Paths live in a gitignored `paths.cmd`, so no personal
+  directory reaches this public repo
 - Flags served from the repo: the 13 PNGs the media lean card needs are
   committed, so every country marker draws a flag rather than the ISO-code
   fallback chip, and no card reaches flagcdn at runtime

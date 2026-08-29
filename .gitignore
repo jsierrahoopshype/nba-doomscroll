@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# Machine-specific paths for tools/win/build.cmd. Never committed: it names
+# folders on one person's disk and this repo is public.
+tools/win/paths.cmd

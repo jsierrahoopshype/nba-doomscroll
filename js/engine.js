@@ -267,6 +267,28 @@
       return weave(out, reserved);
     },
 
+    /* Newest first, for the one tab where order is information.
+     *
+     * Everything else in this feed is an archive: a 1998 game and a 2011 trade
+     * are equally old, so the weighted shuffle is the right way to draw them
+     * and "what comes next" is a matter of taste. Buzz is today's conversation,
+     * where a four-hour-old item sitting under a two-day-old one is simply
+     * wrong, and no amount of personalisation makes it right.
+     *
+     * Deliberately not weighted, not explored, not freshness-demoted: this is a
+     * sort, and the moment it starts negotiating with the profile it stops
+     * being an answer to "what is new". The engine's personalisation still
+     * decides which buzz cards appear in a MIXED batch elsewhere - it only
+     * loses its say over the order of the news tab itself.
+     *
+     * Cards with no usable timestamp sort last rather than being dropped, so a
+     * feed item with a malformed date is still reachable at the end. */
+    recent: function (pool, n, tsOf) {
+      return pool.slice()
+        .sort(function (a, b) { return (tsOf(b) || 0) - (tsOf(a) || 0); })
+        .slice(0, n);
+    },
+
     // pool: candidate cards. n: how many to return. Weighted random without
     // replacement, EXPLORATION share fully random, recently-seen demoted.
     sample: function (pool, n) {

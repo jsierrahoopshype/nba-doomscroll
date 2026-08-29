@@ -550,6 +550,15 @@
 
   /* ---------------- feed ---------------- */
 
+  /* Buzz cards carry the source's own publication time. Anything unparseable
+   * sorts to the end rather than to the top, which is what a plain
+   * Date.parse -> NaN -> 0 would do on the wrong side of the comparison. */
+  function buzzTime(card) {
+    var p = card && card.payload;
+    var t = p && p.published_at ? Date.parse(p.published_at) : NaN;
+    return isNaN(t) ? 0 : t;
+  }
+
   function loadMore() {
     if (state.loading || state.exhausted) return;
     state.loading = true;
@@ -565,7 +574,13 @@
       // type-balanced draw cannot produce it on its own: it damps thin pools,
       // and ~50 live items is a thin pool against thousands of archive cards.
       ? E.sampleMixed(pool, BATCH, { cap: { race: 1, mates: 1, compare: 1, lean: 1 }, share: { buzz: BUZZ_SHARE } })
-      : E.sample(pool, BATCH);
+      // The Buzz tab reads newest-first, because it is the only tab where the
+      // order carries information. Everywhere else the pool is an archive and
+      // the shuffle is the point. The mixed batches above are untouched: this
+      // governs the news tab on its own, not Buzz's share of the For You feed.
+      // Guarded on the pool actually being single-type, because an entity
+      // filter draws across every section regardless of which tab is open.
+      : (state.tab === "buzz" ? E.recent(pool, BATCH, buzzTime) : E.sample(pool, BATCH));
     if (!batch.length) {
       state.exhausted = true;
       state.loading = false;
