@@ -1,8 +1,27 @@
 # Proposal: a `?days=` parameter on the trade digest Worker
 
-**Status:** the Doomscroll side is built and shipped. It is dormant, waiting on
-this one change to `nba-trade-daily-digest`. Nothing in that repo has been
-modified — I cannot read it, it is private.
+**Status: SHIPPED, 2026-08-29.** `nba-trade-daily-digest` now accepts `?days=N`
+and declares the window it served, and the weekly card renders. Kept for the
+record of what was asked for and why.
+
+Two things this document got wrong, worth knowing before the next Worker change:
+
+- **There was no repo.** The Worker had no source anywhere on disk and no
+  GitHub repo under any name; it had been written in the Cloudflare dashboard.
+  `wrangler init <dir> --from-dash <script-name>` pulled it back down. That
+  command is the answer whenever a Worker's source cannot be found.
+- **There was no cache, so the cache-key hazard below never applied.** The real
+  hazard was `limit=5000` on the trade-log fetch: a 7-day window over a
+  24-hour-sized page of rows would have returned a truncated count with a
+  `days: 7` label, which is the same failure by a different route. The limit now
+  scales with `days`, and the response carries `complete` so a truncated window
+  says so instead of quietly understating itself.
+
+Original proposal follows.
+
+**Status when written:** the Doomscroll side is built and shipped. It is
+dormant, waiting on this one change to `nba-trade-daily-digest`. Nothing in that
+repo has been modified — I cannot read it, it is private.
 
 **Effort:** one query parameter, one extra field in the response. No new
 dependency, no new endpoint, no cost. It stays inside the Workers free tier.
