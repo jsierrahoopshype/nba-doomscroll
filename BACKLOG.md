@@ -4,7 +4,7 @@ Everything agreed but not yet built, plus what is blocked and on whom. Ordered
 within each section by Jorge's own stated priority. Items are removed when they
 ship, not ticked — git history is the record of what happened.
 
-Last reviewed: 2026-08-25.
+Last reviewed: 2026-08-29.
 
 ---
 
@@ -42,11 +42,6 @@ The tab ships, but these calls are Jorge's:
 ---
 
 ## Asked for, not yet built
-
-- **Weekly digest needs one Worker change.** The card is built and dormant.
-  Full spec, contract and verification steps in `proposals/digest-weekly/`.
-  Short version: `nba-trade-daily-digest` accepts `?days=N` and echoes `days` in
-  the response; the card lights up on its own, no redeploy here.
 
 - **Reddit video: not doing it, and the reason is not technical.** Bluesky video
   autoplays; Reddit will not, by decision rather than by limitation. The only
@@ -181,6 +176,11 @@ Kept short so the list above stays the point.
 - Teammates rebuilt on the shared face index: McHale, McGrady, DeAndre Jordan,
   Amare Stoudemire, DeMarcus Cousins, LaMarcus Aldridge and Bob McAdoo join the
   pool, all seven lost to a matcher that never lowercased
+- Weekly digest: `nba-trade-daily-digest` now answers `?days=N` (1-30) and
+  declares the window it served, so the dormant WEEKLY DIGEST card lit up with
+  no change on this side. The Worker had no repo anywhere; it was pulled out of
+  the Cloudflare dashboard with `wrangler init --from-dash` and now lives in
+  `Documents\GitHub\nba-trade-daily-digest` on Jorge's machine
 - Media lean: a canvas port of the published HoopsHype media-vote video — who
   in the press is highest and lowest on each of 99 players, by voter, by outlet
   and by region, every figure reproducing the video's own
