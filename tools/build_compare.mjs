@@ -267,9 +267,14 @@ function emit(a, b, rows, score, revealed, wantCross) {
    * `biggest_wins` the static VS card prints, by the same rule (largest
    * margin, at most two a side). Baking them here keeps the two cards saying
    * the same thing about the same pair. */
+  /* Six a side, not two. The static VS card prints two because it is a verdict
+   * with room for a line of evidence; the Comparison card ends on a port of the
+   * generator's final screen, which is a column of wins per player. Two rows in
+   * a column built for ten is what made the outro look unlike the video. */
+  const WINS_SHOWN = 6;
   const wins = {
-    a: VsScore.topWins(score.wins.player1, "a"),
-    b: VsScore.topWins(score.wins.player2, "b")
+    a: VsScore.topWins(score.wins.player1, "a", WINS_SHOWN),
+    b: VsScore.topWins(score.wins.player2, "b", WINS_SHOWN)
   };
 
   fs.writeFileSync(path.join(OUT_DIR, file), JSON.stringify({

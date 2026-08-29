@@ -42,9 +42,19 @@
  * weighted by ballots, not averaged flat, so a nine-ballot writer does not
  * outweigh a hundred-ballot desk at the same masthead.
  *
- * Oceania is the case that makes the floor worth having: one Australian voter
- * in the whole electorate, so "Oceania" would be one person's opinion wearing a
- * continent's name.
+ * Oceania is the case the region floor kept turning on: there is exactly one
+ * Australian voter in the whole electorate, and no other region is one person.
+ * The floor at two voters therefore did one thing only, which was delete
+ * Oceania - and the published video shows Oceania, so deleting it made this
+ * card diverge from the thing it ports in order to be careful about a number
+ * HoopsHype had already put on air.
+ *
+ * The floor is one voter now, and the honesty is done by the label instead: a
+ * region carried by a single voter says so under its own name ("14 ballots, one
+ * voter"), so nobody reads one Australian as a continent. The ballot floor is
+ * untouched and still does the real work - that lone voter needs
+ * MIN_REGION_BALLOTS ballots on the player before the row exists at all. The
+ * build fails if a single-voter region ever ships without that annotation.
  *
  *   node tools/build_lean.mjs --local <media-vote-tracker/docs/data>
  */
@@ -72,7 +82,7 @@ const MIN_VOTER_BALLOTS = 5;
 const MIN_OUTLET_BALLOTS = 15;
 const MIN_OUTLET_REPORTERS = 2;
 const MIN_REGION_BALLOTS = 12;
-const MIN_REGION_VOTERS = 2;
+const MIN_REGION_VOTERS = 1;   // see the Oceania note above
 const MIN_BOARD = 15;           // players nobody has voted on often enough
 const MIN_DIFF = 2.0;           // and leans too small to be worth printing
 const SHOW = 6;                 // rows a side; the video shows 6-8 at 1080px
@@ -226,6 +236,15 @@ for (const f of fs.readdirSync(dir).sort()) {
     .map(g => ({ ...g, diff: g.diff - usMean }));
   const regions = split(regionRaw);
 
+  /* A region that is one person is still allowed to speak, but not under a
+   * continent's name alone. This is the whole safeguard, so the verification
+   * pass below refuses to ship a single-voter region without it. */
+  const annotate = r => r.voters === 1
+    ? { ...r, sub: r.n + (r.n === 1 ? " ballot" : " ballots") + ", one voter" }
+    : r;
+  regions.hi = regions.hi.map(annotate);
+  regions.lo = regions.lo.map(annotate);
+
   const tile = faces[p.player];
   if (!tile) noFace++;
 
@@ -351,12 +370,17 @@ for (const c of cards) {
     for (const r of a.hi.concat(a.lo)) {
       const floor = a.big ? MIN_REGION_VOTERS : MIN_OUTLET_REPORTERS;
       if (!r.voters || r.voters < floor) { console.error(`  ${c.id}: "${r.label}" aggregates ${r.voters} voters`); bad++; }
+      /* A one-person region must carry its own caveat or it does not ship. */
+      if (a.big && r.voters === 1 && !/one voter/.test(r.sub || "")) {
+        console.error(`  ${c.id}: "${r.label}" is one voter and says so nowhere`); bad++;
+      }
     }
   }
 }
 if (bad) { console.error(`FAILED: ${bad} rows below the sample-size floor or on the wrong side`); process.exit(1); }
 console.log(`sides are consistent, every named voter has ${MIN_VOTER_BALLOTS}+ ballots, ` +
-  `every outlet ${MIN_OUTLET_BALLOTS}+ and every region ${MIN_REGION_VOTERS}+ voters ` +
+  `every outlet ${MIN_OUTLET_BALLOTS}+ reporters, every region ${MIN_REGION_BALLOTS}+ ballots ` +
+  `and every one-voter region labelled as one ` +
   `(${cards.length} cards checked)`);
 
 const sample = cards.find(c => c.payload.player === "Jaylen Brown") || cards[0];

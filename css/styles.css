@@ -584,6 +584,20 @@ a:hover{ text-decoration:underline }
   cursor:pointer; opacity:0; transition:opacity .25s;
 }
 .race-canvas.ready{ opacity:1 }
+
+/* The Comparison card is the one canvas that is light: it ports
+   nba-comparison-video-generator, which renders on the same --bg / --surface /
+   --text tokens this stylesheet sets. The rule above paints a dark background
+   before the first frame so a dark race does not flash white; this does the
+   same job in the other direction, so the Comparison card does not flash dark.
+   The :has() is only for the loading label - if a browser lacks it the label
+   stays dark for the moment before the canvas paints, which is survivable. */
+.race-canvas[data-player="compare"]{
+  background:var(--bg); border:1px solid var(--border);
+}
+.race-wrap:has(canvas[data-player="compare"]) .race-status{
+  background:var(--bg); color:var(--text-secondary);
+}
 .race-status{
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   font-size:.65rem; letter-spacing:.06em; text-transform:uppercase;

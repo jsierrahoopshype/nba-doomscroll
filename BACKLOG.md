@@ -73,13 +73,28 @@ The tab ships, but these calls are Jorge's:
   Until then the card draws an ISO-code chip wherever the image has not
   arrived, so the country marker is never simply missing.
 
-- **The Comparison card is dark; the generator it ports is light.** The original
-  `nba-comparison-video-generator` renders on `#f5f5f7` with `#ffffff` rows and
-  `#1d1d1f` text — the app's own palette — and sets its headings in Barlow
-  Condensed. The feed card inherited the dark panel from the Teammates card
-  instead. Switching it would match both the video and the rest of the app, but
-  it is a visible change to a shipped card, so it is Jorge's call rather than a
-  tidy-up.
+  Retried 2026-08-29 and it is not flagcdn refusing: the build sandbox's own
+  proxy has no allowlist entry for the host, so the connection dies at
+  `CONNECT tunnel failed, response 403` before flagcdn sees it. Same outcome,
+  different cause, and not something to route around. On Windows, in the repo
+  root:
+
+      mkdir data\flags
+      for %c in (ar ca cn de es fr gr il it jp mx pt us) do curl -s -o "data\flags\%c.png" "https://flagcdn.com/h40/%c.png"
+
+  then rebuild the lean pool and commit `data/flags/`.
+
+- **Oceania stays out, and the reason is the ballot count, not the voter floor.**
+  The region floor was two voters, which read like the thing excluding it. It
+  was not. Lowering it to one changed nothing: the electorate's only Oceania
+  voter is Olgun Uluc of ESPN Australia, 18 ballots across two seasons, and his
+  largest sample on any single player is 9 — under the 12-ballot region floor
+  every region has to clear. media-vote-tracker's own reporter record marks him
+  `low_sample: true`. Showing Oceania therefore means dropping the ballot floor
+  to 9 for one reporter the source data itself flags, which is Jorge's call and
+  not a recommendation. What did change: a region carried by one voter now has
+  to say so in its own label, and the build fails if one ever ships without
+  that, so if the dataset ever grows an Oceania row it arrives honest.
 
 ## Gamification
 
@@ -181,6 +196,13 @@ Kept short so the list above stays the point.
   no change on this side. The Worker had no repo anywhere; it was pulled out of
   the Cloudflare dashboard with `wrangler init --from-dash` and now lives in
   `Documents\GitHub\nba-trade-daily-digest` on Jorge's machine
+- Comparison card switched to the light palette it should always have had:
+  --bg ground, --surface rows, --text and --text-secondary type, --accent /
+  --red / --orange for the two sides and the leader, headings in Barlow
+  Condensed. Every value is a token styles.css already sets, so the canvas
+  cannot drift from the markup around it. `.race-canvas` painted a dark
+  background before first paint for all four players; that is now scoped so the
+  Comparison card does not flash dark
 - Media lean: a canvas port of the published HoopsHype media-vote video — who
   in the press is highest and lowest on each of 99 players, by voter, by outlet
   and by region, every figure reproducing the video's own

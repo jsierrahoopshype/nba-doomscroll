@@ -150,6 +150,12 @@
           wins[winner].push({
             stat: label,
             val: fmt(wRaw) + " vs " + fmt(lRaw === null ? 0 : lRaw),
+            /* The two halves separately as well as joined. The generator's
+             * final card colours the winning number and greys the losing one,
+             * which cannot be done from the joined string without splitting it
+             * back apart on " vs " and hoping no value ever contains it. */
+            w: fmt(wRaw),
+            l: fmt(lRaw === null ? 0 : lRaw),
             margin: lv > 0 ? wv / lv : wv + 1
           });
         }
@@ -159,9 +165,12 @@
     return { p1: p1, p2: p2, sections: sections, wins: wins };
   }
 
-  function topWins(list, who) {
-    return list.slice().sort(function (a, b) { return b.margin - a.margin; }).slice(0, 2)
-      .map(function (w) { return { who: who, stat: w.stat, val: w.val }; });
+  /* `n` defaults to 2, which is what the static VS card prints and what every
+   * existing caller gets. The Comparison card's final screen asks for more,
+   * because the generator's final card is a column of wins rather than a pair. */
+  function topWins(list, who, n) {
+    return list.slice().sort(function (a, b) { return b.margin - a.margin; }).slice(0, n || 2)
+      .map(function (w) { return { who: who, stat: w.stat, val: w.val, w: w.w, l: w.l }; });
   }
 
   /* Build the card payload shared by pre-generated and live matchups. */
