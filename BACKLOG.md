@@ -59,30 +59,18 @@ The tab ships, but these calls are Jorge's:
   CBA logic of its own, so a feed version could only claim what the trade log
   already proves — which the trade cards say already. Teammates Score, the
   Comparison card and the award vote races have all shipped.
-- **Flags come from flagcdn at runtime, and could be local.** The build tries to
-  fetch them into `data/flags/` and commit them, but flagcdn returns 403 to the
-  build sandbox's IP, so every card currently points at the CDN — which is what
-  media-vote-tracker already does, so it is not a new dependency for the project,
-  only for this repo. The builder prefers a committed file whenever one exists,
-  so dropping the PNGs in and rebuilding switches every card to local with no
-  code change. From any machine that can reach it:
+- **`build_lean.mjs` reads whichever media-vote-tracker you point it at, and
+  there are two.** `media-vote-tracker-build_PRIVATE` is the one the shipped
+  data comes from: 99 players, 13 countries. `media-vote-tracker_PUBLIC` builds
+  clean and produces 92 players, 10 countries, and different figures for the
+  same reporters — not a subset, a different dataset. A search-and-build loop
+  matched both and the second silently overwrote the first. Always pass the
+  private path explicitly:
 
-      for c in ar ca cn de es fr gr il it jp mx pt us; do \
-        curl -s -o "data/flags/$c.png" "https://flagcdn.com/h40/$c.png"; done
+      node tools\build_lean.mjs --local "C:\Users\Jorge Sierra\Desktop\GITHUB-UPLOAD\media-vote-tracker-build_PRIVATE\media-vote-tracker\docs\data"
 
-  Until then the card draws an ISO-code chip wherever the image has not
-  arrived, so the country marker is never simply missing.
-
-  Retried 2026-08-29 and it is not flagcdn refusing: the build sandbox's own
-  proxy has no allowlist entry for the host, so the connection dies at
-  `CONNECT tunnel failed, response 403` before flagcdn sees it. Same outcome,
-  different cause, and not something to route around. On Windows, in the repo
-  root:
-
-      mkdir data\flags
-      for %c in (ar ca cn de es fr gr il it jp mx pt us) do curl -s -o "data\flags\%c.png" "https://flagcdn.com/h40/%c.png"
-
-  then rebuild the lean pool and commit `data/flags/`.
+  A correct run says 99 players and "13 committed locally, 0 falling back to
+  flagcdn". 92 means it read the public one.
 
 - **Oceania stays out, and the reason is the ballot count, not the voter floor.**
   The region floor was two voters, which read like the thing excluding it. It
@@ -196,6 +184,20 @@ Kept short so the list above stays the point.
   no change on this side. The Worker had no repo anywhere; it was pulled out of
   the Cloudflare dashboard with `wrangler init --from-dash` and now lives in
   `Documents\GitHub\nba-trade-daily-digest` on Jorge's machine
+- Flags served from the repo: the 13 PNGs the media lean card needs are
+  committed, so every country marker draws a flag rather than the ISO-code
+  fallback chip, and no card reaches flagcdn at runtime
+- Comparison card's ending is a port of the generator's `drawFinalScreen()`
+  rather than an invention: headshot outboard of an uppercase name, trophy on
+  the winner, oversized green score, a banded "<NAME> BIGGEST WINS" header per
+  column with the scoreline opposite, alternating rows of metric against
+  "won - lost", and letter-spaced HOOPSMATIC.COM along the foot. Six wins a
+  side rather than two, because a column built for ten looked wrong holding two
+- Comparison rows: the winner's tint stops clear of the category label. 42/58
+  is the generator's boundary, but its metric sits in a column a eleventh of the
+  row wide, so the boundary never reaches the words; this card gives the
+  category the whole middle, so the tint now yields to the label's measured
+  edge whenever the two would meet
 - Comparison card switched to the light palette it should always have had:
   --bg ground, --surface rows, --text and --text-secondary type, --accent /
   --red / --orange for the two sides and the leader, headings in Barlow
