@@ -77,6 +77,13 @@ image.
   contact sheet. The aspect-ratio bug underneath it is fixed (see Done), so what
   is left is the framing — some sources sit high in the frame, some low, and the
   80% crop is the same for all of them.
+- **`build_races.mjs` cannot see an accented headshot filename.** `tileFor` looks
+  up `BCR_FACES/<name>.png` using the name as it appears in the race data, which
+  is plain ASCII, while the file on disk is `Jusuf Nurkić.png`. Those players
+  fall through to the remote `nba-headshots` URL instead of getting a baked tile.
+  `retile_faces.mjs` folds diacritics and matches them; the builder still does
+  not. Not urgent (the fallback works) and deliberately not fixed as a
+  side-effect of the retile work — it changes what a race build emits.
 - **Race library expansion**: franchise career races, earnings groupings.
 
 ---

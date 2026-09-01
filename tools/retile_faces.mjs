@@ -126,6 +126,20 @@ if (!fs.existsSync(FACE_DIR)) {
 
 const slugOf = name => name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
 
+/* build_races.mjs slugs the name as it appears in the RACE DATA, which is
+ * plain ASCII. The headshot FILES keep their diacritics, and slugOf drops an
+ * accented letter rather than folding it - so "Jusuf Nurkić.png" slugged to
+ * "jusuf-nurki" and never met the tile called "jusuf-nurkic". That is the
+ * whole reason six players kept a distorted tile after a 99% run.
+ *
+ * Both forms are indexed rather than replacing one with the other: a folder
+ * whose filenames are already ASCII must keep matching exactly as before. */
+const fold = s => s.normalize ? s.normalize("NFD").replace(/[̀-ͯ]/g, "") : s;
+const slugsFor = name => {
+  const raw = slugOf(name), folded = slugOf(fold(name));
+  return folded === raw ? [raw] : [raw, folded];
+};
+
 /* slug -> best source across every folder. Largest file wins: size tracks
  * resolution, and the sub-15KB entries are CDN silhouettes. A folder that
  * holds only placeholders therefore cannot displace a real portrait found
@@ -140,9 +154,10 @@ for (const dir of SOURCES) {
     const full = path.join(dir, f);
     let size;
     try { size = fs.statSync(full).size; } catch (e) { continue; }
-    const slug = slugOf(f.slice(0, -4));
-    const prev = bySlug.get(slug);
-    if (!prev || size > prev.size) bySlug.set(slug, { file: full, size, dir });
+    for (const slug of slugsFor(f.slice(0, -4))) {
+      const prev = bySlug.get(slug);
+      if (!prev || size > prev.size) bySlug.set(slug, { file: full, size, dir });
+    }
   }
 }
 
