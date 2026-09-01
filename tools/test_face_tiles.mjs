@@ -13,28 +13,37 @@
  * this checkable without a browser: draw a circle in a source, build the tile,
  * and the circle must still be a circle.
  *
- * Needs ImageMagick's `convert` to draw the fixtures. Skips with a note rather
- * than failing if it is not installed, since it is a test dependency and not a
- * build one.
+ * The fixtures are drawn in pure Node through this repo's own PNG encoder.
+ * They used to come from ImageMagick, which meant the whole test silently
+ * skipped on Windows - where it is most likely to be run, and least likely to
+ * be noticed skipping.
  */
 
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { execFileSync } from "child_process";
-import { raceFaceTile, decodePng } from "./lib/png.mjs";
+import { raceFaceTile, decodePng, encodePng } from "./lib/png.mjs";
 
 const OUT_W = 112, OUT_H = 80;
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "facetile-"));
 
-function haveConvert() {
-  try { execFileSync("convert", ["-version"], { stdio: "ignore" }); return true; }
-  catch (e) { return false; }
-}
-
-if (!haveConvert()) {
-  console.log("skip: ImageMagick `convert` not installed");
-  process.exit(0);
+/* An opaque white disc on a transparent ground, in the shape asked for.
+ * A circle is the fixture because a circle is the one shape whose distortion
+ * is unmissable: any non-uniform scale turns it into an ellipse, and the
+ * bounding box measures that directly. */
+function circleSource(w, h, cx, cy, r) {
+  const data = Buffer.alloc(w * h * 4);   // zeroed = fully transparent
+  const r2 = r * r;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x - cx, dy = y - cy;
+      if (dx * dx + dy * dy <= r2) {
+        const o = (y * w + x) * 4;
+        data[o] = data[o + 1] = data[o + 2] = data[o + 3] = 255;
+      }
+    }
+  }
+  return encodePng({ w, h, data });
 }
 
 /** Alpha bounding box of the drawn shape. */
@@ -66,8 +75,7 @@ for (const [w, h] of SHAPES) {
   const cx = Math.round(w / 2), cy = Math.round(h * 0.25);
   const r = Math.round(Math.min(w, h) * 0.12);
   const src = path.join(TMP, `src-${w}x${h}.png`);
-  execFileSync("convert", ["-size", `${w}x${h}`, "xc:none", "-fill", "white",
-    "-draw", `circle ${cx},${cy} ${cx},${cy - r}`, src]);
+  fs.writeFileSync(src, circleSource(w, h, cx, cy, r));
 
   const tileFile = path.join(TMP, `tile-${w}x${h}.png`);
   const png = raceFaceTile(src, OUT_W, OUT_H);
@@ -83,8 +91,11 @@ for (const [w, h] of SHAPES) {
   if (!b) { console.log(`  FAIL ${w}x${h}: nothing drawn in the tile`); failures++; continue; }
 
   const aspect = b.w / b.h;
-  // A pixel either way on a ~25px blob is rounding, not distortion.
-  const ok = Math.abs(aspect - 1) < 0.10;
+  /* A pixel either way on a ~25px blob is rounding, not distortion. 0.06 is
+   * as loose as this can be and still catch every case: with the old squash
+   * restored, a 512x512 source came out at 1.083 and slipped past a 0.10
+   * tolerance, while every correct build here measures exactly 1.000. */
+  const ok = Math.abs(aspect - 1) < 0.06;
   if (!ok) failures++;
   console.log(`  ${ok ? "ok  " : "FAIL"} source ${w}x${h} (${(w / h).toFixed(2)}:1) ` +
     `-> circle ${b.w}x${b.h}, aspect ${aspect.toFixed(3)}`);
