@@ -699,6 +699,11 @@
       if (cfg.freshness && root.DoomEngine && root.DoomEngine.setFreshness) {
         root.DoomEngine.setFreshness(cfg.freshness);
       }
+      /* Whether a YouTube card may start on its own is editorial too, so it
+       * sits beside the source it governs rather than in the player. */
+      if (root.YtVideo && root.YtVideo.setAutoplay) {
+        root.YtVideo.setAutoplay(!!((cfg.sources || {}).youtube || {}).autoplay);
+      }
       var cards = build(lists, cfg, map, blocked);
       console.info("[doomscroll] buzz: " + cards.length + " cards from " +
         lists.reduce(function (n, l) { return n + (l.items || []).length; }, 0) +

@@ -180,6 +180,11 @@
           c.payload && QUIZ_QUALITY[c.payload.difficulty] !== undefined) {
         c.quality_score = QUIZ_QUALITY[c.payload.difficulty];
       }
+      /* Story keys and quality for the pools whose builders emit neither, so
+       * the engine's spacing and weighting apply to every card type rather
+       * than to the three that happened to be built last. Fills gaps only -
+       * see js/story.js. */
+      if (root.DoomStory) root.DoomStory.annotate(c);
       byId[c.id] = c;
       allCards.push(c);
     });
@@ -610,6 +615,7 @@
     destroyRaces(feedEl);
     // A playing <video> inside a node about to be discarded keeps streaming.
     if (root.BskyVideo) BskyVideo.releaseAll(feedEl);
+    if (root.YtVideo) YtVideo.releaseAll(feedEl);
     feedEl.innerHTML = "";
     rendered = {};
   }
@@ -757,6 +763,7 @@
     // middle of the screen. No-op when the reader has asked for less motion or
     // less data, or when the browser cannot play HLS.
     if (root.BskyVideo) BskyVideo.watch(el);
+    if (root.YtVideo) YtVideo.watch(el);
   }
 
   /* ---------------- bar chart races ---------------- */

@@ -783,13 +783,28 @@
 
     // The thumbnail is a third-party image on a third-party host. If it 404s or
     // is blocked, the card still reads — the headline is the card.
-    var thumb = p.thumbnail
-      ? '<div class="buzz-thumb' + (p.is_video ? " is-video" : "") + '">' +
+    /* A YouTube card whose URL yields a video id becomes a player in place:
+     * the same thumbnail, but pressing it swaps in the embed rather than
+     * sending the reader to youtube.com. No iframe and no request to a Google
+     * domain until that happens — see js/yt-video.js. Anything unrecognisable
+     * falls back to the plain thumbnail and its link out. */
+    var ytId = p.source === "youtube" && root.YtVideo ? root.YtVideo.videoId(p.url) : null;
+    var thumb = "";
+    if (ytId && p.thumbnail) {
+      thumb = '<div class="buzz-thumb is-video yt-embed" data-yt="' + escAttr(ytId) + '" ' +
+        'data-yt-title="' + escAttr(p.title || "YouTube video") + '" ' +
+        'role="button" tabindex="0" aria-label="Play video">' +
+        '<img loading="lazy" src="' + escAttr(p.thumbnail) + '" alt="" ' +
+        'onerror="this.closest(\'.buzz-thumb\').classList.add(\'no-thumb\')">' +
+        '<span class="buzz-play" aria-hidden="true">&#9654;</span>' +
+        '</div>';
+    } else if (p.thumbnail) {
+      thumb = '<div class="buzz-thumb' + (p.is_video ? " is-video" : "") + '">' +
         '<img loading="lazy" src="' + escAttr(p.thumbnail) + '" alt="" ' +
         'onerror="this.closest(\'.buzz-thumb\').remove()">' +
         (p.is_video ? '<span class="buzz-play" aria-hidden="true">&#9654;</span>' : "") +
-        '</div>'
-      : "";
+        '</div>';
+    }
     // Reddit and Substack bodies are written text with paragraphs in them —
     // an opening paragraph, a stat table — so their line breaks are kept.
     var asWritten = p.source === "reddit" || p.source === "substack";

@@ -5,9 +5,10 @@
     "bluesky":     { "on": true,  "label": "Bluesky",  "excerpt": true,  "cta": "View on Bluesky", "max": 40 },
     "reddit":      { "on": true,  "label": "r/NBA",    "excerpt": true,  "cta": "Open thread",     "max": 20, "excerpt_chars": 700 },
     "google-news": { "on": false, "label": "News",     "excerpt": false, "cta": "Read the story",  "max": 32, "drop_truncated": true, "outlet_allow": [] },
-    "youtube":     { "on": true,  "label": "YouTube",  "excerpt": false, "cta": "Watch",           "max": 10 },
+    "youtube":     { "on": true,  "label": "YouTube",  "excerpt": false, "cta": "Watch",           "max": 10, "autoplay": false },
     "substack":    { "on": true,  "label": "Substack", "excerpt": true,  "cta": "Read the post",   "max": 10, "excerpt_chars": 500 }
   },
+  "youtube_note": "autoplay:false means a YouTube card is click-to-play: the thumbnail IS the card until someone presses it, and no iframe, no script and nothing from youtube.com loads before that. The thumbnail itself still comes from i.ytimg.com exactly as it always did \u2014 what is deferred is the player, which is the part carrying the cookies. Set true and the media coordinator will start it the same way it starts a Bluesky clip. Off by default on purpose \u2014 embedding YouTube's player loads a third-party player that profiles the reader, and doing that automatically, before anyone asked for a video, is a consent question rather than a playback one. The embed is youtube-nocookie.com either way, and either way only one thing on the page moves at a time.",
   "google_news_note": "Off, at Jorge's call: a wire feed of other outlets' headlines is not what this feed is for, and the items carried no body text worth reading. Flip on:true to bring it back. outlet_allow, when non-empty, keeps only items from those exact outlet names — [\"HoopsHype\"] would bring back HoopsHype's own stories and nothing else.",
   "excerpt_chars_note": "How much body text a source may render. Reddit gets the most: the opening paragraph of a stats post or an archive find is the item, not a headline about it. Cut at a sentence, then a paragraph, then a word — never mid-word.",
   "enrich_bluesky": true,
