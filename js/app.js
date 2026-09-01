@@ -37,6 +37,11 @@
   };
 
   var allCards = [];
+  /* Must match QUIZ_QUALITY in tools/build_data.mjs. A hard-tier player is a
+   * long-serving journeyman who was never an All-Star, which is the good
+   * question; easy stays in the pool at a low weight so the tab is not
+   * relentless rather than being deleted from it. */
+  var QUIZ_QUALITY = { hard: 1, medium: 0.55, easy: 0.15 };
   var byId = {};
   // Ids currently rendered in the feed. Sampling draws without replacement
   // within one batch, but nothing stopped a LATER batch re-drawing a card that
@@ -166,6 +171,15 @@
       if (byId[c.id]) return;
       if (c.type === "otd" && c.payload.date && otdDate && c.payload.date !== otdDate) return;
       if (c.type === "otd" && !otdExact) c.payload.approx = true;
+      /* Guess the Player shows a clear, full photograph, so the difficulty has
+       * to come from the player rather than from the picture. build_data.mjs
+       * emits this now; the fallback covers a pool built before it did, which
+       * is every pool currently deployed. Deliberately does not overwrite a
+       * score the builder set. */
+      if (c.type === "quiz" && typeof c.quality_score !== "number" &&
+          c.payload && QUIZ_QUALITY[c.payload.difficulty] !== undefined) {
+        c.quality_score = QUIZ_QUALITY[c.payload.difficulty];
+      }
       byId[c.id] = c;
       allCards.push(c);
     });
@@ -817,10 +831,32 @@
     } : { btn: null, scrub: null };
   }
 
+  /* Teammates cards withhold both final scores and the verdict until the
+   * animation has actually arrived at them - see renderMates. This writes them
+   * in. Called when the race ends, when it is scrubbed to the end, when
+   * reduced motion means there was never an animation to watch, and when the
+   * reader asks outright. Idempotent: revealing twice is a no-op. */
+  function revealMatesResult(cardEl) {
+    if (!cardEl || cardEl.dataset.spoiled) return;
+    var scores = cardEl.querySelectorAll(".mt-score[data-score]");
+    if (!scores.length) return;
+    cardEl.dataset.spoiled = "1";
+    for (var i = 0; i < scores.length; i++) scores[i].textContent = scores[i].dataset.score;
+    var box = cardEl.querySelector(".mt-verdict[data-spoiler]");
+    if (!box) return;
+    var btn = box.querySelector(".mt-spoil-btn");
+    var txt = box.querySelector(".mt-verdict-text");
+    if (btn) btn.hidden = true;
+    if (txt) txt.hidden = false;
+  }
+
   function syncRaceControls(cv) {
     var ctl = racePlayers.get(cv);
     var el = raceControls(cv);
     if (!ctl || !el.btn) return;
+    if (cv.dataset.player === "mates" && (ctl.reducedMotion || ctl.progress >= 1)) {
+      revealMatesResult(cv.closest(".card"));
+    }
     if (ctl.reducedMotion) {
       el.btn.textContent = "Final";
       el.btn.disabled = true;
@@ -969,6 +1005,10 @@
       revealFace(cardEl);
     } else if (action === "hint") {
       revealHint(cardEl, actEl);
+    } else if (action === "spoil") {
+      // Skipping to the answer is a deliberate choice, so it counts as
+      // engagement rather than as the skim a fast scroll-past would log.
+      revealMatesResult(cardEl);
     }
   });
 
@@ -982,16 +1022,10 @@
     if (sil) sil.classList.add("revealed");
   }
 
-  /* Hints sharpen the picture as well as narrowing the field. Three hints take
-   * it from unreadable to nearly clear, which is the point: the reader who
-   * works for it should be able to see they are getting somewhere. Capped at
-   * the number of obscure levels CSS defines. */
-  var OBSCURE_LEVELS = 3;
-  function setObscure(cardEl, hintsShown) {
-    var mask = cardEl.querySelector(".quiz-sil-mask");
-    if (!mask || mask.classList.contains("revealed")) return;
-    mask.dataset.obscure = String(Math.min(OBSCURE_LEVELS, Math.max(0, hintsShown)));
-  }
+  /* The picture is no longer obscured, so hints only narrow the field - which
+   * is what a hint is. Kept as a no-op rather than removed so every existing
+   * call site stays valid and a cached card cannot end up half-styled. */
+  function setObscure() {}
 
   // One hint per tap, vague to specific. Taking a hint counts as engagement,
   // so a card someone worked at is not also logged as a skim.

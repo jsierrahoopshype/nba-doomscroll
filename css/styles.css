@@ -247,6 +247,19 @@ a:hover{ text-decoration:underline }
 .mt-side.b .mt-score{ color:#c2410c }
 .mt-sub{ font-size:.58rem; color:var(--text-secondary) }
 .mt-verdict{ text-align:center }
+/* The withheld score keeps its own width so the head row does not jump when
+   the number arrives. A tabular figure is the widest thing that can land
+   there, so two of them is the right reservation. */
+.mt-score[data-score]{ min-width:3.2ch; display:inline-block; opacity:.45 }
+.mt-score:not([data-score]){ opacity:1 }
+.card[data-spoiled] .mt-score{ opacity:1 }
+.mt-spoil-btn{
+  border:0; background:none; padding:0; cursor:pointer;
+  font:inherit; color:var(--text-secondary);
+  text-decoration:underline; text-underline-offset:3px;
+  text-decoration-color:var(--border);
+}
+.mt-spoil-btn:hover{ color:var(--text) }
 
 /* -------- trade trends -------- */
 .tt-list{ margin-top:.5rem; border-top:1px solid var(--border) }
@@ -356,20 +369,36 @@ a:hover{ text-decoration:underline }
 
 .bsky-images{ display:block; margin:.5rem 0 }
 .bsky-images a{ display:block; width:100% }
+/* A single image is shown WHOLE, at its own aspect ratio.
+   It used to be max-height:22rem with object-fit:cover, which crops. Most of
+   what HoopsHype posts to Bluesky is a chart, a table or a bar-race still -
+   images whose whole point is the rows at the top and the bottom - and cover
+   was cutting both off. height:auto means the element takes the image's own
+   shape, so there is nothing to crop and no letterboxing either. */
 .bsky-images img{
-  display:block; width:100%; max-height:22rem; object-fit:cover;
+  display:block; width:100%; height:auto;
   border-radius:8px; background:var(--surface-hover);
 }
+/* A multi-image post is still a grid of thumbnails: four full-height images
+   stacked would be a page each. Those are crops by design, and tapping one
+   opens the post. */
 .bsky-images.grid{ display:grid; grid-template-columns:1fr 1fr; gap:.25rem }
-.bsky-images.grid img{ height:8.5rem; max-height:none }
+.bsky-images.grid img{ height:8.5rem; object-fit:cover }
 
 .bsky-video{ position:relative; display:block; margin:.5rem 0; border-radius:8px; overflow:hidden }
-.bsky-video img{ display:block; width:100%; max-height:22rem; object-fit:cover }
+/* Same reasoning as the still above: the poster is shown whole. min-height
+   keeps the box from collapsing to nothing if the poster fails to load, since
+   the clip is absolutely positioned inside it and would have nothing to size
+   against. */
+.bsky-video img{ display:block; width:100%; height:auto; min-height:6rem }
 /* The clip is laid over its own poster rather than replacing it, so the card
    never changes height when playback starts, stops or fails. */
 .bsky-video video{
   position:absolute; inset:0; width:100%; height:100%;
-  object-fit:cover; background:#000;
+  /* contain, not cover: the box is now the poster's own shape, so the clip
+     already matches it, and contain guarantees nothing is cropped if the two
+     disagree by a pixel. */
+  object-fit:contain; background:#000;
 }
 .bsky-video.playing .play-hint{ opacity:0 }
 .bsky-video .play-hint{ transition:opacity .2s }
@@ -509,35 +538,31 @@ a:hover{ text-decoration:underline }
   display:flex; flex-direction:column; align-items:center; gap:.35rem;
   margin-bottom:.6rem; cursor:pointer;
 }
-/* Progressive reveal, four steps.
-   brightness(0) turned every pixel black, so the card showed a disc with no
-   head, no shoulders and no hairline. Blur keeps the shape and the tonal
-   blocks - which is what makes it a guessing game rather than a coin flip -
-   and each hint taken sharpens it one step. */
+/* The photograph is shown in full, unobscured - Jorge's call, and the right
+   one. Blurring a famous face is a puzzle about the blur: the reader squints
+   at a smudge and either recognises the shape or shrugs. Showing a clear
+   photograph of a player who genuinely is hard to place is a puzzle about
+   basketball, which is the game this is meant to be. The difficulty now comes
+   from WHO is on screen, not from what has been done to the picture, so the
+   pool is weighted toward obscure players instead (see build_data.mjs).
+
+   Square, not circular: data/faces tiles are 96x96 with the head centred, and
+   a circle clipped the hair and the shoulders - the two things a reader
+   actually reasons from when the face alone is not enough. */
 .quiz-sil-mask{
-  display:block; width:8rem; height:8rem; border-radius:50%; overflow:hidden;
+  display:block; width:9.5rem; height:9.5rem; border-radius:12px; overflow:hidden;
   background:var(--surface-hover); border:1px solid var(--border);
 }
 .quiz-sil{
-  display:block; width:100%; height:100%; object-fit:cover;
-  /* Scaled up so the blur's soft edge is clipped by the circle instead of
-     showing as a pale ring just inside it. */
-  transform:scale(1.18);
-  transition:filter .45s ease, transform .45s ease;
+  display:block; width:100%; height:100%; object-fit:contain;
 }
-/* Tuned by looking at it. blur(14px) with grayscale(1) and reduced contrast
-   produced a grey gradient - technically not black, but still not a head.
-   Raising contrast and keeping a little colour preserves the hairline, the jaw
-   and the shoulder line, which are the things that make it a guess rather than
-   a shrug, while 10px of blur still hides who it is. */
-.quiz-sil-mask[data-obscure="0"] .quiz-sil{ filter:blur(10px) grayscale(.9) contrast(1.15) }
-.quiz-sil-mask[data-obscure="1"] .quiz-sil{ filter:blur(6.5px) grayscale(.65) contrast(1.08) }
-.quiz-sil-mask[data-obscure="2"] .quiz-sil{ filter:blur(4px)  grayscale(.3) }
-.quiz-sil-mask[data-obscure="3"] .quiz-sil{ filter:blur(2px) }
-.quiz-sil-mask.revealed .quiz-sil{ filter:none; transform:scale(1) }
-/* Kept so a cached card whose markup predates the mask still un-blurs when
-   app.js marks the image itself. */
-.quiz-sil.revealed{ filter:none; transform:scale(1) }
+/* The progressive-reveal levels are kept as no-ops rather than deleted: cards
+   rendered before this change still carry data-obscure in their markup, and a
+   missing rule would leave them styled by whatever came last. They now all
+   resolve to the same clear image. */
+.quiz-sil-mask[data-obscure] .quiz-sil,
+.quiz-sil-mask.revealed .quiz-sil,
+.quiz-sil.revealed{ filter:none; transform:none }
 /* A player with no photograph renders as initials rather than an <img>. Those
    must not be blurred: "MP" for "Mystery player" gives nothing away, and a
    blurred pair of letters just looks broken. */

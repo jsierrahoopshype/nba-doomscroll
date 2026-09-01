@@ -142,8 +142,12 @@ const bio = new Map(bioRows.map(b => [b.PLAYER, b]));
  * is the same rule render.py applies.
  *
  * Each one is baked here into the tile the theme actually displays: top 80% of
- * the source, squashed to 1.4:1 landscape. That drops ~55KB portraits to ~10KB
- * tiles, and leaves the browser with nothing to crop.
+ * the source, then cover-cropped to 1.4:1 landscape. That drops ~55KB portraits
+ * to ~10KB tiles, and leaves the browser with nothing to crop.
+ *
+ * Cropped, not squashed. It used to resize straight to 112x80, which forces any
+ * source shape into 1.4:1 and made every head 17% too narrow for its height.
+ * See tools/lib/png.mjs and tools/test_face_tiles.mjs.
  */
 const TILE_W = 112, TILE_H = 80;
 const MIN_SRC_BYTES = 15000;

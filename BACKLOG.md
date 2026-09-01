@@ -73,8 +73,10 @@ image.
   destination identity, not just a 200.
 - **Trade digest around the week** rather than yesterday's number one, showing a
   top five.
-- **Bluesky freshness weighting** in For You, and cross-source dedupe.
-- **Headshot normalisation** with per-player overrides and a QA contact sheet.
+- **Headshot normalisation**, the rest of it: per-player crop overrides and a QA
+  contact sheet. The aspect-ratio bug underneath it is fixed (see Done), so what
+  is left is the framing — some sources sit high in the frame, some low, and the
+  80% crop is the same for all of them.
 - **Race library expansion**: franchise career races, earnings groupings.
 
 ---
@@ -219,6 +221,44 @@ backend, which breaks the no-server promise the whole thing rests on.
 
 Kept short so the list above stays the point.
 
+- Race face tiles no longer distort heads. `raceFaceTile` ended in a straight
+  resize to 112x80, which forces any source shape into 1.4:1: the top 80% of an
+  official 1040x760 portrait is 1.71:1, so every head came out 17% too narrow
+  for its height, by a different amount per source aspect. Now cover-cropped to
+  the tile's aspect before scaling. `tools/test_face_tiles.mjs` draws a circle
+  in six source shapes and checks it is still a circle. Needs
+  `tools/retile_faces.mjs --local <headshots> --write` to rebuild the 737 tiles;
+  a full race rebuild is not required.
+- Bluesky stills and video posters are shown whole. They were `max-height:22rem`
+  with `object-fit:cover`, and most of what HoopsHype posts there is a chart or
+  a bar-race still whose top and bottom rows are the content. Multi-image posts
+  stay a thumbnail grid.
+- Guess the Player shows a clear, full photograph. The blur made it a puzzle
+  about the blur; the difficulty now comes from the player, with the pool
+  weighted toward the 625 hard-tier journeymen through `quality_score`. The
+  circular crop became a rounded square: it was clipping hair and shoulders,
+  which is what a reader reasons from when the face alone is not enough.
+- Teammates cards no longer print the answer above the animation. Both final
+  scores and the verdict are withheld until the race ends, is scrubbed to the
+  end, or the reader taps "play it, or tap to skip to the answer". Reduced
+  motion reveals immediately, since there is no animation to wait through.
+
+- Buzz freshness in For You: a decay curve on `published_at` (1.00 now, 0.85 at
+  six hours, 0.45 at a day, 0.12 at three days, floor 0.03), interpolated so
+  there is no cliff at a band edge. Trending lifts a post but is clamped so a
+  week-old badged item never outranks something from this morning. Archive
+  cards carry no timestamp and are untouched. Measured through `sampleMixed`:
+  a two-hour-old post takes 81% of the buzz slots against a five-day-old one,
+  and the stale one still appears 19% of the time — demoted, not deleted.
+  Curve lives in `data/buzz-sources.json` under `freshness`.
+- Cross-source dedupe: one event arriving through Bluesky, Reddit and YouTube
+  now collapses to one card. Requires a shared entity AND title overlap AND a
+  36-hour window, and runs before the per-source caps so a duplicate no longer
+  eats a slot. Two guards found by testing, both erring toward showing a
+  duplicate rather than hiding a story: titles under five content words are
+  never fuzzy-matched ("Lakers win in Denver" / "Lakers lose in Denver" agree
+  on two words of three), and two titles quoting different numbers never merge.
+  `tools/test_freshness.mjs` keeps all of it honest — 28 checks, no network.
 - Races rewritten from MP4s to canvas; `hoopshype-official` theme ported
 - 180 team races, Money group, colleges/clubs, countries, draft classes
 - Headshots sourced from `bar-chart-race/assets/headshots`, baked at build time

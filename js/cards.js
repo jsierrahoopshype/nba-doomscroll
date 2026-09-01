@@ -234,18 +234,29 @@
         : '<span class="face lg mt-ini" aria-hidden="true">' +
           esc(x.name.split(/\s+/).map(function (w) { return w[0] || ""; }).join("").slice(0, 2).toUpperCase()) +
           '</span>';
+      /* The final score is withheld until the animation has run. It used to be
+       * printed here, an inch above a canvas whose whole job is to arrive at
+       * it - so the card answered its own question before the reader pressed
+       * play. The real number rides in a data attribute and app.js writes it
+       * in when the race ends, is scrubbed to the end, or is revealed on
+       * request. */
       return '<div class="mt-side ' + cls + '">' + head +
         '<span class="mt-name">' + ent(x.name, "player") + '</span>' +
-        '<b class="mt-score mono">' + esc(String(x.score)) + '</b>' +
+        '<b class="mt-score mono" data-score="' + escAttr(String(x.score)) + '">?</b>' +
         '<span class="mt-sub mono">' + esc(x.span) + ' · ' + esc(String(x.seasons)) + ' seasons</span>' +
       '</div>';
     }
-    var alt = p.a.name + " " + p.a.score + ", " + p.b.name + " " + p.b.score +
-      ". Teammate accolade score, season by season.";
+    // Deliberately spoiler-free: a screen reader user gets the same card.
+    var alt = p.a.name + " versus " + p.b.name +
+      ". Teammate accolade score, counted season by season.";
     return '<div class="vs-headline">' + esc(p.headline) + '</div>' +
       '<div class="mt-head">' + side(p.a, "a") + '<div class="vs-mid">VS</div>' + side(p.b, "b") + '</div>' +
-      '<div class="card-sub mt-verdict">' + ent(p.lead, "player") + ' had the better help by ' +
-        '<span class="mono">' + esc(String(p.gap)) + '</span></div>' +
+      '<div class="card-sub mt-verdict" data-spoiler>' +
+        '<button class="mt-spoil-btn" type="button" data-action="spoil">' +
+          'play it, or tap to skip to the answer</button>' +
+        '<span class="mt-verdict-text" hidden>' + ent(p.lead, "player") +
+          ' had the better help by <span class="mono">' + esc(String(p.gap)) + '</span></span>' +
+      '</div>' +
       '<div class="race-wrap">' +
         '<canvas class="race-canvas" data-player="mates" data-race="' + escAttr(p.file) +
           '" role="img" aria-label="' + escAttr(alt) + '"></canvas>' +
@@ -391,18 +402,13 @@
         '</div>'
       : "";
     return '<div class="quiz-diff mono ' + esc(p.difficulty) + '">' + esc(p.difficulty) + '</div>' +
-      /* The image is obscured by blur, not by blacking it out.
-       *
-       * It used to be filter: brightness(0) inside a circular clip, which is a
-       * solid black disc: no head, no shoulders, no hairline, nothing to look
-       * at and nothing to reason from. That is not a hard version of the game,
-       * it is the absence of one.
-       *
-       * The mask carries the obscure level so CSS owns the appearance and
-       * app.js only has to count. Level tracks hints taken, so working for the
-       * answer visibly buys you something. */
+      /* The photograph is shown clear and whole. The difficulty is the player,
+       * not the picture: the pool is weighted toward people you have to work
+       * to place, and a clear photograph of a journeyman is a harder and more
+       * interesting question than a blurred one of a superstar. The hints
+       * still narrow the field for anyone who wants them. */
       '<div class="quiz-sil-wrap" data-action="reveal">' +
-        '<span class="quiz-sil-mask" data-obscure="0">' +
+        '<span class="quiz-sil-mask">' +
           face(p.img, "Mystery player", "quiz-sil") +
         '</span>' +
       '<span class="quiz-sil-hint">who is this?</span></div>' +

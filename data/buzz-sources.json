@@ -24,6 +24,21 @@
   "drop_truncated_note": "Google News headlines arrive cut off at a fixed width and end in an ellipsis, and there is no body text to finish the sentence. Bluesky and Reddit posts end in an ellipsis on purpose, so the rule is per source.",
   "require_entity_note": "An item must carry at least one player or team tag. This is the single most effective quality filter: the accounts Content Stream follows post about their own lives and other sports between NBA posts, and 29 of 100 items in a sample carried no NBA entity at all — baseball chatter, podcast plugs and personal jokes. Set false on a source to let its untagged items through.",
   "max_age_days": 7,
+  "freshness": {
+    "anchors": [[0, 1.0], [6, 0.85], [24, 0.45], [72, 0.12], [168, 0.03]],
+    "floor": 0.03,
+    "trending_boost": 1.7,
+    "trending_ceiling": 0.65
+  },
+  "freshness_note": "How hard the For You feed demotes an ageing Buzz card. Pairs of [hours old, multiplier], interpolated between, so there is no cliff at a band edge. The Buzz TAB is unaffected: it sorts newest-first and never consults this. Archive cards carry no publication time and are never touched — a 2016 award race is as interesting today as yesterday. trending_boost lifts a badged post; trending_ceiling caps the result at roughly what a twelve-hour-old post scores unaided, so a week-old trending item reads as 'yesterday' at best and never as breaking. Delete the whole block to fall back to the engine's built-in curve.",
+  "dedupe": {
+    "on": true,
+    "min_overlap": 0.6,
+    "min_tokens": 5,
+    "window_hours": 36,
+    "prefer": ["bluesky", "reddit", "substack", "youtube", "google-news"]
+  },
+  "dedupe_note": "Cross-source event merging. The same play or report arrives through Bluesky, Reddit and YouTube worded three different ways, and the exact-title check only catches a verbatim repeat. Two items merge when they share a player or team tag AND their titles overlap by min_overlap AND they were published within window_hours. All three are required: entity alone would merge every post about the same player, and title overlap alone would merge two different games described in similar words. Overlap is measured against the SHORTER title, so a five-word Bluesky post and a long YouTube title describing the same thing score high, which is correct. Two guards stop that measure over-merging: a title with fewer than min_tokens content words is never fuzzy-matched at all ('Lakers win in Denver' and 'Lakers lose in Denver' agree on two words out of three), and two titles that each quote a number but not the same number are never merged (a 45-point game is not a 30-point game). Both err toward showing a duplicate rather than hiding the other story. prefer decides which copy survives when neither is trending. Runs BEFORE the per-source max caps, so a merged duplicate does not eat a slot. Set on:false to see every copy.",
   "off_topic_note": "Google News tagging is name-based, so an MLB story about Spencer Jones is tagged with the Thunder rookie of the same name. An item carrying any of these words is dropped. Two groups: other-league jargon (a word no NBA story uses, which catches a baseball column that never names its team) and other-league team names. Deliberately excludes every word that is also an NBA nickname: Kings, Hawks, Nets, Heat, Magic, Suns, Bulls and the rest, and every word both sports share: rookie, draft, trade, playoffs.",
   "off_topic": [
     "mlb", "nfl", "nhl", "mls", "ufc", "nascar", "pga tour", "formula 1", "premier league",
