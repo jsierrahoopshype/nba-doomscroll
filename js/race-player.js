@@ -23,12 +23,18 @@
 (function (global) {
   "use strict";
 
-  var TARGET_MS = 70000;   // target runtime at 1x
-  var MIN_STEP = 600;      // …but never flicker on a short race
-  // A 34-step race clamped at 2.2s ran 73 seconds against a 90-second target,
-  // so the ceiling was what actually set the pace for every short series, not
-  // the target. 3.0s lets those reach the target instead of undershooting it.
-  var MAX_STEP = 3000;
+  /* Timing lives in js/pacing.js now. A single TARGET_MS could not tell a
+   * 23-frame franchise race from an 80-frame all-time one, and gave both the
+   * same runtime: the short race crawled and the long one flickered. The
+   * fallback below only runs if pacing.js failed to load, and reproduces the
+   * old behaviour rather than guessing. */
+  var FALLBACK = { targetMs: 70000, minStep: 600, maxStep: 3000 };
+
+  /* Award ballot races are drawn by this renderer but are not bar races: one
+   * count climbing to a known result does not want 65 seconds. The data files
+   * carry pace "ballot"; this recognises the group as well, so a file built
+   * before that field existed still gets the right pacing. */
+  var BALLOT_GROUPS = { "Award races": 1 };
   var ROWS = 10;           // visible bars
 
   /* Everything below is a port of the "hoopshype-official" theme from the
@@ -148,7 +154,14 @@
     opts = opts || {};
     var ctx = canvas.getContext("2d");
     var steps = race.labels.length;
-    var baseStepMs = Math.max(MIN_STEP, Math.min(MAX_STEP, Math.round(TARGET_MS / Math.max(1, steps - 1))));
+    var units = Math.max(1, steps - 1);
+    var kind = (race.pace || race.pace_profile ||
+      (BALLOT_GROUPS[race.group] ? "ballot" : "race"));
+    var pace = global.Pacing
+      ? global.Pacing.plan(kind, units, global.Pacing.merge(race, opts))
+      : { stepMs: Math.max(FALLBACK.minStep, Math.min(FALLBACK.maxStep,
+          Math.round(FALLBACK.targetMs / units))), targetMs: FALLBACK.targetMs, profile: kind };
+    var baseStepMs = pace.stepMs;
     var speed = 1;
     var stepMs = baseStepMs;
     var fmt = race.fmt || "int";
@@ -507,6 +520,7 @@
       get progress() { return pos / Math.max(1, steps - 1); },
       get speed() { return speed; },
       get durationMs() { return stepMs * (steps - 1); },
+      get pace() { return pace; },
       reducedMotion: reduced,
       steps: steps
     };

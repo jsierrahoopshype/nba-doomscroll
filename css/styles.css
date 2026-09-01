@@ -509,16 +509,77 @@ a:hover{ text-decoration:underline }
   display:flex; flex-direction:column; align-items:center; gap:.35rem;
   margin-bottom:.6rem; cursor:pointer;
 }
-.quiz-sil{
-  width:8rem; height:8rem; border-radius:50%; object-fit:cover;
+/* Progressive reveal, four steps.
+   brightness(0) turned every pixel black, so the card showed a disc with no
+   head, no shoulders and no hairline. Blur keeps the shape and the tonal
+   blocks - which is what makes it a guessing game rather than a coin flip -
+   and each hint taken sharpens it one step. */
+.quiz-sil-mask{
+  display:block; width:8rem; height:8rem; border-radius:50%; overflow:hidden;
   background:var(--surface-hover); border:1px solid var(--border);
-  filter:brightness(0) opacity(.88); transition:filter .5s ease;
 }
-.quiz-sil.revealed{ filter:none }
+.quiz-sil{
+  display:block; width:100%; height:100%; object-fit:cover;
+  /* Scaled up so the blur's soft edge is clipped by the circle instead of
+     showing as a pale ring just inside it. */
+  transform:scale(1.18);
+  transition:filter .45s ease, transform .45s ease;
+}
+/* Tuned by looking at it. blur(14px) with grayscale(1) and reduced contrast
+   produced a grey gradient - technically not black, but still not a head.
+   Raising contrast and keeping a little colour preserves the hairline, the jaw
+   and the shoulder line, which are the things that make it a guess rather than
+   a shrug, while 10px of blur still hides who it is. */
+.quiz-sil-mask[data-obscure="0"] .quiz-sil{ filter:blur(10px) grayscale(.9) contrast(1.15) }
+.quiz-sil-mask[data-obscure="1"] .quiz-sil{ filter:blur(6.5px) grayscale(.65) contrast(1.08) }
+.quiz-sil-mask[data-obscure="2"] .quiz-sil{ filter:blur(4px)  grayscale(.3) }
+.quiz-sil-mask[data-obscure="3"] .quiz-sil{ filter:blur(2px) }
+.quiz-sil-mask.revealed .quiz-sil{ filter:none; transform:scale(1) }
+/* Kept so a cached card whose markup predates the mask still un-blurs when
+   app.js marks the image itself. */
+.quiz-sil.revealed{ filter:none; transform:scale(1) }
+/* A player with no photograph renders as initials rather than an <img>. Those
+   must not be blurred: "MP" for "Mystery player" gives nothing away, and a
+   blurred pair of letters just looks broken. */
+.quiz-sil-mask .mt-ini{
+  display:flex; align-items:center; justify-content:center;
+  width:100%; height:100%; filter:none; transform:none;
+}
 .quiz-sil-hint{
   font-family:'JetBrains Mono',monospace; font-size:.62rem;
   color:var(--text-secondary); text-transform:uppercase; letter-spacing:.06em;
 }
+
+/* The archive excerpt a Frivolities question is asked about. Set apart from
+   the question itself because it is evidence, not phrasing: the reader is
+   meant to reason from it. */
+.friv-body{
+  margin:.15rem 0 .7rem; padding:.55rem .7rem;
+  border-left:3px solid var(--t-rumor); background:var(--surface-hover);
+  border-radius:0 8px 8px 0; font-size:.85rem; line-height:1.5;
+}
+.friv-source{ margin-top:.55rem; font-size:.72rem }
+.friv-source a{ color:var(--accent) }
+.friv-meta{ color:var(--text-secondary); font-family:'JetBrains Mono',monospace; font-size:.68rem }
+
+/* Ranked salary cards: a payroll's top five, earnings by country. Numbers are
+   tabular so the column of money lines up. */
+.sr-list{ display:flex; flex-direction:column; gap:.4rem; margin:.5rem 0 .2rem }
+.sr-row{ display:flex; align-items:center; gap:.55rem }
+.sr-rank{ color:var(--text-secondary); font-size:.7rem; width:1rem; flex:0 0 auto }
+.sr-main{ display:flex; flex-direction:column; min-width:0; flex:1 1 auto }
+.sr-name{ font-weight:600; font-size:.85rem }
+.sr-sub{ color:var(--text-secondary); font-size:.7rem }
+.sr-val{ flex:0 0 auto; font-size:.82rem; font-variant-numeric:tabular-nums }
+/* The denominator line. Deliberately quiet but always present: every rate on
+   these cards is a division, and the reader should be able to see by what. */
+.sal-denom{ margin-top:.45rem; font-size:.68rem; opacity:.85 }
+/* A long call-to-action used to wrap and drag LIKE / SAVE / SHARE onto two
+   lines with it. The action row keeps its buttons intact and the link
+   truncates instead. */
+.card-actions .act-label{ white-space:nowrap }
+.card-actions a[href]{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.sal-headline{ margin-top:.4rem }
 
 .quiz-opts{ display:grid; grid-template-columns:1fr 1fr; gap:.5rem }
 .quiz-opt{
@@ -583,6 +644,19 @@ a:hover{ text-decoration:underline }
   background:#1a1a1a; border:1px solid #2a2a2a;
   cursor:pointer; opacity:0; transition:opacity .25s;
 }
+/* The line that says a trade was built by a member of the public. It sits
+   above the trade rather than under it, and it is not the usual muted grey,
+   because it is the single most important thing on the card: without it the
+   card is two team logos and an arrow, which reads as a real transaction. */
+.trade-origin{
+  font-family:'JetBrains Mono',monospace; font-size:.62rem; font-weight:600;
+  text-transform:uppercase; letter-spacing:.05em;
+  color:var(--t-trade); margin-bottom:.5rem;
+}
+/* A fallback card is not a user build, so it does not get the trade colour
+   that signals one. */
+.trade-origin.is-sample{ color:var(--text-secondary) }
+
 .race-canvas.ready{ opacity:1 }
 
 /* The Comparison card is the one canvas that is light: it ports

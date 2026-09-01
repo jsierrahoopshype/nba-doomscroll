@@ -126,46 +126,76 @@
     }).catch(function () { stop(anchor); });
   }
 
-  /* Plays whichever eligible clip is nearest the middle of the viewport, so a
-   * feed scrolled to a stop resumes on the card the reader is actually looking
-   * at rather than whichever one crossed a threshold last. */
-  var candidates = new Map();   // anchor -> intersectionRatio
+  /* This used to pick the winner itself: nearest the middle of the viewport,
+   * among clips at least VISIBLE on screen. That rule was right and it is now
+   * MediaCoordinator's rule, applied across the canvas players as well - which
+   * is the part this file could never do, because it did not know they existed.
+   * A race and a clip could both be on screen and both animate.
+   *
+   * What is left here is the half only this file can do: build the <video>,
+   * attach hls.js, tear it down. The coordinator decides when. */
+  var candidates = new Set();
 
-  function settle() {
-    var best = null, bestDist = Infinity;
-    var mid = root.innerHeight / 2;
-    candidates.forEach(function (ratio, anchor) {
-      if (ratio < VISIBLE || !anchor.isConnected) return;
-      var box = anchor.getBoundingClientRect();
-      var dist = Math.abs((box.top + box.bottom) / 2 - mid);
-      if (dist < bestDist) { bestDist = dist; best = anchor; }
-    });
-    if (best) play(best);
-    else stop(current);
+  function coordinator() {
+    return root.MediaCoordinator || null;
   }
 
   var observer = null;
   function observerFor() {
     if (observer) return observer;
     observer = new IntersectionObserver(function (entries) {
+      var M = coordinator();
       entries.forEach(function (en) {
-        if (en.isIntersecting) candidates.set(en.target, en.intersectionRatio);
-        else candidates.delete(en.target);
+        if (!M) return;
+        M.note(en.target, en.isIntersecting ? en.intersectionRatio : 0);
       });
-      settle();
+      /* No coordinator (script missing or load order changed) means falling
+       * back to the old behaviour rather than to silence: one clip, nearest
+       * the middle, which is what this did before. */
+      if (!M) fallbackSettle(entries);
     }, { threshold: [0, 0.25, VISIBLE, 0.9] });
     return observer;
+  }
+
+  function fallbackSettle(entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting && en.intersectionRatio >= VISIBLE) candidates.add(en.target);
+      else candidates.delete(en.target);
+    });
+    var best = null, bestDist = Infinity, mid = root.innerHeight / 2;
+    candidates.forEach(function (anchor) {
+      if (!anchor.isConnected) return;
+      var box = anchor.getBoundingClientRect();
+      var d = Math.abs((box.top + box.bottom) / 2 - mid);
+      if (d < bestDist) { bestDist = d; best = anchor; }
+    });
+    if (best) play(best); else stop(current);
   }
 
   /* Called by app.js for every card as it enters the feed. Safe to call twice
    * on the same element. */
   function watch(cardEl) {
     if (!root.IntersectionObserver || prefersQuiet()) return;
+    var M = coordinator();
     var vids = cardEl.querySelectorAll ? cardEl.querySelectorAll(".bsky-video[data-playlist]") : [];
     for (var i = 0; i < vids.length; i++) {
-      if (vids[i].dataset.watched) continue;
-      vids[i].dataset.watched = "1";
-      observerFor().observe(vids[i]);
+      var el = vids[i];
+      if (el.dataset.watched) continue;
+      el.dataset.watched = "1";
+      if (M) {
+        /* Registering does not start anything - the coordinator will call
+         * play() only if this clip wins, so hls.js is still never loaded for a
+         * video nobody is looking at. */
+        (function (anchor) {
+          M.register(anchor, {
+            kind: "bsky-video",
+            play: function () { play(anchor); },
+            pause: function () { stop(anchor); },
+            isPlaying: function () { return current === anchor; }
+          });
+        })(el);
+      }
+      observerFor().observe(el);
     }
   }
 
@@ -173,12 +203,14 @@
    * playing <video> inside a detached node keeps its buffer alive. */
   function releaseAll(container) {
     if (current && (!container || container.contains(current))) stop(current);
-    candidates.forEach(function (_, anchor) {
+    var M = coordinator();
+    candidates.forEach(function (anchor) {
       if (!container || container.contains(anchor)) {
         if (observer) observer.unobserve(anchor);
         candidates.delete(anchor);
       }
     });
+    if (M) M.releaseIn(container);
   }
 
   root.BskyVideo = { watch: watch, releaseAll: releaseAll };

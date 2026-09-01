@@ -30,8 +30,10 @@
    * than legible. The video gives each row two thirds of a second; this gives
    * roughly a third, which is the compromise a feed card can afford, and the
    * speed control still doubles it for anyone who wants the original pace. */
-  var TARGET_MS = 24000;
-  var MIN_STEP = 190, MAX_STEP = 420;
+  /* Timing comes from js/pacing.js. A 106-row comparison and a 37-row one are
+   * not the same amount of reading, and one constant treated them as if they
+   * were. Fallback preserves the old pacing if that file is missing. */
+  var FALLBACK = { targetMs: 24000, minStep: 190, maxStep: 420 };
   /* Light, because the generator this ports is light and so is the app around
    * it. `nba-comparison-video-generator` renders on #f5f5f7 with white rows and
    * #1d1d1f text, which are the same tokens styles.css sets on :root. The card
@@ -154,7 +156,11 @@
     var OUTRO_BEATS = hasOutro ? 4 : 0;
     var span = steps + OUTRO_BEATS;
 
-    var baseStepMs = Math.max(MIN_STEP, Math.min(MAX_STEP, Math.round(TARGET_MS / steps)));
+    var pace = global.Pacing
+      ? global.Pacing.plan("compare", steps, global.Pacing.merge(data, opts))
+      : { stepMs: Math.max(FALLBACK.minStep, Math.min(FALLBACK.maxStep,
+          Math.round(FALLBACK.targetMs / steps))), targetMs: FALLBACK.targetMs, profile: "compare" };
+    var baseStepMs = pace.stepMs;
     var speed = 1, stepMs = baseStepMs;
     var pos = 0;
     var playing = false, raf = 0, last = 0, destroyed = false;
@@ -715,6 +721,7 @@
       get progress() { return pos / span; },
       get speed() { return speed; },
       get durationMs() { return stepMs * span; },
+      get pace() { return pace; },
       reducedMotion: reduced,
       steps: steps
     };

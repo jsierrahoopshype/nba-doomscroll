@@ -29,6 +29,13 @@
   var TAB_FOR_TYPE = { rumor: "rumors", trade: "trades", buzz: "buzz" };
   var SKIM_MS = 1200; // visible less than this while scrolling past = skim
 
+  /* The one thing allowed to be moving at a time. See js/media.js. */
+  var M = root.MediaCoordinator || {
+    register: function () {}, unregister: function () {}, note: function () {},
+    manualPlay: function () {}, manualPause: function () {}, manualToggle: function () {},
+    releaseIn: function () {}, prefersQuiet: function () { return false; }
+  };
+
   var allCards = [];
   var byId = {};
   // Ids currently rendered in the feed. Sampling draws without replacement
@@ -63,11 +70,31 @@
   // competing with it.
   var TAB_POOLS = {
     vs:     ["data/vs-pool.json", "data/teammates-pool.json", "data/compare-pool.json"],
-    vault:  ["data/vault-pool.json", "data/lean-pool.json"],
+    vault:  ["data/vault-pool.json", "data/lean-pool.json", "data/oddity-pool.json",
+             "data/salary-pool.json"],
     races:  ["data/race-pool.json", "data/ballotrace-pool.json"],
+    quiz:   ["data/frivolities-pool.json"],
     foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json",
              "data/teammates-pool.json", "data/compare-pool.json",
-             "data/ballotrace-pool.json", "data/lean-pool.json"]
+             "data/ballotrace-pool.json", "data/lean-pool.json",
+             "data/frivolities-pool.json", "data/oddity-pool.json",
+             "data/salary-pool.json"]
+  };
+
+  /* Pools that may legitimately not exist.
+   *
+   * The Frivolities pool is built from the HoopsHype archive by a script run on
+   * a machine that has it (tools/build_frivolities.mjs), and the archive is not
+   * public. A checkout without that file is a normal state, not a broken one,
+   * so its absence loads nothing and says so once rather than surfacing the
+   * "could not load the card pools" error that a missing vs-pool should. */
+  var OPTIONAL_POOLS = {
+    "data/frivolities-pool.json": 1,
+    /* Built from the Media Vote Tracker's ballots by tools/build_oddities.mjs.
+     * Absent until that has been run, which is a normal state. */
+    "data/oddity-pool.json": 1,
+    /* Built from nba-player-data plus the cap table by tools/build_salary.mjs. */
+    "data/salary-pool.json": 1
   };
   var poolPromises = {};
   // Set when a live source could not be reached, so the tab can say so instead
@@ -148,7 +175,13 @@
     return fetch(url).then(function (r) {
       if (!r.ok) throw new Error(url + " " + r.status);
       return r.json();
-    }).then(function (d) { return d.cards || []; });
+    }).then(function (d) { return d.cards || []; })
+      .catch(function (e) {
+        if (!OPTIONAL_POOLS[url]) throw e;
+        console.info("[doomscroll] optional pool absent: " + url +
+          " (build it with tools/build_frivolities.mjs)");
+        return [];
+      });
   }
 
   function deferIdle(fn) {
@@ -163,6 +196,7 @@
     if (/^(vs|mates|compare)-/.test(id)) return TAB_POOLS.vs;
     if (/^lean-/.test(id)) return TAB_POOLS.vault;
     if (/^(salary|oddity|otd)-/.test(id)) return TAB_POOLS.vault;
+    if (/^friv-/.test(id)) return TAB_POOLS.quiz;
     return [];
   }
 
@@ -354,7 +388,25 @@
     }
   }
 
-  var ALL_POOLS = ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json"];
+  /* Every pool any tab can draw from, deduped.
+   *
+   * This used to be a hand-written list of three, which meant an entity filter
+   * clicked on a cold page could never surface Teammates, Comparison, Media
+   * Lean or award ballot races: setEntity() asks for ALL_POOLS, and those four
+   * were not in it. The bug was invisible on a warm page, because whichever tab
+   * had already been opened had loaded them for its own reasons.
+   *
+   * Deriving it from TAB_POOLS means a pool cannot be added to a tab and
+   * forgotten here, which is exactly how the first three got out of date. */
+  var ALL_POOLS = (function () {
+    var seen = {}, out = [];
+    Object.keys(TAB_POOLS).forEach(function (tab) {
+      (TAB_POOLS[tab] || []).forEach(function (u) {
+        if (!seen[u]) { seen[u] = 1; out.push(u); }
+      });
+    });
+    return out;
+  })();
 
   // Cards carry team abbreviations, which is right on a card but terse as a
   // headline. The list lives in js/cards.js so the cards and this filter bar
@@ -550,6 +602,27 @@
 
   /* ---------------- feed ---------------- */
 
+  /* The tail of the feed, as identity rather than as cards.
+   *
+   * An entity filter is exempt: somebody who asked for every LeBron card has
+   * asked for exactly the repetition this suppresses, and demoting his cards
+   * inside his own filter would be the app arguing with the reader. */
+  var DIVERSITY_WINDOW = 12;
+  function recentlyShown() {
+    if (state.entity) return {};
+    var out = { stories: {}, players: {}, families: {} };
+    var els = feedEl.querySelectorAll(".card");
+    for (var i = Math.max(0, els.length - DIVERSITY_WINDOW); i < els.length; i++) {
+      var c = byId[els[i].dataset.id];
+      if (!c) continue;
+      if (c.story_key) out.stories[c.story_key] = 1;
+      if (c.story_family) out.families[c.story_family] = 1;
+      var pl = (c.tags && c.tags.players) || [];
+      for (var j = 0; j < pl.length; j++) out.players[pl[j]] = 1;
+    }
+    return out;
+  }
+
   /* Buzz cards carry the source's own publication time. Anything unparseable
    * sorts to the end rather than to the top, which is what a plain
    * Date.parse -> NaN -> 0 would do on the wrong side of the comparison. */
@@ -569,18 +642,23 @@
     // "on this day" is the whole point of having them.
     // Cap the media-heavy card type: a run of autoplaying clips stacked in one
     // batch is both visually noisy and the one thing here that costs real data.
+    /* What the reader has just been shown, handed to the sampler so the next
+     * batch does not repeat it. Twelve cards is roughly a screen and a half on
+     * a phone: long enough that a repeat would be noticed, short enough that a
+     * favourite player is still allowed to come back. */
+    var avoid = recentlyShown();
     var batch = hasMixedTypes(pool)
       // Buzz gets a reserved 40% of every mixed batch — Jorge's call, and the
       // type-balanced draw cannot produce it on its own: it damps thin pools,
       // and ~50 live items is a thin pool against thousands of archive cards.
-      ? E.sampleMixed(pool, BATCH, { cap: { race: 1, mates: 1, compare: 1, lean: 1 }, share: { buzz: BUZZ_SHARE } })
+      ? E.sampleMixed(pool, BATCH, { cap: { race: 1, mates: 1, compare: 1, lean: 1 }, share: { buzz: BUZZ_SHARE }, avoid: avoid })
       // The Buzz tab reads newest-first, because it is the only tab where the
       // order carries information. Everywhere else the pool is an archive and
       // the shuffle is the point. The mixed batches above are untouched: this
       // governs the news tab on its own, not Buzz's share of the For You feed.
       // Guarded on the pool actually being single-type, because an entity
       // filter draws across every section regardless of which tab is open.
-      : (state.tab === "buzz" ? E.recent(pool, BATCH, buzzTime) : E.sample(pool, BATCH));
+      : (state.tab === "buzz" ? E.recent(pool, BATCH, buzzTime) : E.sample(pool, BATCH, { avoid: avoid }));
     if (!batch.length) {
       state.exhausted = true;
       state.loading = false;
@@ -707,8 +785,15 @@
         : cv.dataset.player === "lean" ? root.LeanPlayer
         : root.RacePlayer;
       if (!engine) throw new Error((cv.dataset.player || "race") + " player missing");
+      /* Pacing hints ride on the canvas so a card can ask for a different
+       * runtime without this lifecycle knowing which renderer will read it.
+       * Nothing sets them today beyond the data files themselves; the path
+       * exists so a single unusual card can be slowed down or sped up without
+       * a code change. */
       var ctl = engine.mount(cv, race, {
-        onEnd: function () { syncRaceControls(cv); }
+        onEnd: function () { syncRaceControls(cv); },
+        targetMs: +cv.dataset.targetMs || 0,
+        pace: cv.dataset.pace || ""
       });
       if (!ctl) throw new Error("nothing to play");
       racePlayers.set(cv, ctl);
@@ -760,30 +845,47 @@
     }, 200);
   }
 
-  // A race starts when its card is on screen and pauses when it leaves — the
-  // same contract the old muted autoplaying clips had.
+  /* Races no longer decide for themselves whether to play.
+   *
+   * This observer does two separate jobs and it is worth keeping them apart.
+   * MOUNTING still happens on a low threshold, because a player that has not
+   * fetched its data cannot start the moment it is wanted - but mounting only
+   * builds the canvas, it does not animate. PLAYING is decided by
+   * MediaCoordinator, which is also weighing the Bluesky clip two cards down.
+   * Before this, both systems said yes and a race and a video animated at once.
+   *
+   * The thresholds are a list rather than one number so the coordinator gets a
+   * usable ratio to compare instead of a bare in/out. */
   var raceObserver = new IntersectionObserver(function (entries) {
     entries.forEach(function (en) {
       var cv = en.target;
       if (en.isIntersecting) {
         mountRace(cv).then(function (ctl) {
           if (!ctl) return;
-          // It may have scrolled away while the JSON was in flight.
+          M.register(cv, {
+            kind: cv.dataset.player || "race",
+            play: function () {
+              ctl.play();
+              ensureRaceTick();
+              syncRaceControls(cv);
+            },
+            pause: function () { ctl.pause(); syncRaceControls(cv); },
+            isPlaying: function () { return ctl.playing; }
+          });
+          // Re-measure: it may have scrolled away while the JSON was in flight.
           var r = cv.getBoundingClientRect();
-          if (r.bottom > 0 && r.top < root.innerHeight) {
-            ctl.play();
-            ensureRaceTick();
-            syncRaceControls(cv);
-          }
+          var vh = root.innerHeight || 1;
+          var vis = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+          M.note(cv, r.height ? vis / r.height : 0);
         });
       } else {
-        var c = racePlayers.get(cv);
-        if (c) { c.pause(); syncRaceControls(cv); }
+        M.note(cv, 0);
       }
     });
-  }, { threshold: 0.35 });
+  }, { threshold: [0, 0.2, 0.35, 0.6, 0.8, 1] });
 
   function destroyRaces(rootEl) {
+    M.releaseIn(rootEl);
     racePlayers.forEach(function (ctl, cv) {
       if (!rootEl || rootEl.contains(cv)) { ctl.destroy(); racePlayers.delete(cv); }
     });
@@ -799,7 +901,10 @@
     card.dataset.engaged = "1";
     mountRace(cv).then(function (ctl) {
       if (!ctl) return;
-      ctl.toggle();
+      /* Through the coordinator rather than straight at the controller, so a
+       * deliberate play outranks whatever is centred, and a deliberate pause
+       * is not undone by scrolling away and back. */
+      M.manualToggle(cv);
       ensureRaceTick();
       syncRaceControls(cv);
     });
@@ -861,11 +966,32 @@
     } else if (action === "trivia") {
       answerTrivia(cardEl, actEl, card);
     } else if (action === "reveal") {
-      cardEl.querySelector(".quiz-sil").classList.add("revealed");
+      revealFace(cardEl);
     } else if (action === "hint") {
       revealHint(cardEl, actEl);
     }
   });
+
+  /* Both the mask and the image get the class: the mask is what the current
+   * markup styles, the image is what a card rendered before the mask existed
+   * styles. Either alone would leave one of the two blurred forever. */
+  function revealFace(cardEl) {
+    var mask = cardEl.querySelector(".quiz-sil-mask");
+    if (mask) mask.classList.add("revealed");
+    var sil = cardEl.querySelector(".quiz-sil");
+    if (sil) sil.classList.add("revealed");
+  }
+
+  /* Hints sharpen the picture as well as narrowing the field. Three hints take
+   * it from unreadable to nearly clear, which is the point: the reader who
+   * works for it should be able to see they are getting somewhere. Capped at
+   * the number of obscure levels CSS defines. */
+  var OBSCURE_LEVELS = 3;
+  function setObscure(cardEl, hintsShown) {
+    var mask = cardEl.querySelector(".quiz-sil-mask");
+    if (!mask || mask.classList.contains("revealed")) return;
+    mask.dataset.obscure = String(Math.min(OBSCURE_LEVELS, Math.max(0, hintsShown)));
+  }
 
   // One hint per tap, vague to specific. Taking a hint counts as engagement,
   // so a card someone worked at is not also logged as a skim.
@@ -881,6 +1007,7 @@
     cardEl.querySelector(".quiz-hint-list").appendChild(li);
     shown++;
     box.dataset.shown = String(shown);
+    setObscure(cardEl, shown);
     if (shown >= hints.length) {
       btn.disabled = true;
       btn.textContent = "No hints left";
@@ -909,8 +1036,7 @@
       Array.prototype.forEach.call(wrap.children, function (b) {
         if (b.dataset.pick === wrap.dataset.answer) b.classList.add("correct");
       });
-      var sil = cardEl.querySelector(".quiz-sil");
-      if (sil) sil.classList.add("revealed");
+      revealFace(cardEl);
     }
     if (!correct) btn.classList.add("wrong");
     var res = cardEl.querySelector(".quiz-result");
@@ -918,6 +1044,11 @@
     var detail = card.payload.detail;
     res.innerHTML = '<span>' + (correct ? "Correct." : "Nope.") + '</span>' +
       (detail ? '<span class="quiz-detail">' + esc(detail) + '</span>' : "");
+    /* The source appears only now. Before answering it is hidden, because a
+     * HoopsHype URL usually contains the player's name and would give away a
+     * "which player is this about?" card to anyone reading a status bar. */
+    var src = cardEl.querySelector(".friv-source");
+    if (src) src.hidden = false;
     res.className = "quiz-result " + (correct ? "good" : "bad");
     var hintBox = cardEl.querySelector(".quiz-hints");
     E.quizAnswered(card, {
@@ -1101,7 +1232,11 @@
     { key: "vs",     label: "Battles",    note: "career vs career" },
     { key: "quiz",   label: "Quizzes",    note: "guess the player" },
     { key: "trivia", label: "Trivia",     note: "two players, one stat" },
-    { key: "race",   label: "Races",      note: "80 seasons in 90 seconds" },
+    /* Not "80 seasons in 90 seconds": no race runs 90 seconds any more, and
+     * plenty do not span 80 seasons. Pacing is content-aware now (js/pacing.js
+     * sizes each run to its frame count), so the copy stops promising a
+     * stopwatch reading it cannot keep. */
+    { key: "race",   label: "Races",      note: "NBA history in about a minute" },
     { key: "salary", label: "Salaries",   note: "what it cost, in cap share" },
     { key: "otd",    label: "On this day", note: "games from this date" }
   ];

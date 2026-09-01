@@ -23,8 +23,10 @@
 (function (global) {
   "use strict";
 
-  var TARGET_MS = 26000;        // a whole career in about half a minute
-  var MIN_STEP = 700, MAX_STEP = 2600;
+  /* Timing comes from js/pacing.js, which sizes the run to the career: a
+   * fourteen-move career and a two-move one should not take the same time.
+   * The fallback reproduces the old fixed pacing if that file is missing. */
+  var FALLBACK = { targetMs: 26000, minStep: 700, maxStep: 2600 };
   var BG = "#12151c";
   var PANEL = "#1a1f29";
   var TEXT = "#f5f5f7";
@@ -83,8 +85,12 @@
       reduced = global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)").matches;
     } catch (e) { /* animate */ }
 
-    var baseStepMs = Math.max(MIN_STEP, Math.min(MAX_STEP,
-      Math.round(TARGET_MS / Math.max(1, steps.length))));
+    var pace = global.Pacing
+      ? global.Pacing.plan("mates", steps.length, global.Pacing.merge(data, opts))
+      : { stepMs: Math.max(FALLBACK.minStep, Math.min(FALLBACK.maxStep,
+          Math.round(FALLBACK.targetMs / Math.max(1, steps.length)))),
+          targetMs: FALLBACK.targetMs, profile: "mates" };
+    var baseStepMs = pace.stepMs;
     var speed = 1, stepMs = baseStepMs;
     var pos = 0;                 // fractional step index
     var playing = false, raf = 0, last = 0, destroyed = false;
@@ -359,6 +365,7 @@
       get progress() { return pos / steps.length; },
       get speed() { return speed; },
       get durationMs() { return stepMs * steps.length; },
+      get pace() { return pace; },
       reducedMotion: reduced,
       steps: steps.length
     };

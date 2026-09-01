@@ -13,3 +13,7 @@ set "MVT_DATA=<full path>\media-vote-tracker\docs\data"
 REM The nba-player-data checkout. This is the folder that directly contains
 REM awards.json, not its parent.
 set "NPD=<full path>\nba-player-data"
+
+REM The salary cap table, a CSV that ships in the salary-season-finder repo.
+REM Optional: leave it unset and the salary cards are simply not rebuilt.
+set "CAP_CSV=<full path>\salary-season-finder\salary_cap_info.csv"

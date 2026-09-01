@@ -206,6 +206,12 @@ for (const [key, ballots] of [...contests.entries()].sort()) {
   fs.writeFileSync(path.join(RACE_DIR, slug + ".json"), JSON.stringify({
     slug,
     group: "Award races",
+    /* Drawn by RacePlayer, but not a bar race: one count climbing to a result
+     * the reader may already know does not want 65 seconds. js/pacing.js reads
+     * this and gives it the ~30s ballot profile instead. RacePlayer also infers
+     * it from the group, so files built before this field existed still pace
+     * correctly - this makes the intent explicit rather than inferred. */
+    pace: "ballot",
     title: `${season} ${label}`,
     subtitle: `${order.length} media ballots, counted one at a time`,
     unit: "pts",
