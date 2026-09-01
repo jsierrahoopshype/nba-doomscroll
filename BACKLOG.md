@@ -38,6 +38,47 @@ The tab ships, but these calls are Jorge's:
 
 ---
 
+## The August 30 programme
+
+A twenty-two point brief, being worked in tranches. Shipped so far is tranche
+one; the rest is listed here so the order is a decision rather than whatever
+came to hand.
+
+**Shipped:** content-aware pacing, community-trade framing, the ALL_POOLS
+entity bug, stale copy, the global media coordinator, the Guess the Player
+image.
+
+**Next, roughly in order of value over risk:**
+
+- **YouTube and Reddit playback.** The coordinator is built and both would slot
+  into it with a handle each; what is missing is upstream. YouTube cards carry a
+  title and a thumbnail, so a lazy iframe with `playsinline` and `mute=1` is a
+  frontend job. Reddit needs a playable URL that the Content Stream index does
+  not currently carry, and the standing decision against scraping it still holds
+  (see below).
+- **Frivolities: the builder is written, the pool is Jorge's to make.** Run
+  `node tools/build_frivolities.mjs --local <hoopshype-rumors>` for a dry run,
+  `--sample` to read three finished cards, `--write` to ship. It refuses to
+  write by default because the pool carries archive excerpts. Tested against a
+  synthetic archive only; the real distributions (how many outlets, how many
+  distinct players per era) will differ and some thresholds may want moving.
+  Two that are most likely to need it: `MIN_ERA_POOL` (12 distractors before an
+  era can be used) and `MAX_PER_SUBJECT` (6).
+- **Quality and repetition control, the rest of it.** The mechanism ships;
+  what is missing is coverage. Only the oddity and frivolities builders emit
+  `quality_score` and `story_key` so far. Races, salary, on-this-day, VS,
+  teammates and compare cards carry neither, so they are weighted at parity and
+  spaced only by their player tags.
+- **Central link registry** and an automated link-health test that checks
+  destination identity, not just a 200.
+- **Trade digest around the week** rather than yesterday's number one, showing a
+  top five.
+- **Bluesky freshness weighting** in For You, and cross-source dedupe.
+- **Headshot normalisation** with per-player overrides and a QA contact sheet.
+- **Race library expansion**: franchise career races, earnings groupings.
+
+---
+
 ## Asked for, not yet built
 
 - **Reddit video: not doing it, and the reason is not technical.** Bluesky video
@@ -138,6 +179,32 @@ backend, which breaks the no-server promise the whole thing rests on.
 
 ---
 
+## Upstream, small
+
+- **`salaries.json` duplicates its 2026 rows.** 117 player-seasons list one full
+  salary under two teams, using full city names ("LA Lakers") where every other
+  season uses abbreviations ("LAL"). LeBron James appears at $52,627,153 on both
+  the Lakers and Philadelphia. `build_salary.mjs` works around it - identical
+  amounts are one salary listed twice, differing amounts are a real mid-season
+  trade - but the workaround costs those seasons their payroll cards, because
+  there is no way to know whose book a man was on. Worth fixing at the source in
+  `nba-player-data`.
+
+- **`bio.json` has no college**, so "career earnings by college" - which the
+  brief asked for and which would be a good card - cannot be built. NATIONALITY
+  and DRAFT are there, and both shipped. A college field on bio, or a join
+  against `combine-v3.json`, would unlock it.
+
+
+- **The Media Vote Tracker has no award/season deep link.** Oddity CTAs point at
+  `player.html?p=<slug>` and `reporter.html?v=<slug>`, which exist and are a
+  large improvement on the front page, but a card about the 2020-21 MVP ballot
+  cannot open that ballot. A `?award=&season=` filter on the tracker would let
+  every ballot-derived card land on exactly what it is describing. Separate
+  repo, so Jorge's call.
+
+---
+
 ## Blocked externally
 
 - **Rumors Worker.** `proposals/rumors-endpoints/` is written and unshipped:
@@ -181,6 +248,49 @@ Kept short so the list above stays the point.
   no change on this side. The Worker had no repo anywhere; it was pulled out of
   the Cloudflare dashboard with `wrangler init --from-dash` and now lives in
   `Documents\GitHub\nba-trade-daily-digest` on Jorge's machine
+- Salary storytelling: twelve families across cost-per-production, payroll
+  shape, cross-era cap share and career earnings by country and draft class,
+  replacing the single "X made $Y, Z% of the cap" template. Games and minutes
+  floors on every rate, the denominator printed on every card, and injury
+  seasons kept out of payroll stories
+- Ballot oddities rebuilt: eight families on ballot structure instead of two on
+  first-place votes, each gated against the real distribution, with a novelty
+  score and a CTA deep-linked to the player or voter rather than the tracker's
+  front page. `build_vault.mjs` no longer emits oddities
+- Feed diversity: `story_key` / `story_family` / `quality_score` on generated
+  cards, and a sampler that demotes what the last twelve cards already showed.
+  Exploration was bypassing the penalty entirely, which is why the first
+  measurement showed no improvement
+- Frivolities trivia builder: archive-grounded questions that hide something
+  the record already contains rather than inventing anything, with guards
+  against same-surname options, answers visible in the excerpt or the header,
+  items naming two players, and years written into a "what year" question. The
+  card renders through the ballot renderer with an evidence block and a source
+  link that stays hidden until the question is answered
+- One media coordinator (`js/media.js`) decides what moves. The canvas players
+  and `bsky-video.js` each ran their own observer and neither knew the other
+  existed, so a race and a Bluesky clip could animate together. Now: one item at
+  a time, the one nearest the middle of the viewport, 60% visibility to qualify,
+  a manual pause that scrolling cannot undo, a manual play that outranks the
+  centred card, and no autoplay at all under reduced motion or reduced data
+- Guess the Player is a progressive blur rather than `filter: brightness(0)`,
+  which was a solid black disc with no head, shoulders or hairline to reason
+  from. Four steps tied to hints taken: anonymous head, then team colours, then
+  features, then nearly clear
+- Animation pacing is content-aware: `js/pacing.js` sizes every run to the
+  amount of content inside a per-kind band, so a 23-frame franchise race and an
+  80-frame all-time race no longer share a duration. Award ballot races stopped
+  inheriting bar-race timing (70s to 29.5s median), comparisons went 24s to 42s,
+  teammates 26s to 38.9s
+- Trade cards read as what they are: a COMMUNITY TRADE chip, provenance above
+  the trade rather than under it, "Salary match: 97%" instead of "97% balanced",
+  and no LIVE badge that could imply a real transaction. Fallback cards say they
+  are examples, and the fallback data's "someone is stretching the rules" - a
+  CBA-legality claim a salary ratio cannot support - is gone
+- `ALL_POOLS` is derived from `TAB_POOLS` instead of a hand-written list of
+  three. An entity filter clicked on a cold page could never surface Teammates,
+  Comparison, Media Lean or ballot races, because those pools were not in the
+  list; the bug was invisible on a warm page
 - Buzz reads newest-first. `E.recent()` sorts by the source's own publication
   time and the Buzz tab uses it instead of the weighted sample. Only that tab:
   mixed batches elsewhere still draw Buzz's 40% share through the personalised

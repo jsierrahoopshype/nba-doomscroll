@@ -16,6 +16,201 @@ archive, on-this-day) · VS (player comparisons) · Quiz (guess the player,
 two-player trivia, ballot trivia) · History (salary history, ballot oddities,
 on-this-day games) · Races (bar chart races).
 
+## Salary storytelling
+
+`tools/build_salary.mjs --local <nba-player-data> <capCsv>` writes
+`data/salary-pool.json`. `tools/win/build.cmd` runs it when `CAP_CSV` is set.
+
+Twelve families instead of one template, in four groups: what production cost
+(cheapest and dearest points, assists, rebounds, threes; bargain scoring
+seasons by cap share), how a payroll was shaped (top five earners, payroll
+concentration, highest-paid who was not the leading scorer), cross-era cap
+share, and career earnings by country and draft class.
+
+Every rate card carries `MIN_GP` (58) and `MIN_MIN` (1200) floors and prints
+its denominator, because a cost-per-stat metric is a division and division
+invites nonsense. Two guards exist because the first run produced bad cards:
+
+- **Injury seasons are not payroll stories.** "Boston's highest-paid player was
+  not their leading scorer" fired on Gordon Hayward's 2017-18 - two points in
+  one game, because he broke his leg five minutes in. Trivially true of anyone
+  who did not play. The highest-paid player now needs 40 games.
+- **`salaries.json` duplicates its 2026 rows.** 117 player-seasons list one
+  full salary under two teams with full city names instead of abbreviations
+  (LeBron James at $52.6M on both the Lakers and Philadelphia). Summing them
+  doubled the pay and produced "Khris Middleton's points cost $109,645 each"
+  off money he was never paid. Rows are now told apart by whether the amounts
+  DIFFER - a real mid-season trade splits the salary, a duplicate repeats it -
+  and duplicates are counted once and excluded from payroll cards, where the
+  team cannot be known. This is an upstream data bug; see BACKLOG.md.
+
+Cross-era comparisons use cap share, never raw dollars. All stats are regular
+season, said on every card, because `rsStats.json` is the only per-season stat
+source and mixing playoff production into a per-dollar rate without saying so
+would be quietly wrong.
+
+## Ballot oddities
+
+`tools/build_oddities.mjs --local <media-vote-tracker/docs/data>` writes
+`data/oddity-pool.json`. `tools/win/build.cmd` runs it.
+
+It replaces the two shapes `build_vault.mjs` used to emit ("exactly one voter
+put X first", "X was unanimous"). Eight families now, all built on ballot
+STRUCTURE rather than on how far a voter sits from consensus - that second
+thing is the Media Lean card's subject, and two formats telling the same fact
+is the repetition this was meant to fix.
+
+| family | what it looks for |
+| --- | --- |
+| `lone-omission` | a top-three finisher missing from exactly one ballot |
+| `lone-inclusion` | a player exactly one voter named, in a crowded field |
+| `one-vote-short` | unanimity missed by a single ballot |
+| `placement-spread` | the same player ranked No. 1 and No. 5 |
+| `polarizing` | the widest points spread on one candidate |
+| `photo-finish` | a single-winner award decided inside 5% |
+| `contrarian-ballot` | the one ballot furthest from the room |
+| `flipped-pair` | two close candidates reversed by exactly one voter |
+
+Two gates were set by measuring the data rather than guessing, and both first
+attempts were wrong in the same direction - too strict to ever fire:
+
+- Polarization: points standard deviation runs median 0.49, p99 1.88, max 2.30.
+  A 2.2 threshold admitted one candidate in the whole dataset. It is 1.85.
+- Photo finish: across 82 single-winner award-seasons the top-two gap runs
+  closest 2.8%, p10 8.7%, median 33.5%. A 2% bar excluded every race that has
+  ever happened. It is 5%.
+
+Selection is round-robin across families, best-first inside each. Taking them
+in pure quality order let `photo-finish` - which scores high by construction -
+take 31% of the pool before the share cap engaged.
+
+## Feed diversity
+
+Every card may carry `story_key`, `story_family` and `quality_score`.
+`DoomEngine.sample` takes `{ avoid: { stories, players, families } }` and
+demotes matches; `loadMore` passes the last 12 cards on screen. An entity
+filter is exempt, because somebody who filtered to LeBron asked for exactly
+this repetition.
+
+Demotions, never exclusions - a penalised card can still be drawn from a thin
+pool, which is the difference between spacing content out and silently emptying
+a tab.
+
+The bug worth remembering: exploration (25% of picks, uniformly random by
+design) was ignoring the penalty along with the weights, so a quarter of every
+batch could put a player straight back on screen. Exploration now draws from
+the non-repeating candidates first. Measured over 184 cards, repeats within
+four cards went from 1-5 a session to 0 across three runs.
+
+## Previewing before you ship
+
+    node tools/build_preview.mjs
+
+Writes `preview.html`: the whole app as one self-contained file, no network at
+all. `fetch` is replaced before any app script runs, pools are trimmed to a
+sample per type, the detail files those samples point at are inlined, and their
+headshots become data URIs. Open it anywhere - it needs no server.
+
+Rumors, Buzz and the live trade log are deliberately not stubbed. Inventing NBA
+content for a preview risks it being read as real, and those tabs' failure
+states are worth seeing on their own: Trades falls back to the sample cards,
+which is the path that has to say "not a real user build".
+
+`preview.html` is gitignored. Regenerate it, don't commit it.
+
+## Frivolities trivia
+
+`tools/build_frivolities.mjs` builds a quiz pool from the HoopsHype archive's
+Frivolities tag. It runs where the archive is; the pool it writes is optional
+and its absence is a normal state, not an error.
+
+    node tools/build_frivolities.mjs --local <hoopshype-rumors>            # dry run
+    node tools/build_frivolities.mjs --local <hoopshype-rumors> --sample   # read a few
+    node tools/build_frivolities.mjs --local <hoopshype-rumors> --write    # ship it
+
+Nothing is written without `--write`, because the pool contains archive
+excerpts and whether those belong in a public repo is an editorial and rights
+decision rather than a build one.
+
+Every question hides something the record already contains and asks the reader
+to name it, so nothing is invented:
+
+| family | hides |
+| --- | --- |
+| `who-is-this` | the subject's name, blanked out of their own story |
+| `which-team` | the team |
+| `which-outlet` | who reported it |
+| `what-year` | when it happened |
+
+The guards matter more than the families. A card is refused if two players in
+the options share a surname (the answer is redacted, so both would fit), if any
+option's surname is still visible in the excerpt, if the answer appears
+anywhere the reader can see before answering, if the item names more than one
+player, if a year is written into a `what-year` excerpt, or if the editorial
+blocklist matches. The source link is rendered but hidden until the question is
+answered, because a HoopsHype URL usually contains the player's name.
+
+`data/frivolities-pool.json` is listed in `OPTIONAL_POOLS`, so a checkout
+without it logs one line and carries on.
+
+## Media coordination
+
+`js/media.js` decides which single thing on screen is allowed to move. The four
+canvas players and the video sources each used to run their own
+IntersectionObserver, and neither knew the other existed: a race card and a
+Bluesky clip could both be on screen and both animate.
+
+Callers register a handle (`kind`, `play`, `pause`, `isPlaying`) and report
+visibility. They never call `play()` themselves except when a person asked.
+
+- Only one item plays. The winner is the eligible item nearest the middle of
+  the viewport.
+- Eligible means at least 60% visible. Below that it pauses and keeps position.
+- A manual pause is permanent until the person says otherwise: scrolling away
+  and back does not undo it.
+- A manual play outranks the centred item while any of it is on screen.
+- `prefers-reduced-motion`, `prefers-reduced-data` and Save-Data disable
+  autoplay entirely. A person can still press play.
+
+Mounting and playing are deliberately separate. A canvas still mounts on a low
+threshold so it is ready the moment it is wanted; mounting draws a frame, it
+does not animate. Video is the reverse: nothing is fetched until the clip wins,
+so hls.js is never loaded for a clip nobody looked at.
+
+If `media.js` is missing, `bsky-video.js` falls back to its previous behaviour
+rather than to silence.
+
+## Animation pacing
+
+`js/pacing.js` decides how long every animated card runs. There is no
+per-player duration constant any more: a 23-frame franchise race and an
+80-frame all-time race used to share one, so the short one crawled and the long
+one flickered.
+
+A duration is derived from the amount of content, inside a band per kind:
+
+    target = clamp(min, max, centre * (0.55 + 0.45 * units / ref))
+
+`ref` is the median unit count measured across this repo's own data, so a
+typical card lands on its centre. The per-step clamp always wins over the
+target: nothing is allowed to become unreadable in order to hit a number.
+
+| kind | centre | band | measured median |
+| --- | --- | --- | --- |
+| `race` | 65s | 50-78s | 63.3s |
+| `ballot` | 30s | 24-38s | 29.5s |
+| `compare` | 42.5s | 34-54s | 42.0s |
+| `mates` | 40s | 32-50s | 38.9s |
+| `lean` | 30s | 24-38s | 30.0s |
+
+Award ballot races are drawn by `RacePlayer` but carry `pace: "ballot"` in
+their data files, so they do not inherit bar-race timing. `RacePlayer` also
+infers it from `group: "Award races"`, so a file built before that field
+existed still paces correctly.
+
+A card or data file may override with `target_ms` or `pace`; mount options and
+`data-target-ms` / `data-pace` on the canvas override that in turn.
+
 ## Look and feel
 
 Deliberately matches **NBA Content Stream**, which inherits the HoopsMatic /

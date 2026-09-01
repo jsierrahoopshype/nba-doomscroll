@@ -247,52 +247,20 @@ for (const slug of slugs) {
 }
 console.log(`ballot aggregates: ${slugs.length} reporters, ${ballotCount} ballots, ${standings.size} award-seasons`);
 
-let oddities = 0;
-for (const [key, m] of standings) {
-  const [award, season] = key.split("|");
-  if (!SOLO_AWARDS.includes(award)) continue;
-  const rows = [...m.entries()].map(([player, e]) => ({ player, ...e })).sort((a, b) => b.pts - a.pts);
-  if (rows.length < 3) continue;
-  const winner = rows[0];
-  const totalFirsts = rows.reduce((s, r) => s + r.firsts, 0);
-  if (totalFirsts < 8) continue; // too few tracked ballots to call anything odd
-
-  // lone first-place vote for someone who did not win
-  for (const r of rows.slice(1)) {
-    if (r.firsts === 1) {
-      push("oddity", ["vault"],
-        { content_type: "oddity", players: [r.player, winner.player], teams: [], era: seasonEra(season), category: "ballot-oddity" },
-        {
-          season, award: AWARD_LABEL[award],
-          // Matched against the Quiz tab's ballot questions in the browser so
-          // the same award-season-player is not both stated and asked about.
-          award_key: award, subjects: [r.player],
-          headline: `Exactly one voter put ${r.player} first for ${AWARD_LABEL[award]}`,
-          detail: `${r.firstBy[0]} was the only tracked ballot with ${r.player} at No. 1 in ${season}. ` +
-                  `${winner.player} took ${winner.firsts} of the ${totalFirsts} first-place votes.`,
-          scope: `${totalFirsts} tracked first-place votes`
-        });
-      oddities++;
-      break; // one per award-season keeps the feed varied
-    }
-  }
-
-  // unanimous winner
-  if (winner.firsts === totalFirsts && totalFirsts >= 15) {
-    push("oddity", ["vault"],
-      { content_type: "oddity", players: [winner.player], teams: [], era: seasonEra(season), category: "ballot-oddity" },
-      {
-        season, award: AWARD_LABEL[award],
-        award_key: award, subjects: [winner.player],
-        headline: `${winner.player} was unanimous for ${AWARD_LABEL[award]} in ${season}`,
-        detail: `All ${totalFirsts} tracked first-place votes went to him. ` +
-                `${rows[1].player} finished second with ${rows[1].pts} points and no first-place votes.`,
-        scope: `${totalFirsts} tracked first-place votes`
-      });
-    oddities++;
-  }
-}
-console.log(`ballot oddity cards: ${oddities}`);
+/* Ballot oddities moved to tools/build_oddities.mjs.
+ *
+ * This produced two shapes - "exactly one voter put X first" and "X was
+ * unanimous" - and 54 cards of only those two read as a tic rather than a
+ * feature. The replacement has eight families built on ballot structure
+ * (omissions, placement spread, reversals, margins), each with a gate measured
+ * against the real distribution rather than guessed, and a novelty score.
+ *
+ * The aggregation above is left in place: the Quiz tab's ballot questions still
+ * use `standings`, and they are not what changed.
+ *
+ *     node tools/build_oddities.mjs --local <media-vote-tracker/docs/data>
+ */
+console.log("ballot oddity cards: 0 (see tools/build_oddities.mjs)");
 
 function seasonEra(season) {
   const y = parseInt(season, 10);

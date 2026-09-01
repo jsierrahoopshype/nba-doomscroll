@@ -4,3 +4,7 @@ __pycache__/
 # Machine-specific paths for tools/win/build.cmd. Never committed: it names
 # folders on one person's disk and this repo is public.
 tools/win/paths.cmd
+
+# Build output of tools/build_preview.mjs. 2.7MB of inlined data and images;
+# regenerate it rather than commit it.
+preview.html

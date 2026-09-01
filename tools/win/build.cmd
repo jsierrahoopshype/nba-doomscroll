@@ -37,6 +37,23 @@ node tools\build_lean.mjs --local "%MVT_DATA%"
 if errorlevel 1 exit /b 1
 
 echo.
+echo === ballot oddities ===
+node tools\build_oddities.mjs --local "%MVT_DATA%"
+if errorlevel 1 exit /b 1
+
+REM Optional: only runs when CAP_CSV is set in paths.cmd. Skipping it leaves the
+REM existing salary cards alone rather than failing the build.
+if defined CAP_CSV (
+  echo.
+  echo === salary stories ===
+  node tools\build_salary.mjs --local "%NPD%" "%CAP_CSV%"
+  if errorlevel 1 exit /b 1
+) else (
+  echo.
+  echo   [skipped] salary stories - set CAP_CSV in tools\win\paths.cmd to build them
+)
+
+echo.
 echo Both builds finished. The lean line should read 99 players and
 echo "13 committed locally, 0 falling back to flagcdn". 92 means the wrong
 echo media-vote-tracker checkout is set in paths.cmd.

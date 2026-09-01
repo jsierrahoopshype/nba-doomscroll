@@ -212,7 +212,7 @@
         (buckets[t] || (buckets[t] = [])).push(c);
       });
       var types = Object.keys(buckets);
-      if (types.length < 2) return api.sample(pool, n);
+      if (types.length < 2) return api.sample(pool, n, opts);
 
       /* A guaranteed share of the batch, for a type that is meant to be a
        * fixed proportion of the feed rather than one voice among many. The
@@ -220,13 +220,31 @@
        * pools, and live news is a thin pool against thousands of archive
        * cards, so news would always lose. Those slots are drawn first, then
        * woven back through the batch so they do not arrive as a block. */
+      /* One running record of what this batch has already used, threaded
+       * through every per-type draw below. The type-balanced picker calls
+       * sample() once per card, so without this each call would be blind to
+       * the previous one. */
+      var base = (opts && opts.avoid) || {};
+      var live = { stories: {}, players: {}, families: {} };
+      ["stories", "players", "families"].forEach(function (k) {
+        for (var id in (base[k] || {})) live[k][id] = 1;
+      });
+      function note(card) {
+        if (!card) return;
+        if (card.story_key) live.stories[card.story_key] = 1;
+        if (card.story_family) live.families[card.story_family] = 1;
+        var pl = (card.tags && card.tags.players) || [];
+        for (var i = 0; i < pl.length; i++) live.players[pl[i]] = 1;
+      }
+
       var reserved = [];
       Object.keys(share).forEach(function (t) {
         if (!buckets[t] || !buckets[t].length) return;
         var want = Math.min(Math.round(n * share[t]), buckets[t].length);
         if (want <= 0) return;
-        var got = api.sample(buckets[t], want);
+        var got = api.sample(buckets[t], want, { avoid: live });
         buckets[t] = buckets[t].filter(function (c) { return got.indexOf(c) < 0; });
+        got.forEach(note);
         reserved = reserved.concat(got);
         used[t] = got.length;
         // The share is a floor AND a ceiling: without this the ordinary draw
@@ -257,8 +275,9 @@
         var r = Math.random() * total, idx = 0;
         while (idx < choices.length - 1 && (r -= weights[idx]) > 0) idx++;
         var type = choices[idx];
-        var picked = api.sample(buckets[type], 1)[0];
+        var picked = api.sample(buckets[type], 1, { avoid: live })[0];
         if (!picked) { buckets[type] = []; i--; continue; }
+        note(picked);
         buckets[type] = buckets[type].filter(function (c) { return c !== picked; });
         out.push(picked);
         used[type] = (used[type] || 0) + 1;
@@ -291,22 +310,83 @@
 
     // pool: candidate cards. n: how many to return. Weighted random without
     // replacement, EXPLORATION share fully random, recently-seen demoted.
-    sample: function (pool, n) {
+    /* `avoid` carries what the reader has just been shown:
+     *   { stories: {story_key: 1}, players: {name: 1}, families: {family: 1} }
+     *
+     * Four formats draw on the same award ballots - a quiz question, a ballot
+     * oddity, a media lean chart and an award race - so without this the feed
+     * can tell one story four ways inside a single screen and call it variety.
+     * The same applies to a favourite player: personalisation that surfaces him
+     * is working, personalisation that surfaces him five cards running is not.
+     *
+     * These are demotions, never exclusions. A heavily penalised card can still
+     * be drawn when the pool is thin, which is the difference between spacing
+     * things out and silently emptying a tab. */
+    sample: function (pool, n, opts) {
       var t = now();
       var candidates = pool.slice();
       var picked = [];
+      /* Copied, not referenced: this call marks what it draws, and a sampler
+       * that mutated the feed's own history would make every later batch think
+       * it had already shown things it had not. */
+      var avoid = (opts && opts.avoid) || {};
+      function copyOf(o) { var out = {}; for (var k in (o || {})) out[k] = 1; return out; }
+      var seenStory = copyOf(avoid.stories);
+      var seenPlayer = copyOf(avoid.players);
+      var seenFamily = copyOf(avoid.families);
+
+      function diversityPenalty(card) {
+        var f = 1;
+        if (card.story_key && seenStory[card.story_key]) f *= 0.06;
+        if (card.story_family && seenFamily[card.story_family]) f *= 0.45;
+        var players = (card.tags && card.tags.players) || [];
+        for (var i = 0; i < players.length; i++) {
+          if (seenPlayer[players[i]]) { f *= 0.35; break; }
+        }
+        return f;
+      }
+
       // freshness demotion: seen in last 20 min gets a big penalty
       function effWeight(card) {
         var base = Math.exp(Math.min(6, cardScore(card) / 6)); // soft, bounded
         var last = profile.seen[card.id];
         if (last && t - last < 20 * 60 * 1000) base *= 0.08;
         else if (last) base *= 0.55;
-        return base;
+        /* Build-time quality, where a builder computed one. Bounded so a
+         * high-scoring card is favoured without a low-scoring one becoming
+         * unreachable: 0.7x to 1.3x, not zero to one. */
+        if (typeof card.quality_score === "number") {
+          base *= 0.7 + 0.6 * Math.max(0, Math.min(1, card.quality_score));
+        }
+        return base * diversityPenalty(card);
       }
+      /* The avoid sets grow as this draws. Without that, one call asking for
+       * eight cards could return two oddities about the same MVP race: each is
+       * only penalised for what was on screen BEFORE the batch. */
+      function remember(card) {
+        if (card.story_key) seenStory[card.story_key] = 1;
+        if (card.story_family) seenFamily[card.story_family] = 1;
+        var pl = (card.tags && card.tags.players) || [];
+        for (var i = 0; i < pl.length; i++) seenPlayer[pl[i]] = 1;
+      }
+
       while (picked.length < n && candidates.length) {
         var idx;
         if (Math.random() < EXPLORATION) {
-          idx = Math.floor(Math.random() * candidates.length);
+          /* Exploration ignores the learned weights on purpose - that is how
+           * the feed offers things the profile would never surface. It should
+           * not also ignore diversity: a uniformly random pick was reaching
+           * past the penalty and putting the same player back on screen, which
+           * is not discovery, it is just noise. So it explores among the cards
+           * that are not repeats, and only falls back to the whole pool when
+           * everything left is one. */
+          var fresh = [];
+          for (var k = 0; k < candidates.length; k++) {
+            if (diversityPenalty(candidates[k]) === 1) fresh.push(k);
+          }
+          idx = fresh.length
+            ? fresh[Math.floor(Math.random() * fresh.length)]
+            : Math.floor(Math.random() * candidates.length);
         } else {
           var weights = candidates.map(effWeight);
           var total = weights.reduce(function (a, b) { return a + b; }, 0);
@@ -314,7 +394,9 @@
           idx = 0;
           while (idx < candidates.length - 1 && (r -= weights[idx]) > 0) idx++;
         }
-        picked.push(candidates.splice(idx, 1)[0]);
+        var got = candidates.splice(idx, 1)[0];
+        remember(got);
+        picked.push(got);
       }
       return picked;
     },

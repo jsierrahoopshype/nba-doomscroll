@@ -78,13 +78,24 @@
    * BALLOT ODDITY that could not take you to the section holding ballot
    * oddities was a dead label. */
   var TYPE_META = {
-    trade:  { chip: "TRADE",   cls: "t-trade", tab: "trades" },
+    /* "TRADE" next to a LIVE badge read like a wire report of a real NBA
+     * transaction. These are deals members of the public built in the Trade
+     * Machine, and the chip has to say so before anything else does. */
+    trade:  { chip: "COMMUNITY TRADE", cls: "t-trade", tab: "trades" },
     rumor:  { chip: "RUMOR",   cls: "t-rumor", tab: "rumors" },
     vs:     { chip: "VS",      cls: "t-vs",    tab: "vs" },
     trivia: { chip: "TRIVIA",  cls: "t-vs",    tab: "quiz" },
     quiz:   { chip: "QUIZ",    cls: "t-quiz",  tab: "quiz" },
     ballot: { chip: "BALLOT",  cls: "t-quiz",  tab: "quiz" },
+    /* Archive-grounded oddities. Its own chip because it is a different
+     * promise from a ballot question: this one is a true story with the
+     * interesting part removed, and it carries a link to the reporting. */
+    friv:   { chip: "FRIVOLITIES", cls: "t-rumor", tab: "quiz" },
     salary: { chip: "SALARY",  cls: "t-vault", tab: "vault" },
+    /* Ranked salary cards - a payroll's top five, earnings by country - are the
+     * same subject as a salary card but a different shape, so they get their
+     * own renderer rather than a branch inside the single-player one. */
+    salaryrank: { chip: "SALARY", cls: "t-vault", tab: "vault" },
     oddity: { chip: "BALLOT ODDITY", cls: "t-vault", tab: "vault" },
     otd:    { chip: "ON THIS DAY", cls: "t-vault", tab: "vault" },
     race:   { chip: "RACE",    cls: "t-vault", tab: "races" },
@@ -111,10 +122,31 @@
         '<span class="trade-team">' + ent(s.team, "team") + ' get</span></div>' + players + '</div>';
     }).join('<div class="trade-arrows" aria-hidden="true">&#8646;</div>');
     var balCls = p.balance_pct >= 95 ? "ok" : p.balance_pct >= 85 ? "warn" : "bad";
-    return '<div class="trade-grid">' + sides + '</div>' +
-      '<div class="trade-verdict ' + balCls + '"><span class="mono">' + esc(p.balance_pct) + '% balanced</span> — ' +
-      esc(p.verdict) + '</div>' +
-      '<div class="card-sub">Built by a Trade Machine user ' + esc(p.built_ago || "recently") + '</div>';
+    /* Provenance goes above the trade, not under it.
+     *
+     * It used to sit in a grey line beneath the verdict, which is where a
+     * reader who has already formed an impression finds it. Somebody scrolling
+     * past sees two team logos and an arrow, and that picture says "trade" long
+     * before any caption gets a chance to say "somebody made this up".
+     *
+     * "balanced" is the other half of the same problem. The number is a ratio
+     * of outgoing to incoming salary and nothing else - not competitive
+     * balance, not fairness, not whether the deal is legal. "Salary match"
+     * says what is actually being measured. */
+    /* data/dummy-cards.json still supplies trade cards while the live feed is
+     * loading or when it cannot be reached. Those are inventions, so the line
+     * that would otherwise assert a real person built this has to say the
+     * opposite. Asserting provenance is only worth doing if it is true every
+     * time it appears. */
+    var origin = c.dummy
+      ? 'Example trade \u00b7 not a real user build'
+      : 'Built by a HoopsMatic Trade Machine user' +
+        (p.built_ago ? ' \u00b7 ' + esc(p.built_ago) : '');
+    return '<div class="card-sub trade-origin' + (c.dummy ? ' is-sample' : '') + '">' +
+        origin + '</div>' +
+      '<div class="trade-grid">' + sides + '</div>' +
+      '<div class="trade-verdict ' + balCls + '"><span class="mono">Salary match: ' +
+      esc(p.balance_pct) + '%</span> — ' + esc(p.verdict) + '</div>';
   }
 
   /* Who the Trade Machine is moving. A leaderboard of players by how many
@@ -359,26 +391,95 @@
         '</div>'
       : "";
     return '<div class="quiz-diff mono ' + esc(p.difficulty) + '">' + esc(p.difficulty) + '</div>' +
-      '<div class="quiz-sil-wrap" data-action="reveal">' + face(p.img, "Mystery player", "quiz-sil") +
+      /* The image is obscured by blur, not by blacking it out.
+       *
+       * It used to be filter: brightness(0) inside a circular clip, which is a
+       * solid black disc: no head, no shoulders, no hairline, nothing to look
+       * at and nothing to reason from. That is not a hard version of the game,
+       * it is the absence of one.
+       *
+       * The mask carries the obscure level so CSS owns the appearance and
+       * app.js only has to count. Level tracks hints taken, so working for the
+       * answer visibly buys you something. */
+      '<div class="quiz-sil-wrap" data-action="reveal">' +
+        '<span class="quiz-sil-mask" data-obscure="0">' +
+          face(p.img, "Mystery player", "quiz-sil") +
+        '</span>' +
       '<span class="quiz-sil-hint">who is this?</span></div>' +
       hintUi +
       '<div class="quiz-opts" data-answer="' + escAttr(p.answer) + '">' + opts + '</div>' +
       '<div class="quiz-result" hidden></div>';
   }
 
+  /* Also renders Frivolities cards: same four-option mechanic, plus an evidence
+   * block and a source link.
+   *
+   * `body` is the archive excerpt the question is asked about, with the answer
+   * redacted out of it. It is the whole point of those cards - the reader is
+   * meant to reason from the story, not guess from four names - so it sits
+   * above the options rather than in the reveal.
+   *
+   * The source link is rendered but hidden until the card is answered: the URL
+   * usually contains the player's name, so showing it up front would answer
+   * "which player is this about?" for anyone who reads a status bar. */
   function renderBallot(c) {
     var p = c.payload;
     var opts = p.options.map(function (o, i) {
       return '<button class="quiz-opt" data-action="ballot" data-pick="' + i + '">' + esc(o) + '</button>';
     }).join("");
+    /* Only `season`, never `source_date`. The date string carries the year, and
+     * on a "what year was this?" card the header was printing the answer two
+     * lines above the options. The date is still shown - next to the source,
+     * after answering, where it is context rather than a giveaway. */
     return '<div class="quiz-diff mono">' + esc(p.season || "") + '</div>' +
       '<div class="trivia-q">' + esc(p.question) + '</div>' +
+      (p.body ? '<blockquote class="friv-body">' + esc(p.body) + '</blockquote>' : "") +
       '<div class="quiz-opts" data-answer-idx="' + escAttr(p.answer_idx) + '">' + opts + '</div>' +
-      '<div class="quiz-result" hidden></div>';
+      '<div class="quiz-result" hidden></div>' +
+      (p.source_url
+        ? '<div class="friv-source" hidden><a href="' + escAttr(p.source_url) +
+          '" target="_blank" rel="noopener">Read the original item</a>' +
+          (p.source_outlet ? '<span class="friv-meta"> &middot; ' + esc(p.source_outlet) + '</span>' : '') +
+          (p.source_date ? '<span class="friv-meta"> &middot; ' + esc(p.source_date) + '</span>' : '') +
+          '</div>'
+        : "");
+  }
+
+  /* A ranked salary card: five rows, a value and a qualifier each. */
+  function renderSalaryRank(c) {
+    var p = c.payload;
+    var rows = (p.rows || []).map(function (r) {
+      return '<div class="sr-row">' +
+        '<span class="sr-rank mono">' + esc(String(r.rank)) + '</span>' +
+        (r.img ? face(r.img, r.name, "face") : '') +
+        '<span class="sr-main">' +
+          '<span class="sr-name">' + (r.img ? ent(r.name, "player") : esc(r.name)) + '</span>' +
+          (r.sub ? '<span class="sr-sub">' + esc(r.sub) + '</span>' : '') +
+        '</span>' +
+        '<b class="sr-val mono">' + esc(r.value) + '</b>' +
+      '</div>';
+    }).join("");
+    return '<div class="trivia-q">' + esc(p.headline) + '</div>' +
+      (p.subtitle ? '<div class="card-sub">' + esc(p.subtitle) + '</div>' : "") +
+      '<div class="sr-list">' + rows + '</div>' +
+      (p.note ? '<div class="card-sub sal-denom">' + esc(p.note) + '</div>' : "");
   }
 
   function renderSalary(c) {
     var p = c.payload;
+    /* Cards from tools/build_salary.mjs lead with a written headline and carry
+     * their own denominator note. The older cap-share cards have neither, so
+     * both shapes render from one function rather than the pool having to be
+     * rebuilt before anything works. */
+    if (p.headline) {
+      return '<div class="sal-head">' + face(p.img, p.player, "face lg") +
+        '<div><div class="sal-name">' + ent(p.player, "player") + '</div>' +
+        '<div class="card-sub">' + (p.team ? ent(p.team, "team") + ' · ' : '') +
+          '<span class="mono">' + esc(p.season) + '</span></div></div></div>' +
+        '<div class="trivia-q sal-headline">' + esc(p.headline) + '</div>' +
+        (p.detail ? '<p class="rumor-text sal-note">' + esc(p.detail) + '</p>' : "") +
+        (p.note ? '<div class="card-sub sal-denom">' + esc(p.note) + '</div>' : "");
+    }
     // Cap share rather than a CPI "worth $Y today" figure: it comes straight
     // from the same salary data plus the cap table, so nothing is estimated.
     var pctLine = p.bargain
@@ -696,7 +797,8 @@
 
   var RENDERERS = {
     trade: renderTrade, rumor: renderRumor, vs: renderVs, trivia: renderTrivia,
-    quiz: renderQuiz, ballot: renderBallot, salary: renderSalary, otd: renderOtd,
+    quiz: renderQuiz, ballot: renderBallot, friv: renderBallot, salary: renderSalary,
+    salaryrank: renderSalaryRank, otd: renderOtd,
     race: renderRace, oddity: renderOddity, buzz: renderBuzz,
     tradetrend: renderTradeTrend, tradedigest: renderTradeDigest,
     mates: renderMates, compare: renderCompare, lean: renderLean
@@ -717,8 +819,23 @@
       case "tradedigest": return { url: c.payload.machine_url, label: "Trade " + c.payload.player.split(" ").pop() };
       case "rumor": return { url: c.payload.source_url || "https://hoopshype.com/rumors/", label: "Read on HoopsHype" };
       case "vs":    return { url: c.payload.compare_url, label: "Full comparison" };
-      case "salary": return { url: "https://hoopsmatic.com/salary-season-finder", label: "Salary Season Finder" };
-      case "oddity": return { url: "https://jsierrahoopshype.github.io/media-vote-tracker/", label: "Media Vote Tracker" };
+      /* Cards built by tools/build_salary.mjs carry a destination of their own,
+       * pre-populated with the player. Older cap-share cards keep the existing
+       * route - which is itself wrong and recorded in the backlog: it currently
+       * lands on the Season Comparison Tool rather than a salary view. */
+      case "salary":
+      case "salaryrank":
+        return c.payload.url
+          ? { url: c.payload.url, label: c.payload.cta || "See full salary history" }
+          : { url: "https://hoopsmatic.com/salary-season-finder", label: "Salary Season Finder" };
+      /* Deep-linked to the player or the voter the card is about, rather than
+       * the tracker's front page. "Media Vote Tracker" as a destination made
+       * the reader find the thing again themselves. There is no award/season
+       * filter parameter on the tracker yet, so the subject is as exact as the
+       * link can currently be. */
+      case "oddity": return c.payload.url
+        ? { url: c.payload.url, label: c.payload.cta || "See the ballots" }
+        : { url: "https://jsierrahoopshype.github.io/media-vote-tracker/", label: "Media Vote Tracker" };
       // No tap-through. The race IS the destination; sending someone to the
       // HoopsMatic homepage from it added nothing.
       case "race":  return null;
@@ -759,7 +876,11 @@
     return '<article class="card ' + meta.cls + '" data-id="' + escAttr(c.id) + '" tabindex="-1">' +
       '<header class="card-head">' + chipHtml +
       (c.dummy ? '<span class="chip dummy">SAMPLE</span>' : "") +
-      (c.live ? '<span class="chip live">LIVE</span>' : "") +
+      /* Every other live card benefits from the badge; a user-built trade does
+       * not. "COMMUNITY TRADE" beside "LIVE" still reads, at a glance, like a
+       * transaction that just happened. The provenance line inside the card
+       * carries the recency instead. */
+      (c.live && c.type !== "trade" ? '<span class="chip live">LIVE</span>' : "") +
       '</header>' +
       '<div class="card-body">' + body + '</div>' +
       '<footer class="card-actions">' +

@@ -122,7 +122,14 @@
       reduced = global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)").matches;
     } catch (e) { /* animate */ }
 
-    var baseStepMs = Math.max(180, Math.round(ACT_MS / Math.max(4, total / acts.length)));
+    /* Ballot data, so it shares the ~30s ballot pacing rather than the bar
+     * race's. Sized on the total number of rows across all three acts, which
+     * is what the reader actually has to get through. */
+    var pace = global.Pacing
+      ? global.Pacing.plan("lean", total, global.Pacing.merge(data, opts))
+      : { stepMs: Math.max(180, Math.round(ACT_MS / Math.max(4, total / acts.length))),
+          targetMs: ACT_MS * acts.length, profile: "lean" };
+    var baseStepMs = pace.stepMs;
     var speed = 1, stepMs = baseStepMs;
     var pos = 0;
     var playing = false, raf = 0, last = 0, destroyed = false;
@@ -379,6 +386,7 @@
       get progress() { return pos / total; },
       get speed() { return speed; },
       get durationMs() { return stepMs * total; },
+      get pace() { return pace; },
       reducedMotion: reduced,
       steps: total
     };
