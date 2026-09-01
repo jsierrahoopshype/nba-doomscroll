@@ -50,12 +50,15 @@ image.
 
 **Next, roughly in order of value over risk:**
 
-- **YouTube and Reddit playback.** The coordinator is built and both would slot
-  into it with a handle each; what is missing is upstream. YouTube cards carry a
-  title and a thumbnail, so a lazy iframe with `playsinline` and `mute=1` is a
-  frontend job. Reddit needs a playable URL that the Content Stream index does
-  not currently carry, and the standing decision against scraping it still holds
-  (see below).
+- **YouTube autoplay is a decision waiting on Jorge.** Playback ships (see
+  Done) but is click-to-play: `sources.youtube.autoplay` in
+  data/buzz-sources.json flips it. Off by default because embedding YouTube's
+  player loads a third-party player that profiles the reader, and starting that
+  automatically, before anyone asked for a video, is a consent question rather
+  than a playback one. Both modes are verified working; this is an editorial
+  call, not an unfinished feature.
+- **Reddit playback** still needs a playable URL the Content Stream index does
+  not carry, and the standing decision against scraping it holds (see below).
 - **Frivolities: the builder is written, the pool is Jorge's to make.** Run
   `node tools/build_frivolities.mjs --local <hoopshype-rumors>` for a dry run,
   `--sample` to read three finished cards, `--write` to ship. It refuses to
@@ -64,11 +67,14 @@ image.
   distinct players per era) will differ and some thresholds may want moving.
   Two that are most likely to need it: `MIN_ERA_POOL` (12 distractors before an
   era can be used) and `MAX_PER_SUBJECT` (6).
-- **Quality and repetition control, the rest of it.** The mechanism ships;
-  what is missing is coverage. Only the oddity and frivolities builders emit
-  `quality_score` and `story_key` so far. Races, salary, on-this-day, VS,
-  teammates and compare cards carry neither, so they are weighted at parity and
-  spaced only by their player tags.
+- **Quality and repetition control: coverage is done, tuning is not.**
+  `js/story.js` now derives `story_key`, `story_family` and, where an honest
+  signal exists, `quality_score` for every card type at load time — see Done.
+  What is left is judgement, not plumbing: `mates` and `vs` carry no quality
+  because nothing on those cards measures "is this interesting" in one
+  direction, and the `race` tiers are the builder's opinion rather than a
+  measurement. If any of that reads wrong on the live feed, the numbers are all
+  in one file.
 - **Central link registry** and an automated link-health test that checks
   destination identity, not just a 200.
 - **Trade digest around the week** rather than yesterday's number one, showing a
@@ -227,6 +233,35 @@ backend, which breaks the no-server promise the whole thing rests on.
 ## Done, for reference
 
 Kept short so the list above stays the point.
+
+- YouTube plays in the feed (`js/yt-video.js`). A YouTube card was a title and
+  a thumbnail that sent you to youtube.com; it now plays in place, through the
+  same coordinator that governs the canvas players and Bluesky clips, so one
+  thing moves at a time. Click-to-play by default, `sources.youtube.autoplay`
+  to change that. No iframe, no script and nothing from youtube.com loads until
+  someone presses play — the thumbnail still comes from i.ytimg.com as it
+  always did, and the embed is youtube-nocookie.com. Pausing goes over
+  postMessage rather than tearing the frame down, so position survives.
+  Verified in a browser with request interception, in both modes: nothing
+  auto-starts while autoplay is off, a click pauses the race above it, and the
+  only Google-owned request before a click is the fonts stylesheet the page
+  already made. `tools/test_yt_video.mjs` covers the URL parsing; the
+  coordinator behaviour needs a browser and is not re-checkable without one.
+
+- Story keys and quality for every card type (`js/story.js`). The engine's
+  spacing and weighting shipped long ago but only 44 of 7,384 cards carried the
+  metadata it reads, so eight card types were weighted at parity. Derived at
+  load time rather than in the builders, because the VS/quiz/trivia/ballot pools
+  are rewritten by a weekly job that knows nothing about this and the rest are
+  rebuilt from local sources — anything a builder wrote was one refresh from
+  being dropped. 73ms for the whole feed, and it never overwrites a value a
+  builder set. Measured over 3,840 served slots, three runs each: two cards from
+  the same race group inside twelve fell from 47/43/59 to 21/19/33, and the
+  served share of tier-1 races rose from 20.8% to 26.9%, NBA Finals on-this-day
+  cards from 26.0% to 29.9%. The shared `ballot|AWARD|season|subject` namespace
+  across races, trivia and both oddity generations is correct but did NOT show a
+  measurable effect (18/14/19 vs 28/13/16 — noise): collisions are already rare
+  at this pool size, and it is there for when they are not.
 
 - Race face tiles no longer distort heads. `raceFaceTile` ended in a straight
   resize to 112x80, which forces any source shape into 1.4:1: the top 80% of an

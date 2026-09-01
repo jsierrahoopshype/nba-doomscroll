@@ -121,10 +121,10 @@ console.log(`  ${imgCount} images inlined (${Math.round(imgBytes / 1024)}KB raw)
 /* ---------------- assemble ---------------- */
 
 const JS_ORDER = [
-  "js/pacing.js", "js/media.js", "js/engine.js", "js/cards.js", "js/vs-score.js",
+  "js/pacing.js", "js/media.js", "js/story.js", "js/engine.js", "js/cards.js", "js/vs-score.js",
   "js/race-player.js", "js/mates-player.js", "js/compare-player.js", "js/lean-player.js",
   "js/share-image.js", "js/live-vs.js", "js/rumors.js", "js/buzz.js",
-  "js/bsky-video.js", "js/trades.js", "js/app.js"
+  "js/bsky-video.js", "js/yt-video.js", "js/trades.js", "js/app.js"
 ];
 
 const html = read("index.html");
