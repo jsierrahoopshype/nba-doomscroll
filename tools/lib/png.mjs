@@ -186,6 +186,38 @@ export function encodePng(img) {
 export function raceFaceTile(srcFile, outW, outH) {
   const img = decodePng(srcFile);
   if (!img) return null;
+  // Head and shoulders: the bottom fifth of an NBA portrait is jersey.
   const cropped = crop(img, 0, 0, img.w, Math.max(1, Math.round(img.h * 0.80)));
-  return encodePng(resize(cropped, outW, outH));
+
+  /* Match the tile's aspect by CROPPING, never by squashing.
+   *
+   * This used to be a straight resize(cropped, outW, outH), which forces
+   * whatever shape the source happens to be into 1.4:1. An official NBA
+   * portrait is 1040x760; taking the top 80% leaves 1040x608, or 1.71:1, and
+   * resizing that to 1.4:1 compresses every head horizontally by 18%. That is
+   * the narrow, vertically stretched look - and because it depends on the
+   * source's own aspect, players sourced from different files came out
+   * distorted by different amounts, which is why the row never looked
+   * consistent either.
+   *
+   * Cover rather than contain: contain would keep the proportions but shrink
+   * the head and leave transparent bars, and the bar is only ~30px tall. NBA
+   * portraits are centred, so the width this trims is background and the
+   * outer edge of a shoulder. */
+  const want = outW / outH;
+  const have = cropped.w / cropped.h;
+  let box = cropped;
+  if (Math.abs(have - want) > 0.001) {
+    if (have > want) {
+      const w = Math.max(1, Math.round(cropped.h * want));
+      box = crop(cropped, Math.round((cropped.w - w) / 2), 0, w, cropped.h);
+    } else {
+      /* Trim from the BOTTOM, not evenly. Taking half the excess off the top
+       * removes the crown of the head, which is often the most identifiable
+       * thing in the tile; the jersey below is not. */
+      const h = Math.max(1, Math.round(cropped.w / want));
+      box = crop(cropped, 0, 0, cropped.w, h);
+    }
+  }
+  return encodePng(resize(box, outW, outH));
 }

@@ -26,7 +26,58 @@
   var EXPLORATION = 0.25;      // fraction of feed picks that are fully random
   var SESSION_DECAY = 0.985;   // gentle decay applied once per session start
 
+  /* ---------------- freshness ----------------
+   *
+   * Only cards carrying a publication time are affected, which today means
+   * Buzz. Archive cards have no `published_at` and are evergreen by design: a
+   * 2016 award race is exactly as interesting today as it was yesterday.
+   *
+   * This governs the MIXED feed only. The Buzz tab sorts newest-first through
+   * E.recent and never reaches this code, so a reader who opens Buzz still
+   * sees the raw chronology.
+   *
+   * Anchors are (hours old, multiplier), interpolated linearly between - a
+   * stepped band would make a post at 6h01m score half what it did a minute
+   * earlier, which is an artefact of the table rather than of the news.
+   * Past the last anchor the floor stands: a week-old post is reachable when
+   * the pool is thin, and invisible when it is not. */
+  var FRESHNESS = [
+    [0,   1.00],   // just now
+    [6,   0.85],   // this morning
+    [24,  0.45],   // yesterday
+    [72,  0.12],   // this week
+    [168, 0.03]    // last week
+  ];
+  var FRESHNESS_FLOOR = 0.03;
+  /* Trending lifts a post but cannot make it current. The boost is applied,
+   * then clamped to roughly what a twelve-hour-old post scores unaided, so a
+   * week-old trending item reads as "yesterday" at best and never outranks
+   * something that actually just happened. Never demotes: a fresh trending
+   * post keeps its own higher score. */
+  var TRENDING_BOOST = 1.7;
+  var TRENDING_CEILING = 0.65;
+
   function now() { return Date.now(); }
+
+  function freshness(card) {
+    var p = card && card.payload;
+    if (!p || !p.published_at) return 1;
+    var ms = Date.parse(p.published_at);
+    if (isNaN(ms)) return 1;              // unparseable date is not a demotion
+    var hours = (now() - ms) / 3600000;
+    if (hours < 0) hours = 0;             // clock skew, or a scheduled post
+    var f = FRESHNESS_FLOOR;
+    for (var i = 1; i < FRESHNESS.length; i++) {
+      var a = FRESHNESS[i - 1], b = FRESHNESS[i];
+      if (hours <= b[0]) {
+        var span = b[0] - a[0];
+        f = a[1] + (b[1] - a[1]) * (span > 0 ? (hours - a[0]) / span : 0);
+        break;
+      }
+    }
+    if (p.trending) f = Math.max(f, Math.min(TRENDING_CEILING, f * TRENDING_BOOST));
+    return f;
+  }
 
   function blankProfile() {
     return {
@@ -144,6 +195,19 @@
 
   var api = {
     startSession: startSession,
+
+    /* Exposed so the decay can be tuned from data/buzz-sources.json without a
+     * code change, and so a test can assert the curve directly rather than
+     * inferring it from a sampled batch. Every field is optional; anything
+     * omitted keeps the default above. */
+    setFreshness: function (cfg) {
+      if (!cfg) return;
+      if (Array.isArray(cfg.anchors) && cfg.anchors.length > 1) FRESHNESS = cfg.anchors;
+      if (typeof cfg.floor === "number") FRESHNESS_FLOOR = cfg.floor;
+      if (typeof cfg.trending_boost === "number") TRENDING_BOOST = cfg.trending_boost;
+      if (typeof cfg.trending_ceiling === "number") TRENDING_CEILING = cfg.trending_ceiling;
+    },
+    freshness: freshness,
 
     like: function (card) {
       var on = toggleIn(profile.liked, card.id);
@@ -358,7 +422,10 @@
         if (typeof card.quality_score === "number") {
           base *= 0.7 + 0.6 * Math.max(0, Math.min(1, card.quality_score));
         }
-        return base * diversityPenalty(card);
+        /* Age, for the cards that have one. See FRESHNESS above: this is what
+         * keeps a three-day-old Bluesky post out of a feed that has something
+         * from this morning to offer, without deleting it from the pool. */
+        return base * freshness(card) * diversityPenalty(card);
       }
       /* The avoid sets grow as this draws. Without that, one call asking for
        * eight cards could return two oddities about the same MVP race: each is

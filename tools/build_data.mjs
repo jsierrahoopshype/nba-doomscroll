@@ -458,6 +458,13 @@ function buildQuizPool(universe) {
       type: "quiz",
       tab: ["quiz"],
       tags: { content_type: "quiz", players: [p.name], teams: p.team ? [p.team] : [], era: p.era, category: "guess-the-player" },
+      /* The photograph is now shown clear and whole, so the difficulty has to
+       * come from the player. A superstar's unblurred headshot is not a
+       * question, it is a caption. quality_score is the weighting the sampler
+       * already honours (0.7x to 1.3x), so the tier maps straight onto it:
+       * obscure players carry the tab, famous ones stay in the pool as the
+       * occasional easy one rather than being deleted. */
+      quality_score: QUIZ_QUALITY[t],
       payload: {
         img: p.img, options, answer: p.name, difficulty: t,
         hints: quizHints(p),
@@ -468,6 +475,13 @@ function buildQuizPool(universe) {
   });
   return cards;
 }
+
+/* "hard" here means the player is hard to place, not that the card is unfair:
+ * the tier is built from career profile, and a hard-tier player is typically
+ * a long-serving journeyman who was never an All-Star. Those are the good
+ * questions. Easy stays in the pool at a low weight so the tab is not
+ * relentless. */
+const QUIZ_QUALITY = { hard: 1, medium: 0.55, easy: 0.15 };
 
 const POS_WORD = { G: "guard", F: "forward", C: "center" };
 
