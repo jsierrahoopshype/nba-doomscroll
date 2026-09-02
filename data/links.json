@@ -41,7 +41,9 @@
       "id": "hoopshype-rumors",
       "url": "https://hoopshype.com/rumors/",
       "used_by": "js/cards.js tapTarget — rumor cards without a source_url",
-      "kind": "page"
+      "kind": "page",
+      "redirect_varies": true,
+      "note": "Redirects by region: recorded as eu.hoopshype.com from Madrid, which would be a different host from a US machine. redirect_varies stops --check reporting that as a change, because a geo-redirect is the site working, not the link moving."
     },
     {
       "id": "media-vote-tracker",
@@ -79,7 +81,11 @@
       "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/random?limit=1",
       "used_by": "js/rumors.js — the Rumors tab",
       "kind": "json",
-      "note": "js/rumors.js calls /api/rumors/random?limit=25; without the parameter the Worker answers 403, which the registry was asking for and reporting as an outage. limit=1 here: a health check, not a fetch. SHAPE ONLY - the response carries archive records and this repo is public."
+      "note": "js/rumors.js calls /api/rumors/random?limit=25. Still 403 with the parameter, and the likeliest reason is the header a browser sends and Node does not: the page has an Origin, a bare fetch has none, and a Worker that allowlists origins sees the second as an unknown caller. So the check sends the origin the app actually runs from. If it still 403s the guess is wrong and the Worker is refusing for another reason - worth knowing either way. SHAPE ONLY: the response carries archive records and this repo is public.",
+      "headers": {
+        "Origin": "https://jsierrahoopshype.github.io",
+        "Referer": "https://jsierrahoopshype.github.io/nba-doomscroll/"
+      }
     },
     {
       "id": "trade-log",
@@ -189,5 +195,7 @@
     }
   ],
   "probe_false_note": "An entry with probe:false is registered for coverage but never fetched. Used where there is no stable URL to check - a preconnect host that serves font binaries at hashed paths has nothing a test could meaningfully assert about.",
-  "sample_from_note": "An entry with sample_from builds its URL at probe time from another entry's response: fetch that link, walk to `path`, take the first entry, and if `item_path` is given walk into it as well, then append the result. For assets whose filenames live in a manifest this is the difference between proving the manifest exists and proving a file the app would actually ask for exists."
+  "sample_from_note": "An entry with sample_from builds its URL at probe time from another entry's response: fetch that link, walk to `path`, take the first entry, and if `item_path` is given walk into it as well, then append the result. For assets whose filenames live in a manifest this is the difference between proving the manifest exists and proving a file the app would actually ask for exists.",
+  "headers_note": "An entry may carry `headers` sent with the probe. Used where a browser sends something a bare fetch does not - an Origin, a Referer - and a server treats their absence as an unknown caller. The point is to check the request the app really makes, not a stripped-down version of it.",
+  "redirect_varies_note": "An entry with redirect_varies:true has its final URL ignored by --check. For a site that redirects by region, where the request lands depends on who ran the check, and comparing it would fail whenever the check moved countries rather than when the link broke."
 }
