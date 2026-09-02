@@ -49,7 +49,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { resolveSource } from "./lib/find.mjs";
+import { resolveSource, findFolders } from "./lib/find.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -171,8 +171,40 @@ function mentions(hay, term) {
   return new RegExp("\\b" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(hay);
 }
 
-const PLAYER_INDEX = PLAYERS.map(n => ({ name: n, surname: surnameOf(n) }))
-  .filter(p => p.surname.length >= 4);          // "Ball", "Bol" collide too easily
+/* Surnames that are also ordinary words - especially in basketball prose,
+ * which is full of them.
+ *
+ * A whole-word surname match is not evidence for any of these. "a paint-ball
+ * outing", "green light", "young players", "rose to the occasion", "out west",
+ * "day to day" all match a player's surname while saying nothing about him.
+ *
+ * This is not hypothetical. A Matt Bonner story containing "a paint-ball
+ * outing" was tagged as being about LaMelo Ball, and the card went out as
+ * "Which player is this about?" with Bonner's name sitting unredacted in the
+ * excerpt and LaMelo Ball marked correct. The length filter that used to guard
+ * this said "Ball, Bol collide too easily" and then tested `>= 4`, which lets
+ * "ball" through - the comment named the exact case the code allowed.
+ *
+ * For a name on this list the FULL name has to appear in the text. */
+const WORD_SURNAMES = new Set([
+  "ball", "bird", "black", "best", "bell", "banks", "brown", "brooks",
+  "cook", "cross", "day", "east", "fields", "ford", "gold", "green", "hill",
+  "hood", "king", "lane", "land", "little", "long", "love", "may", "moon",
+  "north", "price", "reed", "rice", "rivers", "rose", "sharp", "short",
+  "small", "snow", "star", "strong", "swift", "wall", "waters", "wells",
+  "west", "white", "wise", "wood", "young"
+]);
+
+const PLAYER_INDEX = PLAYERS.map(n => {
+  const surname = surnameOf(n);
+  return { name: n, surname, full: norm(n), strict: WORD_SURNAMES.has(surname) };
+}).filter(p => p.surname.length >= 4);
+
+/* True when the text actually names this player. A strict name needs all of
+ * it; everyone else is found on the surname, as before. */
+function namesPlayer(hay, p) {
+  return p.strict ? mentions(hay, p.full) : mentions(hay, p.surname);
+}
 
 /* ---------------- helpers ---------------- */
 
@@ -232,8 +264,15 @@ for (const r of all) {
   if (text.length < MIN_TEXT) { stats.tooShort++; continue; }
   if (text.length > MAX_TEXT) { stats.tooLong++; continue; }
 
-  // Which players does this item actually name? Whole-word surname match only.
-  const named = PLAYER_INDEX.filter(p => mentions(text, p.surname));
+  /* Which players does this item actually name?
+   *
+   * Matched against a NORMALISED copy of the text, not the raw one. Surnames
+   * come out of norm() with their diacritics folded, so "Dončić" in the
+   * archive never met "doncic" in the index and those players were invisible
+   * to this builder - the same folding mistake that left six race tiles
+   * unrebuilt, in a different file. */
+  const normText = norm(text);
+  const named = PLAYER_INDEX.filter(p => namesPlayer(normText, p));
   if (!named.length) { stats.noSubject++; continue; }
 
   const teams = TEAMS.filter(t => {
@@ -269,6 +308,68 @@ const outlets = [...new Set(items.map(i => i.outlet).filter(Boolean))];
 
 /* ---------------- question families ---------------- */
 
+/* ---------------- career teams (optional) ----------------
+ *
+ * A which-team card asks which team a player was with, and it was drawing its
+ * three wrong answers from all thirty franchises. For a journeyman that
+ * regularly offers a team he ALSO played for: a dry run asked which team
+ * Kenyon Martin was with for the popcorn-prank story - the answer is Denver,
+ * and New York was among the options. Martin played for both. The better a
+ * reader knows his career the less answerable the question gets, which is the
+ * exact inverse of what a quiz should do.
+ *
+ * The arithmetic: with three distractors drawn from twenty-nine teams, a
+ * player with six franchises behind him has a 45% chance of being offered one
+ * of his own. Across 144 which-team cards that is not an edge case.
+ *
+ * nba-player-data's rsStats.json is a team-season per row, which is a career
+ * team list for free, and it is already on the machine for the salary
+ * builder. OPTIONAL: absent, this does nothing and the cards are built exactly
+ * as before, because a builder that refuses to run without a source it never
+ * used to need is worse than one that is occasionally less strict. */
+const CODE_TO_TEAM = new Map();
+for (const [slug, code] of Object.entries(map.teams || {})) {
+  CODE_TO_TEAM.set(code, slug.split("-").map(w => w[0].toUpperCase() + w.slice(1)).join(" "));
+}
+/* Relocations and renames, folded onto the current franchise. A Seattle season
+ * is not an Oklahoma City season to a fan, but for the purpose of "do not
+ * offer this man a team he has played for" the conservative reading is the
+ * right one: it excludes more, and excluding too much only costs a card. */
+const CODE_ALIAS = {
+  NJN: "BKN", BRK: "BKN", NOH: "NOP", NOK: "NOP", NOJ: "UTA", SEA: "OKC",
+  CHH: "CHA", CHO: "CHA", WSB: "WAS", PHO: "PHX", VAN: "MEM", KCK: "SAC",
+  SDC: "LAC", BUF: "LAC", SFW: "GSW", NYN: "BKN", CIN: "SAC", STL: "ATL",
+  BAL: "WAS", MNL: "LAL", PHW: "GSW", SYR: "PHI", ROC: "SAC", FTW: "DET",
+  TRI: "ATL", CAP: "WAS", NOP: "NOP"
+};
+
+const careerTeams = new Map();       // normalised player name -> Set of team names
+(function loadCareerTeams() {
+  const hits = findFolders(["rsStats.json", "bio.json"]);
+  if (!hits.length) {
+    console.log("  career teams: nba-player-data not found, which-team distractors unfiltered");
+    return;
+  }
+  let rows;
+  try { rows = readJson(path.join(hits[0], "rsStats.json")); }
+  catch (e) {
+    console.log(`  career teams: could not read rsStats.json (${e.message})`);
+    return;
+  }
+  if (!Array.isArray(rows)) return;
+  for (const r of rows) {
+    if (!r || !r.PLAYER || !r.TEAM) continue;
+    const raw = String(r.TEAM).toUpperCase();
+    const code = CODE_ALIAS[raw] || raw;
+    const full = CODE_TO_TEAM.get(code);
+    if (!full) continue;
+    const key = norm(r.PLAYER);
+    if (!careerTeams.has(key)) careerTeams.set(key, new Set());
+    careerTeams.get(key).add(full);
+  }
+  console.log(`  career teams: ${careerTeams.size} players from ${path.basename(hits[0])}`);
+})();
+
 function distractors(pool, answer, n, seed) {
   const opts = shuffle(pool.filter(x => x && x !== answer), seed).slice(0, n);
   return opts.length === n ? opts : null;
@@ -276,6 +377,32 @@ function distractors(pool, answer, n, seed) {
 
 /* Every family returns null rather than a weak question. That is the whole
  * discipline here: the pool is allowed to be small. */
+/* Phrases that place a story in time for a reader who knows the league.
+ *
+ * Each of these is an event that happened once to a given player - a debut, a
+ * retirement, a title, a trade - so combined with the name in the excerpt it
+ * gives someone a way to reason toward a year. Deliberately excludes anything
+ * relative to publication ("last year", "this season"), which pins nothing for
+ * a reader who does not already know when the piece was written, and that is
+ * the whole difficulty.
+ *
+ * Matched as plain substrings against the FULL record text, not the clipped
+ * excerpt: an anchor a sentence past the cut still helps nobody, but requiring
+ * it inside 240 characters thinned the family to almost nothing in testing.
+ * If these cards still read as coin flips, tightening that to the excerpt is
+ * the next lever. */
+const TIME_ANCHORS = [
+  "rookie", "drafted", "draft night", "nba draft", "debut", "first season",
+  "first year in", "retired", "retirement", "retiring", "final season",
+  "last dance", "farewell", "comeback", "unretire",
+  "the finals", "championship", "won the title", "all-star game",
+  "all-star weekend", "olympics", "world cup", "lockout", "the bubble",
+  "hall of fame", "mvp season", "won mvp",
+  "traded to", "signed with", "free agency", "waived", "released by"
+];
+
+const skipped = { noAnchor: 0, thinTeamPool: 0 };
+
 const FAMILIES = {
   /* The subject's own name, blanked out of their own story. */
   "who-is-this": (it) => {
@@ -289,11 +416,20 @@ const FAMILIES = {
      * defensible answers, which makes it a bad question rather than a hard one.
      * Also drop anyone whose surname is still sitting in the excerpt, which
      * would hand the reader an elimination for free. */
-    const body0 = clip(it.text, EXCERPT).toLowerCase();
+    /* The EXCERPT is the evidence, not the full record. A subject named only
+     * in the part that gets clipped away leaves the reader a question with
+     * nothing in it to reason from - and the redaction blanks nothing, which
+     * is the visible symptom: no █████ anywhere on a card that is supposed to
+     * be a name with a hole in it. */
+    const excerptNorm = norm(clip(it.text, EXCERPT));
+    if (!namesPlayer(excerptNorm, subject)) return null;
     const eraPool = [...(byEra.get(it.era) || [])].filter(n => {
       const sn = surnameOf(n);
       if (!sn || sn === subject.surname) return false;
-      return !mentions(body0, sn);
+      /* Same word-surname rule as above, or every candidate called Green or
+       * Young would be struck off any excerpt containing "green light" or
+       * "young players" and the pool would thin for no reason. */
+      return !namesPlayer(excerptNorm, { surname: sn, full: norm(n), strict: WORD_SURNAMES.has(sn) });
     });
     if (eraPool.length < MIN_ERA_POOL) return null;
     const wrong = distractors(eraPool, subject.name, OPTIONS - 1, it.rec.source_url + "w");
@@ -318,10 +454,34 @@ const FAMILIES = {
   "which-team": (it) => {
     if (it.teams.length !== 1) return null;
     const team = it.teams[0];
-    const wrong = distractors(TEAMS, team, OPTIONS - 1, it.rec.source_url + "t");
+    /* Never offer a team the subject actually played for. See the career-team
+     * index above: without this, a story about Kenyon Martin in Denver came
+     * with New York on the ballot, and he played there too. Every player the
+     * excerpt names contributes, because "was with the ..." need not be about
+     * the first one listed. */
+    let pool = TEAMS;
+    if (careerTeams.size) {
+      const own = new Set();
+      for (const p of it.named) {
+        const teams = careerTeams.get(norm(p.name));
+        if (teams) for (const t of teams) own.add(t);
+      }
+      own.delete(team);                       // the answer is his, and stays
+      if (own.size) pool = TEAMS.filter(t => !own.has(t));
+    }
+    if (pool.length < OPTIONS) { skipped.thinTeamPool++; return null; }
+    const wrong = distractors(pool, team, OPTIONS - 1, it.rec.source_url + "t");
     if (!wrong) return null;
+    /* The whole name first, then every word in it - including the short ones.
+     *
+     * This used to redact words of five characters or more, which left "the
+     * Los █████ █████'" on a card whose only Los Angeles option was the
+     * answer. Same shape as the "ball" bug: a length threshold standing in for
+     * a judgement it cannot make. City prefixes are exactly the words that are
+     * too short to pass and exactly the words that give a team away. */
     let body = clip(it.text, EXCERPT);
-    for (const w of team.split(" ")) if (w.length >= 5) body = redact(body, w);
+    body = redact(body, team);
+    for (const w of team.split(" ")) if (w.length >= 3) body = redact(body, w);
     return {
       family: "which-team",
       question: "Which team was this?",
@@ -356,6 +516,23 @@ const FAMILIES = {
    * rather than a choice between 2013 and 1974. */
   "what-year": (it) => {
     if (!it.year) return null;
+    /* The excerpt has to give a reader something to date the story BY.
+     *
+     * "Before Dwyane Wade's last dance had ever begun" is a fair question:
+     * Wade retired once, and anyone who follows the league can place it. "He
+     * owned a Harley Davidson and showed off his closet for GQ" is a
+     * one-in-four guess wearing a question mark, and that shape was 45% of the
+     * pool.
+     *
+     * An explicit year cannot serve as the anchor - the guard below already
+     * refuses any excerpt containing one, because a year in the text answers
+     * the question outright. So what is left is career and league events,
+     * which is the right axis anyway: each of these pins a moment for a reader
+     * who knows the player, and knowing the player is the game. */
+    if (!TIME_ANCHORS.some(a => it.text.toLowerCase().includes(a))) {
+      skipped.noAnchor++;
+      return null;
+    }
     const near = [];
     for (let d = -4; d <= 4; d++) if (d !== 0) near.push(String(it.year + d));
     const wrong = distractors(near, String(it.year), OPTIONS - 1, it.rec.source_url + "y");
@@ -410,15 +587,38 @@ for (const it of shuffle(items, "frivolities-v1")) {
   }
   if (!q) { rejected.noFamily++; continue; }
 
-  /* The last and most important guard: after redaction, no option may still be
-   * findable in the text. A question whose answer is printed inside it is not
-   * a question, and this catches the cases the redaction missed - a nickname,
-   * a possessive, a second spelling. */
+  /* The last and most important guard: after redaction, nothing left in the
+   * text may tell the options apart.
+   *
+   * It used to test the LAST word of each option at four characters or more,
+   * which is why "the Los █████ █████'" shipped from a dry run: "Lakers" was
+   * redacted, the guard looked only at "Lakers", and "Los" - the one word on
+   * the card that named the answer - was both too short to check and too short
+   * to have been redacted.
+   *
+   * So the test is now about what a token DOES rather than where it sits. A
+   * token is discriminating when it appears in some options and not all: "los"
+   * belongs to one option of four, so seeing it is seeing the answer, while
+   * "matt" across two Matts tells a reader nothing. Any discriminating token
+   * still visible rejects the card.
+   *
+   * Deliberately strict. It will throw away cards whose body happens to
+   * contain "love" or "ball" against an option named Love or Ball, and that is
+   * the correct outcome: for the reader those cards are ambiguous, which is
+   * indistinguishable from unfair. */
   const hay = q.body.toLowerCase();
-  if (q.options.some(o => {
-    const last = norm(o).split(" ").pop();
-    return last.length >= 4 && mentions(hay, last);
-  })) { rejected.answerLeak++; continue; }
+  const tokenSets = q.options.map(o => new Set(norm(o).split(" ").filter(w => w.length >= 3)));
+  const discriminating = new Set();
+  for (const set of tokenSets) {
+    for (const t of set) {
+      if (!tokenSets.every(other => other.has(t))) discriminating.add(t);
+    }
+  }
+  let leaked = false;
+  for (const t of discriminating) {
+    if (mentions(hay, t)) { leaked = true; break; }
+  }
+  if (leaked) { rejected.answerLeak++; continue; }
 
   if (q.subject) {
     const n = perSubject.get(q.subject) || 0;
@@ -508,6 +708,8 @@ if (bad) {
 console.log(`\nbuilt ${cards.length} cards`);
 const famRows = [...familyCount.entries()].sort((a, b) => b[1] - a[1]);
 for (const [f, n] of famRows) console.log(`  ${f.padEnd(14)} ${n}  (${Math.round(n / cards.length * 100)}%)`);
+console.log(`  what-year skipped for want of a datable anchor: ${skipped.noAnchor}`);
+if (skipped.thinTeamPool) console.log(`  which-team skipped for too few teams left after excluding his own: ${skipped.thinTeamPool}`);
 console.log(`  rejected: ${rejected.noFamily} no family fit, ${rejected.answerLeak} answer visible, ` +
   `${rejected.dupe} duplicate source, ${rejected.subjectCap} subject at cap`);
 console.log(`  distinct subjects: ${perSubject.size}`);

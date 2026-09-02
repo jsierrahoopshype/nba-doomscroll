@@ -61,7 +61,10 @@ image.
   not carry, and the standing decision against scraping it holds (see below).
 - **Frivolities: the builder is written, the pool is Jorge's to make.** Run
   `node tools/build_frivolities.mjs` for a dry run (it finds the archive
-  itself), `--sample` to read three finished cards, `--write` to ship. It refuses to
+  itself), `--sample` to read three finished cards, `--write` to ship. The
+  first real dry run found a subject-naming bug, now fixed and covered by
+  `tools/test_frivolities_naming.mjs` — re-run `--sample` and read three more
+  before writing anything. It refuses to
   write by default because the pool carries archive excerpts. Tested against a
   synthetic archive only; the real distributions (how many outlets, how many
   distinct players per era) will differ and some thresholds may want moving.
@@ -198,6 +201,22 @@ backend, which breaks the no-server promise the whole thing rests on.
 ---
 
 ## Upstream, small
+
+- **`who-is-this` distractors do not know who played with whom.** They are
+  drawn from the same era, which is better than random and not as good as it
+  could be: a teammate is a harder and fairer distractor than a stranger from
+  the other conference. The career-team index that now filters `which-team`
+  distractors (see Done) has the data to do this too — same file, same load.
+
+- **The Frivolities `which-outlet` family can point at the wrong outlet.** A
+  dry-run sample asked which outlet reported a Stephen Jackson story whose text
+  says "in a lengthy sit-down interview with Grantland's Bill Simmons"; the
+  answer was San Antonio Express-News, the blog that wrote it up, and Grantland
+  was not even an option. Defensible but unfair: the excerpt names an outlet
+  that is not the answer. The fix is to reject an item whose text names any
+  outlet other than the answer, which needs an outlet vocabulary the builder
+  does not currently have. Not fixed with the naming bug because it is a
+  different guard and wants measuring against the real archive first.
 
 - **Check one apostrophe name on a Teammates link.** The slug rule turns
   "Shaquille O'Neal" into `shaquille-o-neal`. If the tool expects
