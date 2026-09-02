@@ -202,6 +202,21 @@ backend, which breaks the no-server promise the whole thing rests on.
 
 ## Upstream, small
 
+- **Frivolities `which-team` blanks whatever team the text names, which is not
+  always the subject's.** A card asks "Which team was this?" over "in the 4th
+  quarter of their game against the █████" — the blank is the OPPONENT, and
+  answering means recalling one specific broadcast. The question wording covers
+  both readings, and the excerpt usually disambiguates ("against the ..."), so
+  these are hard rather than broken. Making them consistently fair means either
+  wording the question from the sentence around the blank, or only accepting
+  blanks that follow "with the" / "for the". Worth measuring before choosing.
+- **Archive text loses paragraph breaks upstream.** "for some odd reasonIn the
+  4th quarter" — a lowercase letter straight against a capital, with no
+  punctuation between. Sentence-punctuation seams are repaired at build time
+  now; this one is not, because NBA names share the shape (McGee, DeRozan,
+  LaMelo) and breaking a name to tidy a sentence is the worse trade. The real
+  fix is in whatever strips the HTML in the archive pipeline.
+
 - **`who-is-this` distractors do not know who played with whom.** They are
   drawn from the same era, which is better than random and not as good as it
   could be: a teammate is a harder and fairer distractor than a stranger from

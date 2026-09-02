@@ -326,7 +326,18 @@ for (const r of all) {
   if (!r.source_url) { stats.noSource++; continue; }
   if (blocked(r)) { stats.blocked++; continue; }
 
-  const text = String(r.text || r.quote || "").replace(/\s+/g, " ").trim();
+  /* The archive's text comes out of HTML with paragraph boundaries lost, so
+   * sentences run together: "in the ESPN booth.Awful Announcing". A space
+   * after sentence punctuation is safe to restore.
+   *
+   * The other seam - a lowercase letter straight against a capital, as in
+   * "for some odd reasonIn the 4th quarter" - is deliberately left alone.
+   * NBA names are full of that shape (McGee, DeRozan, LaMelo, JaVale), and
+   * breaking a player's name to tidy a sentence is the worse trade. */
+  const text = String(r.text || r.quote || "")
+    .replace(/\s+/g, " ")
+    .replace(/([.!?])([A-Z])/g, "$1 $2")
+    .trim();
   if (text.length < MIN_TEXT) { stats.tooShort++; continue; }
   if (text.length > MAX_TEXT) { stats.tooLong++; continue; }
 
