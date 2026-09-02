@@ -166,9 +166,44 @@ function surnameOf(name) {
   const parts = norm(name).split(" ").filter(w => w && !/^(jr|sr|ii|iii|iv|v)$/.test(w));
   return parts[parts.length - 1] || "";
 }
+/* Accent-insensitive matching, on the ORIGINAL text.
+ *
+ * The archive writes "González" and the index holds "gonzalez", so a folded
+ * comparison is the only way they meet. Folding the text before matching is
+ * not enough on its own though - redaction has to blank a span of the text a
+ * reader actually sees, and the leak guard has to search that same text. When
+ * matching folded and redacting raw, an accented name matched, escaped the
+ * blanking and escaped the guard: a card shipped naming "Eiza González" in
+ * full while asking which player it was about.
+ *
+ * So each ASCII letter in a term is expanded to match its accented forms, and
+ * one pattern serves matching, redaction and the leak check alike. The card
+ * keeps the spelling the reporter used, which on a page about Dončić and
+ * Jokić is not a small thing. */
+const ACCENTS = {
+  a: "aàáâãäåāă", c: "cçćčĉ", d: "dđď", e: "eèéêëēėę", g: "gğĝ", i: "iìíîïīį",
+  l: "lł", n: "nñńň", o: "oòóôõöøō", r: "rř", s: "sśšş", t: "tťţ",
+  u: "uùúûüūů", y: "yýÿ", z: "zźżž"
+};
+function accentPattern(term) {
+  return String(term).split("").map(ch => {
+    const set = ACCENTS[ch];
+    if (set) return "[" + set + set.toUpperCase() + "]";
+    return ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }).join("");
+}
+/* \\b is ASCII-only, so it fails immediately after an accented letter: the
+ * pattern for "doncic" matched "Dončić" up to the final "ć" and then looked
+ * for a word boundary that a non-ASCII letter does not provide. "Dončić"
+ * therefore went unredacted. These boundaries count accented letters as
+ * letters, which is the entire point. */
+const NB = "[A-Za-zÀ-ÿ0-9]";
+function bounded(term) {
+  return "(?<!" + NB + ")" + accentPattern(term) + "(?!" + NB + ")";
+}
 function mentions(hay, term) {
   if (!term) return false;
-  return new RegExp("\\b" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(hay);
+  return new RegExp(bounded(term), "i").test(hay);
 }
 
 /* Surnames that are also ordinary words - especially in basketball prose,
@@ -202,8 +237,39 @@ const PLAYER_INDEX = PLAYERS.map(n => {
 
 /* True when the text actually names this player. A strict name needs all of
  * it; everyone else is found on the surname, as before. */
+/* A surname carrying somebody else's first name in front of it belongs to
+ * somebody else.
+ *
+ * "Eiza González and Ben Simmons enjoyed dinner" produced a card asking which
+ * PLAYER it was about, answer Hugo Gonzalez - because an actress shares his
+ * surname and the archive names far more people than the 607 players this
+ * builder knows. The same rule separates Jeff Green from Draymond Green, and
+ * Seth from Steph, which surname matching alone never could.
+ *
+ * A bare surname still counts: "Bonner, who was a 41.4 percent shooter" is how
+ * reporters write, and requiring the full name everywhere would empty the
+ * pool. What is rejected is the surname appearing ONLY ever after a different
+ * capitalised first name - at that point the text is about someone else and
+ * the match is a coincidence of spelling. */
 function namesPlayer(hay, p) {
-  return p.strict ? mentions(hay, p.full) : mentions(hay, p.surname);
+  if (p.strict) return mentions(hay, p.full);
+  if (!mentions(hay, p.surname)) return false;
+  const first = String(p.full).split(" ")[0];
+  /* Every capitalised word sitting directly before the surname. Accents are
+   * part of a name, so they count as name characters here. */
+  const re = new RegExp("([A-Za-zÀ-ÿ'’.-]+)\\s+" + accentPattern(p.surname) + "(?!" + NB + ")", "g");
+  let m, sawBare = false, sawHis = false, sawOther = false;
+  while ((m = re.exec(hay))) {
+    const before = m[1];
+    // Lowercase before the surname means it is not part of a name: "with Green".
+    if (!/^[A-ZÀ-Ý]/.test(before)) { sawBare = true; continue; }
+    if (fold(before).toLowerCase().replace(/[^a-z]/g, "") === first) sawHis = true;
+    else sawOther = true;
+  }
+  /* No preceding word at all - surname opens the excerpt, or follows
+   * punctuation - is the commonest shape and stays valid. */
+  if (!sawBare && !sawHis && !sawOther) return true;
+  return sawHis || sawBare;
 }
 
 /* ---------------- helpers ---------------- */
@@ -225,7 +291,7 @@ function clip(text, n) {
 
 function redact(text, term) {
   if (!term) return text;
-  return text.replace(new RegExp("\\b" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi"), "█████");
+  return text.replace(new RegExp(bounded(term), "gi"), "█████");
 }
 
 /* Deterministic shuffle so two runs of the same archive produce the same pool
@@ -271,8 +337,10 @@ for (const r of all) {
    * archive never met "doncic" in the index and those players were invisible
    * to this builder - the same folding mistake that left six race tiles
    * unrebuilt, in a different file. */
-  const normText = norm(text);
-  const named = PLAYER_INDEX.filter(p => namesPlayer(normText, p));
+  /* Matched against the ORIGINAL text, not a folded copy. Accents are handled
+   * inside the pattern now, and capitalisation is the signal that separates
+   * "Eiza González" from Hugo Gonzalez - folding first threw it away. */
+  const named = PLAYER_INDEX.filter(p => namesPlayer(text, p));
   if (!named.length) { stats.noSubject++; continue; }
 
   const teams = TEAMS.filter(t => {
@@ -421,15 +489,15 @@ const FAMILIES = {
      * nothing in it to reason from - and the redaction blanks nothing, which
      * is the visible symptom: no █████ anywhere on a card that is supposed to
      * be a name with a hole in it. */
-    const excerptNorm = norm(clip(it.text, EXCERPT));
-    if (!namesPlayer(excerptNorm, subject)) return null;
+    const excerptRaw = clip(it.text, EXCERPT);
+    if (!namesPlayer(excerptRaw, subject)) return null;
     const eraPool = [...(byEra.get(it.era) || [])].filter(n => {
       const sn = surnameOf(n);
       if (!sn || sn === subject.surname) return false;
       /* Same word-surname rule as above, or every candidate called Green or
        * Young would be struck off any excerpt containing "green light" or
        * "young players" and the pool would thin for no reason. */
-      return !namesPlayer(excerptNorm, { surname: sn, full: norm(n), strict: WORD_SURNAMES.has(sn) });
+      return !namesPlayer(excerptRaw, { surname: sn, full: norm(n), strict: WORD_SURNAMES.has(sn) });
     });
     if (eraPool.length < MIN_ERA_POOL) return null;
     const wrong = distractors(eraPool, subject.name, OPTIONS - 1, it.rec.source_url + "w");
@@ -744,4 +812,4 @@ fs.writeFileSync(OUT, JSON.stringify({
 }));
 console.log(`\nwrote ${path.relative(REPO, OUT)} (${cards.length} cards, ` +
   `${Math.round(fs.statSync(OUT).size / 1024)}KB)`);
-console.log(`Add it to TAB_POOLS in js/app.js to put it in the feed.`);
+console.log(`js/app.js already lists it in TAB_POOLS and ALL_POOLS, so it reaches the Quiz tab as soon as this file is deployed.`);

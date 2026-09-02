@@ -36,7 +36,9 @@ const src = fs.readFileSync(path.join(REPO, "tools/build_frivolities.mjs"), "utf
 function lift(name, kind) {
   const re = kind === "const"
     ? new RegExp("^const " + name + " = [\\s\\S]*?^\\]\\);$", "m")
-    : new RegExp("^(?:const|function) " + name + "[\\s\\S]*?^\\}$", "m");
+    : kind === "constobj"
+      ? new RegExp("^const " + name + " = \\{[\\s\\S]*?^\\};$", "m")
+      : new RegExp("^(?:const|function) " + name + "[\\s\\S]*?^\\}$", "m");
   const m = re.exec(src);
   if (!m) throw new Error("could not lift " + name + " from build_frivolities.mjs");
   return m[0];
@@ -44,10 +46,12 @@ function lift(name, kind) {
 const scope = [
   "const fold = s => String(s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');",
   "const norm = s => fold(s).toLowerCase().replace(/[^a-z0-9 ]+/g, '').replace(/\\s+/g, ' ').trim();",
-  lift("surnameOf"), lift("mentions"), lift("WORD_SURNAMES", "const"), lift("namesPlayer"),
-  "return { surnameOf, mentions, WORD_SURNAMES, namesPlayer, norm };"
+  lift("ACCENTS", "constobj"), lift("accentPattern"),
+  'const NB = "[A-Za-zÀ-ÿ0-9]";', lift("bounded"), lift("surnameOf"), lift("mentions"),
+  lift("WORD_SURNAMES", "const"), lift("namesPlayer"),
+  "return { surnameOf, mentions, WORD_SURNAMES, namesPlayer, norm, accentPattern, bounded };"
 ].join("\n");
-const { surnameOf, WORD_SURNAMES, namesPlayer, norm, mentions } = new Function(scope)();
+const { surnameOf, WORD_SURNAMES, namesPlayer, norm, mentions, accentPattern, bounded } = new Function(scope)();
 
 const entry = name => {
   const surname = surnameOf(name);
@@ -76,12 +80,23 @@ const CASES = [
   ["Nurkić grabbed 15 boards", "Jusuf Nurkic", true],
   // A surname inside a longer word is still not a mention.
   ["he grew up in Jamestown", "LeBron James", false],
-  ["LeBron James grew up in Akron", "LeBron James", true]
+  ["LeBron James grew up in Akron", "LeBron James", true],
+  /* A surname wearing someone else's first name belongs to someone else. This
+   * shipped: "Eiza Gonzalez and Ben Simmons enjoyed dinner" became a card
+   * asking which PLAYER it was about, answer Hugo Gonzalez. */
+  ["Eiza González and Ben Simmons enjoyed dinner", "Hugo Gonzalez", false],
+  ["Hugo González signed with the Celtics", "Hugo Gonzalez", true],
+  ["Jeff Green came off the bench", "Draymond Green", false],
+  ["Draymond Green came off the bench", "Draymond Green", true],
+  ["Seth Curry hit five threes", "Stephen Curry", false],
+  // A bare surname is how reporters write and must still count.
+  ["Curry hit five threes", "Stephen Curry", true],
+  ["and then Curry hit five threes", "Stephen Curry", true]
 ];
 
 let failures = 0;
 for (const [sentence, player, want] of CASES) {
-  const got = namesPlayer(norm(sentence), entry(player));
+  const got = namesPlayer(sentence, entry(player));   // raw, as the builder calls it
   const ok = got === want;
   if (!ok) failures++;
   console.log(`  ${ok ? "ok  " : "FAIL"} ${player.padEnd(18)} ${want ? "named" : "  not"} in ` +
@@ -154,4 +169,27 @@ for (const [body, options, want] of LEAK) {
     (ok ? "" : `   -> got ${got}`));
 }
 console.log(leakFails ? `\n${leakFails} leak cases failed` : "every leak case behaves");
-process.exit(failures + leakFails ? 1 : 0);
+
+/* Redaction has to blank the accented spelling too, or the name it was meant
+ * to hide stays on the card - which is exactly how "Eiza González" survived. */
+console.log("");
+function redact(text, term) {
+  if (!term) return text;
+  return text.replace(new RegExp(bounded(term), "gi"), "#####");
+}
+const RED = [
+  ["Eiza González looked smitten", "gonzalez", "Eiza ##### looked smitten"],
+  ["Dončić dropped 45", "doncic", "##### dropped 45"],
+  ["Jusuf Nurkić grabbed 15", "nurkic", "Jusuf ##### grabbed 15"],
+  ["Bonner was shooting well", "bonner", "##### was shooting well"],
+  ["nothing to hide here", "doncic", "nothing to hide here"]
+];
+let redFails = 0;
+for (const [text, term, want] of RED) {
+  const got = redact(text, term);
+  const ok = got === want;
+  if (!ok) redFails++;
+  console.log(`  ${ok ? "ok  " : "FAIL"} redact "${term}" -> ${got}` + (ok ? "" : `   (want ${want})`));
+}
+console.log(redFails ? `\n${redFails} redaction cases failed` : "every redaction case behaves");
+process.exit(failures + leakFails + redFails ? 1 : 0);
