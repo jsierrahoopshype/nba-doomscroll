@@ -40,6 +40,14 @@ import { fileURLToPath } from "url";
 
 const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REG = path.join(REPO, "data/links.json");
+/* Observations live in their own file, NOT in the registry.
+ *
+ * They shared one file to begin with, and the first --record run rewrote it -
+ * so the next patch to the registry would not apply, because the thing being
+ * patched had been machine-edited underneath. A file that is both hand-written
+ * and tool-written can be neither reliably. data/links.json is now only ever
+ * edited by a person; this is only ever written by --record. */
+const BASE = path.join(REPO, "data/link-baseline.json");
 
 const argv = process.argv.slice(2);
 const PROBE = argv.includes("--probe");
@@ -49,6 +57,8 @@ const NETWORK = PROBE || RECORD || CHECK;
 
 const registry = JSON.parse(fs.readFileSync(REG, "utf8"));
 const links = registry.links || [];
+let baseline = {};
+try { baseline = JSON.parse(fs.readFileSync(BASE, "utf8")).observed || {}; } catch (e) { /* not recorded yet */ }
 
 /* ---------------- coverage: no network, always runs ---------------- */
 
@@ -205,6 +215,32 @@ function differences(want, got) {
   return out;
 }
 
+/* Some assets are named in a manifest rather than in this repo, so the
+ * registry cannot hold a URL for them: a guessed headshot filename 404'd and
+ * the failure was the registry's, not the site's. An entry with `sample_from`
+ * builds its URL here instead - fetch the named entry, walk to the path, take
+ * the first key, append it. That checks a file the app would genuinely ask
+ * for. */
+async function resolveSamples() {
+  const byId = new Map(links.map(l => [l.id, l]));
+  for (const link of links) {
+    const sf = link.sample_from;
+    if (!sf) continue;
+    const source = byId.get(sf.link);
+    if (!source) { link._sampleError = `no entry called ${sf.link}`; continue; }
+    try {
+      const res = await fetch(source.url);
+      const j = await res.json();
+      const node = sf.path ? sf.path.split(".").reduce((o, k) => (o || {})[k], j) : j;
+      const first = Array.isArray(node) ? node[0] : (node && Object.values(node)[0]);
+      if (typeof first !== "string") { link._sampleError = `no filename under ${sf.path}`; continue; }
+      link.url = link.url.replace(/\/?$/, "/") + first;
+      link._sampled = first;
+    } catch (e) { link._sampleError = e.message; }
+  }
+}
+await resolveSamples();
+
 console.log(`\n  ${PROBE ? "probing" : RECORD ? "recording" : "checking"} ${links.length} destinations...\n`);
 
 let bad = 0, changed = 0;
@@ -214,6 +250,11 @@ for (const link of links) {
    * assert that would not be invented. */
   if (link.probe === false) {
     console.log(`  --   ${link.id.padEnd(22)} registered, not probed (${link.kind})`);
+    continue;
+  }
+  if (link._sampleError) {
+    console.log(`  FAIL ${link.id.padEnd(22)} could not take a sample filename: ${link._sampleError}`);
+    bad++;
     continue;
   }
   const o = await observe(link);
@@ -234,8 +275,8 @@ for (const link of links) {
 
   if (o.status >= 400) { console.log(`  FAIL ${label} ${desc}`); bad++; continue; }
 
-  if (CHECK && link.expect) {
-    const diff = differences(link.expect, identity(o));
+  if (CHECK && baseline[link.id]) {
+    const diff = differences(baseline[link.id], identity(o));
     if (diff.length) {
       console.log(`  CHANGED ${label}`);
       diff.forEach(d => console.log(`         ${d}`));
@@ -244,15 +285,19 @@ for (const link of links) {
       console.log(`  ok   ${label} ${desc}`);
     }
   } else {
-    console.log(`  ${CHECK && !link.expect ? "NEW " : "ok  "} ${label} ${desc}`);
-    if (CHECK && !link.expect) changed++;
+    console.log(`  ${CHECK && !baseline[link.id] ? "NEW " : "ok  "} ${label} ${desc}`);
+    if (CHECK && !baseline[link.id]) changed++;
   }
-  if (RECORD) link.expect = identity(o);
+  if (RECORD) baseline[link.id] = identity(o);
 }
 
 if (RECORD) {
-  fs.writeFileSync(REG, JSON.stringify(registry, null, 2) + "\n");
-  console.log(`\n  wrote observations into ${path.relative(REPO, REG)}. --check now means something.`);
+  fs.writeFileSync(BASE, JSON.stringify({
+    note: "What each destination returned when it was last recorded. Written by tools/test_links.mjs --record, never by hand — data/links.json is the hand-written half. `--check` fails when a destination stops matching what is here.",
+    recorded_at: new Date().toISOString(),
+    observed: baseline
+  }, null, 2) + "\n");
+  console.log(`\n  wrote observations into ${path.relative(REPO, BASE)}. --check now means something.`);
 }
 
 console.log("");
