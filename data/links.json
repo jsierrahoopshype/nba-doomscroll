@@ -76,10 +76,10 @@
     },
     {
       "id": "rumors-api",
-      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/random",
+      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/random?limit=1",
       "used_by": "js/rumors.js — the Rumors tab",
       "kind": "json",
-      "note": "A real endpoint, not the root - the root 403s by design. SHAPE ONLY: the response carries archive records and this repo is public, so the test records top-level keys and never a value."
+      "note": "js/rumors.js calls /api/rumors/random?limit=25; without the parameter the Worker answers 403, which the registry was asking for and reporting as an outage. limit=1 here: a health check, not a fetch. SHAPE ONLY - the response carries archive records and this repo is public."
     },
     {
       "id": "trade-log",
@@ -129,9 +129,10 @@
       "kind": "image",
       "sample_from": {
         "link": "headshot-metadata",
-        "path": "players"
+        "path": "players",
+        "item_path": "headshot.filename"
       },
-      "note": "The filename comes from the metadata map, so the registry cannot hold one: a guessed 2544.png 404'd. sample_from takes the first real filename out of headshot-metadata and appends it, which checks the thing the app would actually request rather than a name invented here."
+      "note": "The filename cannot live in the registry: js/trades.js reads players[].headshot.filename out of the metadata. sample_from walks that path and appends a real one, so the check proves a headshot the app would actually request resolves. A guessed 2544.png 404'd, and taking the first array item without item_path produced an object rather than a name."
     },
     {
       "id": "headshot-silhouette",
@@ -188,5 +189,5 @@
     }
   ],
   "probe_false_note": "An entry with probe:false is registered for coverage but never fetched. Used where there is no stable URL to check - a preconnect host that serves font binaries at hashed paths has nothing a test could meaningfully assert about.",
-  "sample_from_note": "An entry with sample_from builds its URL at probe time from another entry's response: fetch that link, walk to `path`, take the first value, append it to this entry's url. For assets whose filenames live in a manifest, this is the difference between proving the manifest exists and proving a file the app would actually ask for exists."
+  "sample_from_note": "An entry with sample_from builds its URL at probe time from another entry's response: fetch that link, walk to `path`, take the first entry, and if `item_path` is given walk into it as well, then append the result. For assets whose filenames live in a manifest this is the difference between proving the manifest exists and proving a file the app would actually ask for exists."
 }
