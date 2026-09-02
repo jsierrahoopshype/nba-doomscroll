@@ -78,8 +78,11 @@ image.
   direction, and the `race` tiers are the builder's opinion rather than a
   measurement. If any of that reads wrong on the live feed, the numbers are all
   in one file.
-- **Central link registry** and an automated link-health test that checks
-  destination identity, not just a 200.
+- **The link registry needs its expectations recorded once.** `data/links.json`
+  and `tools/test_links.mjs` ship (see Done), but every `expect` block is empty
+  until someone runs `--record` against the live destinations. Until then
+  `--check` can only report what is unreachable, not what has changed. One run,
+  then the file has teeth.
 - **The weekly top 25 says rank and share, and nothing else** — see Done. The
   Worker computes destinations and return pieces for the number one only, so
   ranks 2 to 25 cannot show them. Giving those cards the same depth as the
@@ -275,6 +278,25 @@ backend, which breaks the no-server promise the whole thing rests on.
 ## Done, for reference
 
 Kept short so the list above stays the point.
+
+- Central link registry (`data/links.json`) and link-health test
+  (`tools/test_links.mjs`). 27 destinations, each with what it is for and which
+  file uses it. The health check is about IDENTITY, not status: a 200 proves a
+  server answered, not that it answered with the right thing — a parked domain,
+  a login wall, and a renamed tool redirecting a deep link to its homepage all
+  return 200. So it records where a request finally landed, the content type,
+  the page title and a JSON body's top-level keys, and fails when any of that
+  moves. Expectations come from `--probe` and `--record` rather than from
+  guesses about what a page contains.
+  The coverage half needs no network and runs every time: it scans the app's
+  own source and fails if an outbound URL is missing from the registry, which
+  is what stops a file like this drifting out of date the week after it lands.
+  `tools/test_link_identity.mjs` proves the comparison catches a link going
+  wrong, and caught the tool skipping null fields — which had silently disabled
+  the redirect check, the one case the whole thing was built for.
+- YouTube autoplay is ON, at Jorge's call. Frivolities `which-outlet` is out,
+  also his call: the excerpt could name an outlet that was not the answer, and
+  rejecting those needs an outlet vocabulary the builder does not have.
 
 - The weekly top 25 most-traded players, one card each (`traderank`). Built
   client-side from the weekly digest's `topPlayers`, so no Worker change: 24

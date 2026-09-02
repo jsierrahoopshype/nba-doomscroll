@@ -1,0 +1,184 @@
+{
+  "note": "Every destination this feed sends a reader to, or fetches from. One place, so a link that dies is noticed here rather than by a reader tapping it. tools/test_links.mjs reads this file.",
+  "why_identity_not_status": "A 200 proves a server answered, not that it answered with the right thing. A parked domain returns 200. A tool that has been renamed returns 200 from its homepage after a redirect. A login wall returns 200. An API that has changed shape returns 200 with different JSON. So every entry carries an `expect` block describing what the response must actually BE, and the test fails on identity, not on status.",
+  "how_to_fill_expect": "Do not guess these. Run `node tools/test_links.mjs --probe` to see what each destination really returns, then `--record` to write those observations in as expectations. After that a change in what comes back is a failure.",
+  "links": [
+    {
+      "id": "hoopsmatic-home",
+      "url": "https://hoopsmatic.com",
+      "used_by": "index.html footer",
+      "kind": "page"
+    },
+    {
+      "id": "compare-tool",
+      "url": "https://hoopsmatic.com/compare?p1=LeBron%20James&p2=Kevin%20Durant",
+      "used_by": "js/cards.js tapTarget — vs and compare cards",
+      "kind": "page",
+      "note": "Deep link with both players. A redirect to the homepage means the query shape has changed and every VS card now lands on the wrong page."
+    },
+    {
+      "id": "teammates-tool",
+      "url": "https://hoopsmatic.com/teammates?vs=stephen-curry,russell-westbrook",
+      "used_by": "js/cards.js tapTarget — mates cards",
+      "kind": "page",
+      "note": "Slug pair. Worth watching an apostrophe name too (shaquille-o-neal): the slug rule is a guess until something proves it."
+    },
+    {
+      "id": "trade-machine",
+      "url": "https://hoopsmatic.com/transactionmaster",
+      "used_by": "js/trades.js MACHINE_URL — every trade, trend, digest and rank card",
+      "kind": "page",
+      "note": "Also called with ?loop=1&player=... to preload a deal. The loop parameters are the tool's, not this repo's, so a rename there silently breaks a lot of cards here."
+    },
+    {
+      "id": "salary-season-finder",
+      "url": "https://hoopsmatic.com/salary-season-finder",
+      "used_by": "js/cards.js tapTarget — salary cards without their own url",
+      "kind": "page"
+    },
+    {
+      "id": "hoopshype-rumors",
+      "url": "https://hoopshype.com/rumors/",
+      "used_by": "js/cards.js tapTarget — rumor cards without a source_url",
+      "kind": "page"
+    },
+    {
+      "id": "media-vote-tracker",
+      "url": "https://jsierrahoopshype.github.io/media-vote-tracker/",
+      "used_by": "js/cards.js tapTarget — lean and oddity cards",
+      "kind": "page"
+    },
+    {
+      "id": "content-stream",
+      "url": "https://jsierrahoopshype.github.io/nba-content-stream/",
+      "used_by": "index.html footer credit",
+      "kind": "page"
+    },
+    {
+      "id": "buzz-trending",
+      "url": "https://jsierrahoopshype.github.io/nba-content-stream/data/index/trending.json",
+      "used_by": "js/buzz.js TRENDING_URL",
+      "kind": "json",
+      "note": "The Buzz tab is empty without this or the feed below."
+    },
+    {
+      "id": "buzz-feed",
+      "url": "https://jsierrahoopshype.github.io/nba-content-stream/data/index/feed.json",
+      "used_by": "js/buzz.js FEED_URL",
+      "kind": "json"
+    },
+    {
+      "id": "buzz-feed-recent",
+      "url": "https://jsierrahoopshype.github.io/nba-content-stream/data/index/feed-recent.json",
+      "used_by": "js/buzz.js RECENT_URL — the fallback when feed.json fails",
+      "kind": "json"
+    },
+    {
+      "id": "rumors-api",
+      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/",
+      "used_by": "js/rumors.js — the Rumors tab",
+      "kind": "json",
+      "note": "PROBE ONLY. The response carries archive records, so the test records the response SHAPE and never its content."
+    },
+    {
+      "id": "trade-log",
+      "url": "https://nba-trade-calculator.thejorgesierra.workers.dev/api/trade-log?limit=5",
+      "used_by": "js/trades.js TRADE_LOG_URL",
+      "kind": "json",
+      "note": "Asked for five rows, not six hundred: this is a health check, not a fetch."
+    },
+    {
+      "id": "trade-digest",
+      "url": "https://nba-trade-daily-digest.thejorgesierra.workers.dev/digest",
+      "used_by": "js/trades.js DIGEST_URL — the daily digest card",
+      "kind": "json"
+    },
+    {
+      "id": "trade-digest-weekly",
+      "url": "https://nba-trade-daily-digest.thejorgesierra.workers.dev/digest?days=7",
+      "used_by": "js/trades.js — the weekly digest and the whole top 25",
+      "kind": "json",
+      "note": "Must declare a 7-day window in the payload. If it stops doing that, 25 cards quietly disappear and nothing else says why."
+    },
+    {
+      "id": "cors-proxy",
+      "url": "https://nba-content-stream-cors.thejorgesierra.workers.dev",
+      "used_by": "data/buzz-sources.json cors_proxy — Reddit body enrichment",
+      "kind": "page",
+      "note": "Shared with nba-content-stream, which does not know this repo calls it."
+    },
+    {
+      "id": "bluesky-appview",
+      "url": "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=hoopshypeofficial.bsky.social",
+      "used_by": "js/buzz.js — Bluesky post enrichment",
+      "kind": "json",
+      "note": "Any cheap public endpoint proves the AppView is reachable and unauthenticated."
+    },
+    {
+      "id": "reddit-top-rss",
+      "url": "https://www.reddit.com/r/nba/top/.rss?t=week&limit=100",
+      "used_by": "data/buzz-sources.json reddit_feeds",
+      "kind": "xml",
+      "note": "Fetched through the proxy in production, direct here. Reddit blocks datacenter IPs on its JSON API but not on RSS."
+    },
+    {
+      "id": "headshot-face",
+      "url": "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/2544.png",
+      "used_by": "js/trades.js HEADSHOT_BASE",
+      "kind": "image"
+    },
+    {
+      "id": "headshot-silhouette",
+      "url": "https://jsierrahoopshype.github.io/nba-headshots/fallbacks/player_silhouette.svg",
+      "used_by": "js/cards.js SILHOUETTE — every card with a missing face",
+      "kind": "image",
+      "note": "The fallback for a fallback. If this 404s, a broken image appears wherever a photo is missing."
+    },
+    {
+      "id": "headshot-metadata",
+      "url": "https://jsierrahoopshype.github.io/nba-headshots/players/metadata/players.json",
+      "used_by": "js/trades.js loadHeadshots",
+      "kind": "json"
+    },
+    {
+      "id": "team-logo",
+      "url": "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/LAL.svg",
+      "used_by": "js/trades.js LOGO_BASE",
+      "kind": "image"
+    },
+    {
+      "id": "youtube-embed",
+      "url": "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+      "used_by": "js/yt-video.js ORIGIN",
+      "kind": "page",
+      "note": "The privacy-preserving embed host. If this ever stops answering, video cards fall back to their thumbnail."
+    },
+    {
+      "id": "google-fonts",
+      "url": "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400&display=swap",
+      "used_by": "index.html stylesheet",
+      "kind": "css"
+    },
+    {
+      "id": "bluesky-profile",
+      "url": "https://bsky.app/profile/hoopshypeofficial.bsky.social",
+      "used_by": "js/cards.js — the author link on a Bluesky card",
+      "kind": "page"
+    },
+    {
+      "id": "bluesky-hashtag",
+      "url": "https://bsky.app/hashtag/NBA",
+      "used_by": "js/cards.js facetText — a hashtag inside a Bluesky post",
+      "kind": "page"
+    },
+    {
+      "id": "google-fonts-files",
+      "url": "https://fonts.gstatic.com",
+      "used_by": "index.html preconnect — the font files the stylesheet points at",
+      "kind": "preconnect",
+      "probe": false,
+      "note": "No stable URL: the stylesheet names hashed paths that change with every font release. Registered so the coverage check knows about it; checking it would mean asserting something invented."
+    }
+  ],
+  "probe_false_note": "An entry with probe:false is registered for coverage but never fetched. Used where there is no stable URL to check - a preconnect host that serves font binaries at hashed paths has nothing a test could meaningfully assert about."
+}

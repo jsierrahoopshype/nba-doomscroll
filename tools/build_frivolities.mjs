@@ -655,7 +655,16 @@ const FAMILIES = {
 
 /* ---------------- build ---------------- */
 
-const FAMILY_ORDER = ["who-is-this", "which-team", "which-outlet", "what-year"];
+/* which-outlet is OUT, at Jorge's call. Its weakness was never fixable from
+ * the record alone: the excerpt can name an outlet that is not the answer -
+ * "in a lengthy sit-down interview with Grantland's Bill Simmons", answer San
+ * Antonio Express-News, Grantland not even on the ballot. Technically correct
+ * and genuinely unfair. Rejecting those needs an outlet vocabulary the builder
+ * does not have.
+ *
+ * Nothing is lost in volume: the pool is capped at 400 and the other three
+ * families refill it. Put the string back to bring the family back. */
+const FAMILY_ORDER = ["who-is-this", "which-team", "what-year"];
 const perSubject = new Map();
 const usedSource = new Set();
 const cards = [];
