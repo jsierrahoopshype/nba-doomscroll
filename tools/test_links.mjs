@@ -232,8 +232,18 @@ async function resolveSamples() {
       const res = await fetch(source.url);
       const j = await res.json();
       const node = sf.path ? sf.path.split(".").reduce((o, k) => (o || {})[k], j) : j;
-      const first = Array.isArray(node) ? node[0] : (node && Object.values(node)[0]);
-      if (typeof first !== "string") { link._sampleError = `no filename under ${sf.path}`; continue; }
+      let first = Array.isArray(node) ? node[0] : (node && Object.values(node)[0]);
+      /* A manifest is rarely a bare list of filenames. players[] holds objects
+       * with the name at headshot.filename, so taking the first entry gave an
+       * object and the sampler reported a failure that was its own. */
+      if (first && typeof first === "object" && sf.item_path) {
+        first = sf.item_path.split(".").reduce((o, k) => (o || {})[k], first);
+      }
+      if (typeof first !== "string") {
+        link._sampleError = `no filename at ${sf.path}${sf.item_path ? "[0]." + sf.item_path : ""}` +
+          ` (got ${first === undefined ? "nothing" : typeof first})`;
+        continue;
+      }
       link.url = link.url.replace(/\/?$/, "/") + first;
       link._sampled = first;
     } catch (e) { link._sampleError = e.message; }
