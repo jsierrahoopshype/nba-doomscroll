@@ -290,6 +290,17 @@ a:hover{ text-decoration:underline }
 .td-name-big{ font-size:1.15rem; font-weight:700; letter-spacing:-.015em; line-height:1.2 }
 .td-share{ font-size:.82rem; color:var(--text-secondary); line-height:1.3 }
 .td-share b{ color:var(--t-trade); font-size:1rem }
+
+/* A weekly top-25 card. The rank numeral is the card's identity, so it leads
+   at a size that reads before the name does. */
+.tr-row{ display:flex; align-items:center; gap:.65rem; margin-top:.35rem }
+.tr-num{
+  flex:none; min-width:2.1ch; text-align:right;
+  font-size:1.6rem; font-weight:700; line-height:1;
+  color:var(--t-trade); opacity:.55;
+}
+.tr-text{ min-width:0 }
+.tr-count{ color:var(--text-secondary); opacity:.8; font-size:.76rem; white-space:nowrap }
 .td-label{
   margin-top:.6rem; font-size:.58rem; text-transform:uppercase; letter-spacing:.06em;
   color:var(--text-secondary);

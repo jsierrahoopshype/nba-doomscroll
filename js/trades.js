@@ -438,6 +438,70 @@
     return null;
   }
 
+  /* The week's most-traded players, one card each.
+   *
+   * The digest's per-player breakdown - where he went, who came back - exists
+   * only for the number one. `topPlayers` is a ranked [name, count] list and
+   * that is all it is, so these cards say the one thing they can actually
+   * support: where a player sits in the week and how much of the week's
+   * traffic he was. Inventing destinations for ranks 2 to 25 would mean
+   * changing the Worker, which is a deploy and Jorge's call.
+   *
+   * Each card carries its own story_key so the engine spaces them out. Without
+   * that, twenty-five cards of one shape sitting in one small tab is exactly
+   * the repetition the diversity work exists to prevent. */
+  var TOP_N_WEEKLY = 25;
+
+  function weeklyRankCards(d) {
+    if (!d || !Array.isArray(d.topPlayers) || !d.topPlayers.length || !d.tradeCount) return [];
+    var out = [];
+    /* Bounded on the RANK, not on the card count. Counting cards instead ran
+     * to rank 26, because rank one is skipped below - so "top 25" quietly
+     * became "ranks 2 to 26". Twenty-five cards ship either way: twenty-four
+     * here plus the digest card that covers number one properly. */
+    var last = Math.min(d.topPlayers.length, TOP_N_WEEKLY);
+    for (var i = 0; i < last; i++) {
+      var e = d.topPlayers[i];
+      var name = String(Array.isArray(e) ? e[0] : e || "");
+      var count = Array.isArray(e) ? +e[1] || 0 : 0;
+      if (!name || !count) continue;
+      /* The number one already has a far better card of its own - the weekly
+       * digest, with destinations and return pieces. A thinner card about the
+       * same player in the same tab is strictly worse than not having one. */
+      if (i === 0 && d.topPlayer && name === d.topPlayer) continue;
+      out.push({
+        id: "trade-week-rank-" + (i + 1),
+        type: "traderank",
+        tab: ["trades"],
+        live: true,
+        story_key: "traderank|" + name,
+        story_family: "trade:weekly-rank",
+        /* Rank IS the quality here: being the second most-traded player in a
+         * week is a bigger fact than being the twenty-fourth, and the feed
+         * should say so. Bounded so number 25 is quieter, never unreachable. */
+        quality_score: Math.round((1 - i / TOP_N_WEEKLY) * 100) / 100,
+        tags: {
+          content_type: "traderank",
+          players: [name],
+          teams: [],
+          era: "2020s",
+          category: "trade-machine"
+        },
+        payload: {
+          rank: i + 1,
+          player: name,
+          img: faceFor(name),
+          count: count,
+          total: d.tradeCount,
+          share: Math.round(count / d.tradeCount * 1000) / 10,
+          period: "the last 7 days",
+          machine_url: loopUrl({ players: [name] })
+        }
+      });
+    }
+    return out;
+  }
+
   function loadDigests() {
     var daily = fetchDigest("")
       .then(function (j) {
@@ -455,14 +519,21 @@
             " (add days=7 support and echo `days` in the payload to light this up)");
           return null;
         }
-        return digestCard(j && j.digest, { key: "week", chip: "WEEKLY DIGEST", label: "the last 7 days" });
+        var top = digestCard(j && j.digest, { key: "week", chip: "WEEKLY DIGEST", label: "the last 7 days" });
+        var ranks = weeklyRankCards(j && j.digest);
+        if (ranks.length) {
+          console.info("[doomscroll] weekly top " + (ranks.length + (top ? 1 : 0)) +
+            " most-traded players");
+        }
+        return [top].concat(ranks);
       })
       .catch(function (e) {
         console.warn("[doomscroll] weekly digest unavailable:", e.message);
-        return null;
+        return [];
       });
-    return Promise.all([daily, weekly]).then(function (cards) {
-      return cards.filter(Boolean);
+    return Promise.all([daily, weekly]).then(function (parts) {
+      // daily is one card or null; weekly is a list.
+      return [].concat(parts[0] || [], parts[1] || []).filter(Boolean);
     });
   }
 

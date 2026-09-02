@@ -33,17 +33,32 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { resolveSource } from "./lib/find.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
 
 const argv = process.argv.slice(2);
-if (argv[0] !== "--local" || !argv[1] || !argv[2]) {
-  console.error("usage: node tools/build_salary.mjs --local <nba-player-data> <capCsv> [--out data/salary-pool.json]");
-  process.exit(1);
-}
-const PD = argv[1];
-const CAP_CSV = argv[2];
+/* Both sources are found rather than typed. Run it with no arguments at all:
+ *
+ *     node tools/build_salary.mjs
+ *
+ * --local still takes them explicitly when the search picks the wrong one:
+ *
+ *     node tools/build_salary.mjs --local <nba-player-data> <capCsv>
+ *
+ * This pool went unbuilt for weeks because nobody had the path to the cap CSV
+ * to hand, which is a poor reason for 68 cards not to exist. */
+const li = argv.indexOf("--local");
+const PD = resolveSource("nba-player-data", {
+  explicit: li >= 0 ? argv[li + 1] : null,
+  markers: ["salaries.json", "rsStats.json", "bio.json"]
+});
+const CAP_CSV = PD && resolveSource("the salary cap table", {
+  explicit: li >= 0 ? argv[li + 2] : null,
+  files: ["salary_cap_info.csv"]
+});
+if (!PD || !CAP_CSV) process.exit(1);
 const oi = argv.indexOf("--out");
 const outArg = oi >= 0 && argv[oi + 1] ? argv[oi + 1] : "data/salary-pool.json";
 const OUT = path.isAbsolute(outArg) ? outArg : path.join(REPO, outArg);
