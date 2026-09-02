@@ -1,7 +1,7 @@
 {
   "note": "Every destination this feed sends a reader to, or fetches from. One place, so a link that dies is noticed here rather than by a reader tapping it. tools/test_links.mjs reads this file.",
   "why_identity_not_status": "A 200 proves a server answered, not that it answered with the right thing. A parked domain returns 200. A tool that has been renamed returns 200 from its homepage after a redirect. A login wall returns 200. An API that has changed shape returns 200 with different JSON. So every entry carries an `expect` block describing what the response must actually BE, and the test fails on identity, not on status.",
-  "how_to_fill_expect": "Do not guess these. Run `node tools/test_links.mjs --probe` to see what each destination really returns, then `--record` to write those observations in as expectations. After that a change in what comes back is a failure.",
+  "how_to_fill_expect": "Do not guess these, and do not put them here. `--record` writes what each destination actually returns into data/link-baseline.json, a separate file. This one stays hand-written so a patch to it always applies: a file that is both edited by hand and rewritten by a tool cannot be both.",
   "links": [
     {
       "id": "hoopsmatic-home",
@@ -28,13 +28,14 @@
       "url": "https://hoopsmatic.com/transactionmaster",
       "used_by": "js/trades.js MACHINE_URL — every trade, trend, digest and rank card",
       "kind": "page",
-      "note": "Also called with ?loop=1&player=... to preload a deal. The loop parameters are the tool's, not this repo's, so a rename there silently breaks a lot of cards here."
+      "note": "BROKEN as of the first probe: 404, application/json {error}. Every trade, trend, digest and top-25 card taps through to this, and every ?loop= deep link is built on it. hoopsmatic.com's own homepage answers with the title 'NBA Trade Machine', so the tool appears to have moved to the root or to another path. The correct URL is Jorge's to give; this is not something to guess at, because guessing wrong sends every trade card somewhere else that also returns 200."
     },
     {
       "id": "salary-season-finder",
       "url": "https://hoopsmatic.com/salary-season-finder",
       "used_by": "js/cards.js tapTarget — salary cards without their own url",
-      "kind": "page"
+      "kind": "page",
+      "note": "The probe returns 200 with the title 'NBA Season Comparison Tool - HoopsHype', which is not a salary view. Already recorded in BACKLOG as the wrong destination for cap-share cards; the probe is the first thing to confirm it from outside."
     },
     {
       "id": "hoopshype-rumors",
@@ -75,10 +76,10 @@
     },
     {
       "id": "rumors-api",
-      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/",
+      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/random",
       "used_by": "js/rumors.js — the Rumors tab",
       "kind": "json",
-      "note": "PROBE ONLY. The response carries archive records, so the test records the response SHAPE and never its content."
+      "note": "A real endpoint, not the root - the root 403s by design. SHAPE ONLY: the response carries archive records and this repo is public, so the test records top-level keys and never a value."
     },
     {
       "id": "trade-log",
@@ -102,10 +103,10 @@
     },
     {
       "id": "cors-proxy",
-      "url": "https://nba-content-stream-cors.thejorgesierra.workers.dev",
+      "url": "https://nba-content-stream-cors.thejorgesierra.workers.dev/?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fnba%2Ftop%2F.rss%3Flimit%3D1",
       "used_by": "data/buzz-sources.json cors_proxy — Reddit body enrichment",
-      "kind": "page",
-      "note": "Shared with nba-content-stream, which does not know this repo calls it."
+      "kind": "xml",
+      "note": "Called with ?url=, the way js/buzz.js calls it. A bare root request returns 400 by design, which is what the registry was asking for and reporting as a failure."
     },
     {
       "id": "bluesky-appview",
@@ -123,9 +124,14 @@
     },
     {
       "id": "headshot-face",
-      "url": "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/2544.png",
+      "url": "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/",
       "used_by": "js/trades.js HEADSHOT_BASE",
-      "kind": "image"
+      "kind": "image",
+      "sample_from": {
+        "link": "headshot-metadata",
+        "path": "players"
+      },
+      "note": "The filename comes from the metadata map, so the registry cannot hold one: a guessed 2544.png 404'd. sample_from takes the first real filename out of headshot-metadata and appends it, which checks the thing the app would actually request rather than a name invented here."
     },
     {
       "id": "headshot-silhouette",
@@ -142,9 +148,10 @@
     },
     {
       "id": "team-logo",
-      "url": "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/LAL.svg",
+      "url": "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/lal.svg",
       "used_by": "js/trades.js LOGO_BASE",
-      "kind": "image"
+      "kind": "image",
+      "note": "Lowercase. js/trades.js does LOGO_BASE + abbr.toLowerCase() + '.svg'; the registry had LAL.svg and reported a 404 that was the registry's own fault."
     },
     {
       "id": "youtube-embed",
@@ -180,5 +187,6 @@
       "note": "No stable URL: the stylesheet names hashed paths that change with every font release. Registered so the coverage check knows about it; checking it would mean asserting something invented."
     }
   ],
-  "probe_false_note": "An entry with probe:false is registered for coverage but never fetched. Used where there is no stable URL to check - a preconnect host that serves font binaries at hashed paths has nothing a test could meaningfully assert about."
+  "probe_false_note": "An entry with probe:false is registered for coverage but never fetched. Used where there is no stable URL to check - a preconnect host that serves font binaries at hashed paths has nothing a test could meaningfully assert about.",
+  "sample_from_note": "An entry with sample_from builds its URL at probe time from another entry's response: fetch that link, walk to `path`, take the first value, append it to this entry's url. For assets whose filenames live in a manifest, this is the difference between proving the manifest exists and proving a file the app would actually ask for exists."
 }

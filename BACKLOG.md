@@ -78,11 +78,11 @@ image.
   direction, and the `race` tiers are the builder's opinion rather than a
   measurement. If any of that reads wrong on the live feed, the numbers are all
   in one file.
-- **The link registry needs its expectations recorded once.** `data/links.json`
-  and `tools/test_links.mjs` ship (see Done), but every `expect` block is empty
-  until someone runs `--record` against the live destinations. Until then
-  `--check` can only report what is unreachable, not what has changed. One run,
-  then the file has teeth.
+- **Re-record the link baseline after the URL fixes.** Four of the first run's
+  five failures were the registry's own probe URLs, now corrected. Run
+  `--record` once more so the corrected entries are banked, then `--check` is
+  meaningful for all of them. `transactionmaster` will keep failing until its
+  real URL is known, which is correct.
 - **The weekly top 25 says rank and share, and nothing else** — see Done. The
   Worker computes destinations and return pieces for the number one only, so
   ranks 2 to 25 cannot show them. Giving those cards the same depth as the
@@ -204,6 +204,19 @@ backend, which breaks the no-server promise the whole thing rests on.
 ---
 
 ## Upstream, small
+
+- **`hoopsmatic.com/transactionmaster` returns 404.** The first link-health run
+  found it: `MACHINE_URL` in js/trades.js, which every trade, trend, digest and
+  top-25 card taps through to, and which every `?loop=` deep link is built on.
+  hoopsmatic.com's homepage answers with the title "NBA Trade Machine", so the
+  tool looks to have moved to the root or to another path. Not guessed at —
+  guessing wrong sends every trade card somewhere else that also returns 200,
+  which is the failure this whole check exists to prevent. Needs the real URL.
+- **The salary tap-through lands on the Season Comparison Tool.** Known, and
+  now confirmed from outside: the probe returns 200 with the title "NBA Season
+  Comparison Tool - HoopsHype", which is not a salary view. Cards built by
+  `build_salary.mjs` carry their own `url` and are fine; the older cap-share
+  cards fall back to this one.
 
 - **Frivolities `which-team` blanks whatever team the text names, which is not
   always the subject's.** A card asks "Which team was this?" over "in the 4th

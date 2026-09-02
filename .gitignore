@@ -8,3 +8,7 @@ tools/win/paths.cmd
 # Build output of tools/build_preview.mjs. 2.7MB of inlined data and images;
 # regenerate it rather than commit it.
 preview.html
+# Written by tools/test_links.mjs --record: what each destination returned
+# when last checked. Machine-written, machine-read, and specific to when it
+# ran - not something to review in a diff.
+data/link-baseline.json
