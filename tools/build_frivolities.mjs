@@ -49,6 +49,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { resolveSource } from "./lib/find.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -62,7 +63,15 @@ function arg(name, fallback) {
 }
 const has = name => argv.includes("--" + name);
 
-const SRC = arg("local", "");
+/* The archive folder is found rather than typed - run it with no arguments:
+ *
+ *     node tools/build_frivolities.mjs --sample
+ *
+ * --local still overrides when the search finds the wrong checkout. */
+const SRC = resolveSource("the HoopsHype rumors archive", {
+  explicit: arg("local", ""),
+  markers: ["hoopshype_rumors_part1.json"]
+});
 const WRITE = has("write");
 const SHOW_SAMPLE = has("sample");
 const OUT = path.join(REPO, arg("out", "data/frivolities-pool.json"));
@@ -70,8 +79,8 @@ const LIMIT = parseInt(arg("limit", "400"), 10);
 const EXCERPT = parseInt(arg("excerpt", "240"), 10);
 
 if (!SRC) {
-  console.error("usage: node tools/build_frivolities.mjs --local <hoopshype-rumors> [--write]");
-  console.error("       without --write nothing is written; it reports what it would build.");
+  console.error("       Pass --local <folder> if the archive is somewhere the search cannot reach.");
+  console.error("       Without --write nothing is written; it reports what it would build.");
   process.exit(1);
 }
 

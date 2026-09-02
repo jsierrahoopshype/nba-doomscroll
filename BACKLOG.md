@@ -60,8 +60,8 @@ image.
 - **Reddit playback** still needs a playable URL the Content Stream index does
   not carry, and the standing decision against scraping it holds (see below).
 - **Frivolities: the builder is written, the pool is Jorge's to make.** Run
-  `node tools/build_frivolities.mjs --local <hoopshype-rumors>` for a dry run,
-  `--sample` to read three finished cards, `--write` to ship. It refuses to
+  `node tools/build_frivolities.mjs` for a dry run (it finds the archive
+  itself), `--sample` to read three finished cards, `--write` to ship. It refuses to
   write by default because the pool carries archive excerpts. Tested against a
   synthetic archive only; the real distributions (how many outlets, how many
   distinct players per era) will differ and some thresholds may want moving.
@@ -77,8 +77,11 @@ image.
   in one file.
 - **Central link registry** and an automated link-health test that checks
   destination identity, not just a 200.
-- **Trade digest around the week** rather than yesterday's number one, showing a
-  top five.
+- **The weekly top 25 says rank and share, and nothing else** — see Done. The
+  Worker computes destinations and return pieces for the number one only, so
+  ranks 2 to 25 cannot show them. Giving those cards the same depth as the
+  digest card means teaching `computeDigest` to return a per-player breakdown,
+  which is a Worker change and a deploy.
 - **Headshot normalisation**, the rest of it: per-player crop overrides and a QA
   contact sheet. The aspect-ratio bug underneath it is fixed (see Done), so what
   is left is the framing — some sources sit high in the frame, some low, and the
@@ -196,6 +199,11 @@ backend, which breaks the no-server promise the whole thing rests on.
 
 ## Upstream, small
 
+- **Check one apostrophe name on a Teammates link.** The slug rule turns
+  "Shaquille O'Neal" into `shaquille-o-neal`. If the tool expects
+  `shaquille-oneal` instead, those pairings link to nothing — one card is
+  enough to tell, and it is one line in `nameSlug` either way.
+
 - **`salaries.json` duplicates its 2026 rows.** 117 player-seasons list one full
   salary under two teams, using full city names ("LA Lakers") where every other
   season uses abbreviations ("LAL"). LeBron James appears at $52,627,153 on both
@@ -233,6 +241,26 @@ backend, which breaks the no-server promise the whole thing rests on.
 ## Done, for reference
 
 Kept short so the list above stays the point.
+
+- The weekly top 25 most-traded players, one card each (`traderank`). Built
+  client-side from the weekly digest's `topPlayers`, so no Worker change: 24
+  cards for ranks 2-25 plus the existing digest card, which covers number one
+  far better than a thin card could. Each carries a story_key so twenty-five
+  cards of one shape cannot arrive together, and quality falls with rank.
+- Teammates cards link to the Teammates Score tool, opened on the exact pairing
+  (`/teammates?vs=stephen-curry,russell-westbrook`). Slugs fold diacritics
+  rather than dropping them — the mistake that left six race tiles unrebuilt.
+- Guess the Player admits only the hard tier: 625 players who lasted in the
+  league without ever making an All-Star team. Weighting could not do this on
+  its own — quality_score maps to the engine's 0.7x-1.3x band, so the widest
+  gap between tiers is 1.65x per card, which is why a clear photograph of
+  Gordon Hayward still came up often enough to notice. The 453 easy and medium
+  cards stay in the pool file; one line in app.js brings a tier back.
+- `build_salary.mjs` and `build_frivolities.mjs` find their own sources
+  (`tools/lib/find.mjs`). Both pools sat unbuilt for weeks purely because
+  nobody had the paths to hand. Every candidate is listed, newest used, and
+  `--local` still overrides — because this machine has two nba-player-data
+  checkouts and picking one in silence is how the 92-vs-99 player bug happened.
 
 - YouTube plays in the feed (`js/yt-video.js`). A YouTube card was a title and
   a thumbnail that sent you to youtube.com; it now plays in place, through the

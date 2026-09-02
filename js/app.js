@@ -37,11 +37,21 @@
   };
 
   var allCards = [];
-  /* Must match QUIZ_QUALITY in tools/build_data.mjs. A hard-tier player is a
-   * long-serving journeyman who was never an All-Star, which is the good
-   * question; easy stays in the pool at a low weight so the tab is not
-   * relentless rather than being deleted from it. */
-  var QUIZ_QUALITY = { hard: 1, medium: 0.55, easy: 0.15 };
+  /* Which Guess the Player tiers reach the feed at all, and how each is
+   * weighted once there. Must match QUIZ_QUALITY in tools/build_data.mjs.
+   *
+   * Weighting alone could not do this job. quality_score maps to the engine's
+   * 0.7x-1.3x band, so the widest possible gap between tiers is 1.65x per
+   * card - which is why a clear photograph of Gordon Hayward, a two-time
+   * All-Star sitting in the "medium" tier, still came up often enough to
+   * notice. Admission is the only lever with any force behind it.
+   *
+   * So only the hard tier plays: 625 cards, every one a player who lasted in
+   * the league without ever making an All-Star team. That is the question
+   * worth asking now that the photograph is shown clear and whole. The 453
+   * easy and medium cards stay in the pool file untouched - add a tier back
+   * here and it returns with the weight given. */
+  var QUIZ_QUALITY = { hard: 1 };
   var byId = {};
   // Ids currently rendered in the feed. Sampling draws without replacement
   // within one batch, but nothing stopped a LATER batch re-drawing a card that
@@ -167,18 +177,19 @@
     // "on this day" — it is a different day, and saying otherwise is just
     // wrong. Those cards say "Around this date" instead.
     var otdExact = otdDate === todayMd(0);
+    var quizDropped = 0;
     (list || []).forEach(function (c) {
       if (byId[c.id]) return;
       if (c.type === "otd" && c.payload.date && otdDate && c.payload.date !== otdDate) return;
       if (c.type === "otd" && !otdExact) c.payload.approx = true;
       /* Guess the Player shows a clear, full photograph, so the difficulty has
-       * to come from the player rather than from the picture. build_data.mjs
-       * emits this now; the fallback covers a pool built before it did, which
-       * is every pool currently deployed. Deliberately does not overwrite a
-       * score the builder set. */
-      if (c.type === "quiz" && typeof c.quality_score !== "number" &&
-          c.payload && QUIZ_QUALITY[c.payload.difficulty] !== undefined) {
-        c.quality_score = QUIZ_QUALITY[c.payload.difficulty];
+       * to come from the player rather than from the picture. A tier that is
+       * not in QUIZ_QUALITY does not reach the feed at all - see the note
+       * there for why weighting was not enough on its own. */
+      if (c.type === "quiz" && c.payload) {
+        var tier = c.payload.difficulty;
+        if (QUIZ_QUALITY[tier] === undefined) { quizDropped++; return; }
+        if (typeof c.quality_score !== "number") c.quality_score = QUIZ_QUALITY[tier];
       }
       /* Story keys and quality for the pools whose builders emit neither, so
        * the engine's spacing and weighting apply to every card type rather
@@ -188,6 +199,13 @@
       byId[c.id] = c;
       allCards.push(c);
     });
+    /* Said out loud rather than dropped quietly: a tier filter that silently
+     * removes a third of a pool is exactly the kind of thing that gets
+     * forgotten and then puzzled over six months later. */
+    if (quizDropped) {
+      console.info("[doomscroll] quiz: " + quizDropped +
+        " cards held back (tiers outside " + Object.keys(QUIZ_QUALITY).join(", ") + ")");
+    }
   }
 
   function fetchPool(url) {

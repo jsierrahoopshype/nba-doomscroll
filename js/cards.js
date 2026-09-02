@@ -102,6 +102,7 @@
     buzz:   { chip: "BUZZ",    cls: "t-buzz",  tab: "buzz" },
     tradetrend: { chip: "TRADE TRENDS", cls: "t-trade", tab: "trades" },
     tradedigest: { chip: "DAILY DIGEST", cls: "t-trade", tab: "trades" },
+    traderank:   { chip: "WEEKLY TOP 25", cls: "t-trade", tab: "trades" },
     mates:  { chip: "TEAMMATES", cls: "t-vs", tab: "vs" },
     compare: { chip: "HEAD TO HEAD", cls: "t-vs", tab: "vs" },
     lean:   { chip: "MEDIA LEAN", cls: "t-quiz", tab: "vault" }
@@ -216,6 +217,65 @@
         '<div class="td-list">' + bars(p.dests, "dest") + '</div>' : "") +
       (p.back.length ? '<div class="td-label mono">Most traded for</div>' +
         '<div class="td-list">' + bars(p.back, "back") + '</div>' : "");
+  }
+
+  /* One of the week's most-traded players, ranks 2 to 25.
+   *
+   * Deliberately thinner than the digest card above, because the data is
+   * thinner: the Worker computes destinations and return pieces for the number
+   * one only, and `topPlayers` is a ranked [name, count] list. So the card says
+   * the two things it can stand behind - where he sits in the week, and how
+   * much of the week's traffic he was - and links into the machine with him
+   * already loaded. Dressing it up to look as substantial as the digest card
+   * would be claiming detail that does not exist. */
+  function renderTradeRank(c) {
+    var p = c.payload;
+    return '<div class="td-rank mono">No. ' + esc(String(p.rank)) +
+        ' most-traded player · ' + esc(p.period) + '</div>' +
+      '<div class="tr-row">' +
+        '<span class="tr-num mono">' + esc(String(p.rank)) + '</span>' +
+        face(p.img, p.player, "face lg") +
+        '<div class="tr-text">' +
+          '<div class="td-name-big">' + ent(p.player, "player") + '</div>' +
+          '<div class="td-share"><b class="mono">' + esc(p.share.toFixed(1)) + '%</b>' +
+            ' of every trade built in ' + esc(p.period) +
+            ' <span class="tr-count mono">(' + esc(fmtInt(p.count)) + ' of ' +
+            esc(fmtInt(p.total)) + ')</span></div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  /* Thousands separators, because "9977 trades" reads as a part number. */
+  function fmtInt(n) {
+    return String(Math.round(+n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  /* The Teammates Score tool takes both players as one comma-separated slug
+   * pair: /teammates?vs=derek-fisher,kobe-bryant
+   *
+   * Diacritics are FOLDED, not stripped. Dropping the accented letter turns
+   * "Jusuf Nurkić" into "jusuf-nurki", which is the same mistake that left six
+   * race tiles unrebuilt earlier - a silent near-miss that produces a link to
+   * nothing rather than an obvious error.
+   *
+   * Derived here rather than baked into the pool so it applies to the 700
+   * cards already deployed; build_teammates.mjs can set `teammates_url` and it
+   * wins. */
+  function nameSlug(n) {
+    var s = String(n || "");
+    if (s.normalize) s = s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+  /* The separator stays a literal comma, matching the tool's own example
+   * (?vs=derek-fisher,kobe-bryant). Encoding the pair as one string turned it
+   * into %2C, which a server may well decode the same way and may well not -
+   * not a gamble worth taking for nothing. The slugs themselves are already
+   * [a-z0-9-], so encoding them is belt and braces. */
+  function teammatesUrl(a, b) {
+    var x = nameSlug(a && a.name), y = nameSlug(b && b.name);
+    if (!x || !y) return null;
+    return "https://hoopsmatic.com/teammates?vs=" +
+      encodeURIComponent(x) + "," + encodeURIComponent(y);
   }
 
   /* Teammates Score: who had the better help, season by season. The canvas is
@@ -822,6 +882,7 @@
     salaryrank: renderSalaryRank, otd: renderOtd,
     race: renderRace, oddity: renderOddity, buzz: renderBuzz,
     tradetrend: renderTradeTrend, tradedigest: renderTradeDigest,
+    traderank: renderTradeRank,
     mates: renderMates, compare: renderCompare, lean: renderLean
   };
 
@@ -838,6 +899,7 @@
         : { url: "https://hoopsmatic.com/transactionmaster", label: "Open Trade Machine" };
       case "tradetrend": return { url: c.payload.machine_url, label: "Build one yourself" };
       case "tradedigest": return { url: c.payload.machine_url, label: "Trade " + c.payload.player.split(" ").pop() };
+      case "traderank":   return { url: c.payload.machine_url, label: "Trade " + c.payload.player.split(" ").pop() };
       case "rumor": return { url: c.payload.source_url || "https://hoopshype.com/rumors/", label: "Read on HoopsHype" };
       case "vs":    return { url: c.payload.compare_url, label: "Full comparison" };
       /* Cards built by tools/build_salary.mjs carry a destination of their own,
@@ -860,8 +922,14 @@
       // No tap-through. The race IS the destination; sending someone to the
       // HoopsMatic homepage from it added nothing.
       case "race":  return null;
-      // Same reasoning as a race: the card IS the destination.
-      case "mates": return null;
+      /* The Teammates Score tool, opened on this exact pairing. The card makes
+       * an argument out of two numbers; the tool holds the season-by-season
+       * working behind them, which is more than a canvas has room for. */
+      case "mates": {
+        var mu = c.payload.teammates_url || teammatesUrl(c.payload.a, c.payload.b);
+        return mu ? { url: mu, label: "Full breakdown" }
+                  : { url: "https://hoopsmatic.com/teammates", label: "Teammates Score" };
+      }
       // Unlike a race, this one has somewhere to go: the card is an
       // argument about two careers, and the comparison tool is where you
       // go to see the rows it did not have room to dwell on.
