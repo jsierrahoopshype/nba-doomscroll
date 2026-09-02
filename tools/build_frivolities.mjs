@@ -469,7 +469,12 @@ const TIME_ANCHORS = [
   "traded to", "signed with", "free agency", "waived", "released by"
 ];
 
-const skipped = { noAnchor: 0, thinTeamPool: 0 };
+/* "Twitter @GaryPayton_20", "Instagram", "@wojespn" - none of these is an
+ * outlet that reported anything, and a handle generally belongs to the person
+ * the story is about. */
+const SOCIAL_OUTLET = /(^|\s)@|twitter|instagram|facebook|tiktok|threads|snapchat|youtube channel|podcast/i;
+
+const skipped = { noAnchor: 0, thinTeamPool: 0, teamNotInExcerpt: 0, socialOutlet: 0 };
 
 const FAMILIES = {
   /* The subject's own name, blanked out of their own story. */
@@ -547,7 +552,16 @@ const FAMILIES = {
      * answer. Same shape as the "ball" bug: a length threshold standing in for
      * a judgement it cannot make. City prefixes are exactly the words that are
      * too short to pass and exactly the words that give a team away. */
+    /* The team has to be IN the excerpt, not merely somewhere in the record.
+     * 27 cards shipped asking "which team was this?" over text with no blank
+     * anywhere in it, because the team was named past the 240-character cut.
+     * Same oversight as the subject check in who-is-this, which got this right
+     * a fix earlier and was not carried across. */
     let body = clip(it.text, EXCERPT);
+    if (!mentions(body, team) && !team.split(" ").some(w => w.length >= 5 && mentions(body, w))) {
+      skipped.teamNotInExcerpt++;
+      return null;
+    }
     body = redact(body, team);
     for (const w of team.split(" ")) if (w.length >= 3) body = redact(body, w);
     return {
@@ -565,9 +579,17 @@ const FAMILIES = {
    * would hand the answer over. */
   "which-outlet": (it) => {
     if (!it.outlet || outlets.length < OPTIONS + 4) return null;
+    /* A social handle is not an outlet, and asking which one "reported" a
+     * story is a category error dressed as a question. Worse, a handle is
+     * usually the subject's own: the pool shipped "Twitter @GaryPayton_20" as
+     * the correct answer to a story about Gary Payton, so the option named the
+     * man the excerpt was about. Both the answer and the distractors are
+     * filtered, since a handle is no better as a wrong answer. */
+    if (SOCIAL_OUTLET.test(it.outlet)) { skipped.socialOutlet++; return null; }
     const key = it.outlet.split(/\s+/)[0];
     if (key.length >= 4 && mentions(it.text, key)) return null;
-    const wrong = distractors(outlets, it.outlet, OPTIONS - 1, it.rec.source_url + "o");
+    const wrong = distractors(outlets.filter(o => !SOCIAL_OUTLET.test(o)),
+      it.outlet, OPTIONS - 1, it.rec.source_url + "o");
     if (!wrong) return null;
     return {
       family: "which-outlet",
@@ -674,8 +696,15 @@ for (const it of shuffle(items, "frivolities-v1")) {
    * contain "love" or "ball" against an option named Love or Ball, and that is
    * the correct outcome: for the reader those cards are ambiguous, which is
    * indistinguishable from unfair. */
-  const hay = q.body.toLowerCase();
-  const tokenSets = q.options.map(o => new Set(norm(o).split(" ").filter(w => w.length >= 3)));
+  /* Both sides tokenised the SAME way. The guard used to normalise the option
+   * (dropping punctuation, so "Twitter @GaryPayton_20" became the single token
+   * "garypayton20") and then search the RAW body, where the text says
+   * "@GaryPayton_20" - so they never met and the answer sat in plain view.
+   * Splitting punctuation to spaces on both sides makes them comparable, and
+   * keeps "paint-ball" as two words so "ball" is still caught. */
+  const words = t => fold(String(t || "")).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const hayWords = new Set(words(q.body));
+  const tokenSets = q.options.map(o => new Set(words(o).filter(w => w.length >= 3)));
   const discriminating = new Set();
   for (const set of tokenSets) {
     for (const t of set) {
@@ -684,7 +713,7 @@ for (const it of shuffle(items, "frivolities-v1")) {
   }
   let leaked = false;
   for (const t of discriminating) {
-    if (mentions(hay, t)) { leaked = true; break; }
+    if (hayWords.has(t)) { leaked = true; break; }
   }
   if (leaked) { rejected.answerLeak++; continue; }
 
@@ -778,6 +807,8 @@ const famRows = [...familyCount.entries()].sort((a, b) => b[1] - a[1]);
 for (const [f, n] of famRows) console.log(`  ${f.padEnd(14)} ${n}  (${Math.round(n / cards.length * 100)}%)`);
 console.log(`  what-year skipped for want of a datable anchor: ${skipped.noAnchor}`);
 if (skipped.thinTeamPool) console.log(`  which-team skipped for too few teams left after excluding his own: ${skipped.thinTeamPool}`);
+if (skipped.teamNotInExcerpt) console.log(`  which-team skipped, team not inside the excerpt: ${skipped.teamNotInExcerpt}`);
+if (skipped.socialOutlet) console.log(`  which-outlet skipped, the "outlet" is a social handle: ${skipped.socialOutlet}`);
 console.log(`  rejected: ${rejected.noFamily} no family fit, ${rejected.answerLeak} answer visible, ` +
   `${rejected.dupe} duplicate source, ${rejected.subjectCap} subject at cap`);
 console.log(`  distinct subjects: ${perSubject.size}`);

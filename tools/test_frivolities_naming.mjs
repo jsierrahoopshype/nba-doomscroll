@@ -192,4 +192,40 @@ for (const [text, term, want] of RED) {
   console.log(`  ${ok ? "ok  " : "FAIL"} redact "${term}" -> ${got}` + (ok ? "" : `   (want ${want})`));
 }
 console.log(redFails ? `\n${redFails} redaction cases failed` : "every redaction case behaves");
-process.exit(failures + leakFails + redFails ? 1 : 0);
+
+/* ---------------- symmetric tokenising ----------------
+ *
+ * The leak guard normalised the OPTION (dropping punctuation, so
+ * "Twitter @GaryPayton_20" collapsed to "garypayton20") and then searched the
+ * RAW body, where the text reads "@GaryPayton_20". They never met, and a card
+ * shipped with its own answer in plain view. Both sides now split punctuation
+ * to spaces, which is the only way the comparison means anything.
+ */
+console.log("");
+const words = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+const TOK = [
+  ["Twitter @GaryPayton_20", ["twitter", "garypayton", "20"]],
+  ["a paint-ball outing", ["a", "paint", "ball", "outing"]],
+  ["Cleveland Plain Dealer", ["cleveland", "plain", "dealer"]],
+  ["khou.com", ["khou", "com"]],
+  ["Dončić", ["doncic"]]
+];
+let tokFails = 0;
+for (const [input, want] of TOK) {
+  const got = words(input);
+  const ok = JSON.stringify(got) === JSON.stringify(want);
+  if (!ok) tokFails++;
+  console.log(`  ${ok ? "ok  " : "FAIL"} "${input}" -> [${got.join(", ")}]` +
+    (ok ? "" : `   (want [${want.join(", ")}])`));
+}
+/* The card that shipped: the handle is discriminating and now findable. */
+const opts = ["Cleveland Plain Dealer", "khou.com", "Twitter @GaryPayton_20", "Screen Rant"];
+const body = "he posted it himself on @GaryPayton_20 that evening";
+const hay = new Set(words(body));
+const sets = opts.map(o => new Set(words(o).filter(w => w.length >= 3)));
+const caught = sets.some(set => [...set].some(t => !sets.every(o => o.has(t)) && hay.has(t)));
+console.log(`  ${caught ? "ok  " : "FAIL"} the @GaryPayton_20 card is now caught as a leak`);
+if (!caught) tokFails++;
+console.log(tokFails ? `\n${tokFails} tokenising cases failed` : "every tokenising case behaves");
+process.exit(failures + leakFails + redFails + tokFails ? 1 : 0);
