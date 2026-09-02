@@ -205,6 +205,14 @@ backend, which breaks the no-server promise the whole thing rests on.
 
 ## Upstream, small
 
+- **The rumors Worker answers 403 to a request without an Origin.** Not proven,
+  but it is the difference between what a browser sends and what a bare fetch
+  sends, and `/api/rumors/random?limit=1` still 403s while the Rumors tab
+  works. The link check now sends the origin the app runs from. If it still
+  403s the guess was wrong and the Worker is refusing for some other reason,
+  which is worth knowing either way — a health check that cannot reach the
+  archive API is a health check with a hole in it.
+
 - **`hoopsmatic.com/transactionmaster` returns 404.** The first link-health run
   found it: `MACHINE_URL` in js/trades.js, which every trade, trend, digest and
   top-25 card taps through to, and which every `?loop=` deep link is built on.

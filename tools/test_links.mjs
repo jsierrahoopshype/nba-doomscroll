@@ -143,7 +143,15 @@ async function observe(link) {
   try {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), TIMEOUT);
-    res = await fetch(link.url, { redirect: "follow", signal: ctl.signal });
+    /* Some servers treat a bare fetch as an unknown caller: a browser sends an
+     * Origin and a Referer, Node sends neither, and a Worker that allowlists
+     * origins answers 403 to a request the app makes happily. An entry can
+     * carry the headers that matter, so the check tests the real request. */
+    res = await fetch(link.url, {
+      redirect: "follow",
+      signal: ctl.signal,
+      headers: link.headers || {}
+    });
     clearTimeout(t);
   } catch (e) {
     return { error: e.name === "AbortError" ? `no answer in ${TIMEOUT}ms` : e.message };
@@ -185,11 +193,14 @@ async function observe(link) {
 
 /* What counts as "the same destination" on a later run. Bytes and timing are
  * deliberately excluded: a page that gains a paragraph has not moved. */
-function identity(o) {
+function identity(o, link) {
   return {
     status: o.status,
     type: o.type,
-    redirected_to: o.final || null,
+    /* A site that redirects by region lands somewhere different depending on
+     * who ran the check. Comparing that would fail when the check changed
+     * country rather than when the link broke, so those entries opt out. */
+    redirected_to: link && link.redirect_varies ? undefined : (o.final || null),
     title: o.title || null,
     shape: o.shape || null
   };
@@ -286,7 +297,7 @@ for (const link of links) {
   if (o.status >= 400) { console.log(`  FAIL ${label} ${desc}`); bad++; continue; }
 
   if (CHECK && baseline[link.id]) {
-    const diff = differences(baseline[link.id], identity(o));
+    const diff = differences(baseline[link.id], identity(o, link));
     if (diff.length) {
       console.log(`  CHANGED ${label}`);
       diff.forEach(d => console.log(`         ${d}`));
@@ -298,7 +309,7 @@ for (const link of links) {
     console.log(`  ${CHECK && !baseline[link.id] ? "NEW " : "ok  "} ${label} ${desc}`);
     if (CHECK && !baseline[link.id]) changed++;
   }
-  if (RECORD) baseline[link.id] = identity(o);
+  if (RECORD) baseline[link.id] = identity(o, link);
 }
 
 if (RECORD) {

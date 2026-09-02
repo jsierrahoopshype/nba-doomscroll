@@ -21,13 +21,13 @@ const SRC = new URL("./test_links.mjs", import.meta.url).pathname;
 const src = fs.readFileSync(SRC, "utf8");
 
 // lift the two pure functions the checking rests on
-const body = src.match(/function identity\(o\) \{[\s\S]*?\n\}/)[0] +
+const body = src.match(/function identity\(o(?:, link)?\) \{[\s\S]*?\n\}/)[0] +
              "\n" + src.match(/function differences\(want, got\) \{[\s\S]*?\n\}/)[0] +
              "\nreturn { identity, differences };";
 const { identity, differences } = new Function(body)();
 
 const healthy = { status: 200, type: "text/html", final: null, title: "Compare players · HoopsMatic", ms: 40 };
-const recorded = identity(healthy);
+const recorded = identity(healthy, {});
 console.log("  recorded identity:", JSON.stringify(recorded));
 
 const cases = [
@@ -43,16 +43,27 @@ const cases = [
 ];
 let bad = 0;
 for (const [name, got, wantDiffs] of cases) {
-  const d = differences(recorded, identity(got));
+  const d = differences(recorded, identity(got, {}));
   const ok = d.length === wantDiffs;
   if (!ok) bad++;
   console.log(`  ${ok ? "ok  " : "FAIL"} ${name.padEnd(44)} ${d.length} difference(s)` +
     (ok ? "" : ` (want ${wantDiffs})`));
   d.forEach(x => console.log(`         ${x}`));
 }
+/* A site that redirects by region must not read as a broken link. hoopshype
+ * sends a Madrid machine to eu.hoopshype.com and a US one somewhere else;
+ * comparing that would fail whenever the check changed country. */
+const varying = { status: 200, type: "text/html", final: "https://eu.hoopshype.com/rumors/", title: "NBA Rumors" };
+const elsewhere = { ...varying, final: "https://hoopshype.com/rumors/" };
+const withOptOut = differences(identity(varying, { redirect_varies: true }), identity(elsewhere, { redirect_varies: true }));
+const without = differences(identity(varying, {}), identity(elsewhere, {}));
+console.log(`  ${withOptOut.length === 0 ? "ok  " : "FAIL"} a geo-redirect is ignored when redirect_varies is set`);
+console.log(`  ${without.length === 1 ? "ok  " : "FAIL"} and still compared when it is not`);
+if (withOptOut.length !== 0 || without.length !== 1) bad++;
+
 // a JSON endpoint that changes shape
-const api = identity({ status: 200, type: "application/json", final: null, shape: "digest,days,generated" });
-const changed = differences(api, identity({ status: 200, type: "application/json", final: null, shape: "digest,generated" }));
+const api = identity({ status: 200, type: "application/json", final: null, shape: "digest,days,generated" }, {});
+const changed = differences(api, identity({ status: 200, type: "application/json", final: null, shape: "digest,generated" }, {}));
 console.log(`  ${changed.length === 1 ? "ok  " : "FAIL"} a JSON endpoint dropping a top-level key is caught`);
 if (changed.length !== 1) bad++;
 console.log(bad ? `\n${bad} failed` : "\nthe identity comparison behaves");
