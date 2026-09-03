@@ -424,3 +424,44 @@ export function headTile(src, side, png) {
   y = Math.max(0, Math.min(y, img.h - s));
   return png.encodePng(png.resize(png.crop(img, x, y, s, s), side, side));
 }
+
+/* ---------------- accent-folded filename lookup ----------------
+ *
+ * Race data spells names in ASCII; the PNGs on disk keep their diacritics. So
+ * a builder asking the filesystem for "Jusuf Nurkic.png" misses "Jusuf
+ * Nurkić.png" sitting beside it, and the player silently loses his baked tile
+ * to a remote URL. Nothing errors, which is why it survived a 99% run.
+ *
+ * Folding is done ONCE over a directory listing, not per lookup: one syscall
+ * against thousands of name resolutions.
+ *
+ * This is deliberately fold-only and does NOT do what buildBcrIndex does. That
+ * one also matches a suffix-stripped stem, which is how "Tim Hardaway" reaches
+ * his son's photograph. Accents are a spelling difference for one man; a stem
+ * match is a guess about which of two men is meant. Keeping them apart lets a
+ * builder take the safe half without the risky one.
+ */
+export const foldAccents = s =>
+  String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/**
+ * @param {string} dir  a folder of .png headshots
+ * @returns {Map<string,string>} folded filename stem -> absolute path
+ */
+export function foldedPngIndex(dir) {
+  const idx = new Map();
+  let entries = [];
+  try { entries = fs.readdirSync(dir); } catch (e) { return idx; }
+  /* SORTED, then first wins. Two files can fold to the same key - a folder
+   * holding both "Jusuf Nurkic.png" and "Jusuf Nurkić.png" - and taking
+   * whichever readdir happened to hand over first would make the build's
+   * output depend on the filesystem's mood. Sorting also settles that tie the
+   * useful way: plain ASCII sorts ahead of its accented twin, so the exact
+   * spelling wins and the fold only ever fills a gap. */
+  for (const f of entries.slice().sort()) {
+    if (!/\.png$/i.test(f)) continue;
+    const k = foldAccents(f.replace(/\.png$/i, ""));
+    if (!idx.has(k)) idx.set(k, path.join(dir, f));
+  }
+  return idx;
+}
