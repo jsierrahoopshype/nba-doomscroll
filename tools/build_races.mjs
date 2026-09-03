@@ -27,7 +27,9 @@
  *
  * --find locates every source by the files it must contain, so none of these
  * paths has to be typed. --local still wins where a machine holds more than
- * one checkout of the same repo.
+ * one checkout of the same repo. One source can be overridden on its own with
+ * --player-data / --headshots / --games / --bio / --faces, for a file the
+ * search cannot reach (another drive, or below a skipped folder).
  *
  * Writes data/races/index.json (catalog) and data/races/r/<slug>.json (one per
  * race). Leaves the old data/races/*.mp4 files alone — nothing reads them once
@@ -68,6 +70,22 @@ const li = args.indexOf("--local");
 const FIND = args.includes("--find") || li < 0;
 let [PD, HSMETA, GAMES_CSV, BIO_CSV, BCR_FACES] = li >= 0 ? args.slice(li + 1) : [];
 
+/* NAMED OVERRIDES, so one source the search cannot reach does not send anyone
+ * back to typing all five. A file kept on another drive, or below a folder the
+ * walk skips, is pointed at directly and everything else is still found:
+ *
+ *     node tools/build_races.mjs --find --games "D:\data\Games.csv"
+ */
+function flag(name) {
+  const i = args.indexOf("--" + name);
+  return i >= 0 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : null;
+}
+PD = flag("player-data") || PD;
+HSMETA = flag("headshots") || HSMETA;
+GAMES_CSV = flag("games") || GAMES_CSV;
+BIO_CSV = flag("bio") || BIO_CSV;
+BCR_FACES = flag("faces") || BCR_FACES;
+
 if (!FIND && (li < 0 || args.length - li - 1 < 3)) {
   console.error("usage: node tools/build_races.mjs --find");
   console.error("   or: node tools/build_races.mjs --local <playerData> <nbaHeadshotsRepo> <gamesCsv> [bioCsv] [barRaceHeadshotsDir]");
@@ -90,10 +108,20 @@ if (FIND) {
     explicit: HSMETA,
     markers: [path.join("players", "metadata", "players.json")]
   });
-  const gamesHit = GAMES_CSV || resolveSource("Games.csv", { files: ["Games.csv"] });
-  GAMES_CSV = gamesHit;
+  GAMES_CSV = resolveSource("Games.csv", { explicit: GAMES_CSV, files: ["Games.csv"] });
   if (!PD || !HSMETA || !GAMES_CSV) {
-    console.error("\nMissing a source this build cannot run without. Pass --local with explicit paths.");
+    /* Name the flag for the thing that is missing, rather than the generic
+     * "pass explicit paths" that leaves someone reconstructing all five. */
+    const miss = [[!PD, "--player-data"], [!HSMETA, "--headshots"], [!GAMES_CSV, "--games"]]
+      .filter(m => m[0]).map(m => m[1]);
+    console.error(`\nMissing ${miss.length === 1 ? "a source" : "sources"} this build cannot run without.`);
+    console.error(`Point at ${miss.length === 1 ? "it" : "them"} and the rest are still found automatically:`);
+    console.error(`  node tools/build_races.mjs --find ${miss.map(m => m + ' "<path>"').join(" ")}`);
+    if (!GAMES_CSV) {
+      console.error("\nTo locate Games.csv, in PowerShell:");
+      console.error('  Get-ChildItem $HOME -Recurse -Filter "*.csv" -ErrorAction SilentlyContinue |');
+      console.error('    Where-Object Name -like "*game*" | Select-Object -First 10 FullName');
+    }
     process.exit(1);
   }
   /* The last two are optional: without them the build simply emits fewer
