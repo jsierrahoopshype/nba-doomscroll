@@ -81,7 +81,18 @@
       "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/random?limit=25",
       "used_by": "js/rumors.js — the Rumors tab",
       "kind": "json",
-      "note": "The Origin guess was right and only half the problem. Without headers this answered 403; with the app's Origin and Referer it answered 404, which is a different refusal: the Worker now accepts the caller and says the path does not exist. So the remaining unknown is the URL, not the identity. The probe now asks for exactly what js/rumors.js asks for - /api/rumors/random?limit=25, previously limit=1 - so a 404 here means the endpoint the app itself calls is gone rather than that the probe wrote a URL the app never uses. If it 404s on the app's own URL, the Rumors tab is broken in production too and this check has done its job. SHAPE ONLY: the response carries archive records and this repo is public.",
+      "note": "CONFIRMED BROKEN, not a probe artefact. The Origin guess was right and only half the problem. Without headers this answered 403; with the app's Origin and Referer it answered 404, which is a different refusal: the Worker now accepts the caller and says the path does not exist. So the remaining unknown is the URL, not the identity. The probe now asks for exactly what js/rumors.js asks for - /api/rumors/random?limit=25, previously limit=1 - so a 404 here means the endpoint the app itself calls is gone rather than that the probe wrote a URL the app never uses. If it 404s on the app's own URL, the Rumors tab is broken in production too and this check has done its job. SHAPE ONLY: the response carries archive records and this repo is public.",
+      "headers": {
+        "Origin": "https://jsierrahoopshype.github.io",
+        "Referer": "https://jsierrahoopshype.github.io/nba-doomscroll/"
+      }
+    },
+    {
+      "id": "rumors-otd",
+      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/on-this-day?md=07-01&limit=20",
+      "used_by": "js/rumors.js OTD_URL — the on-this-day half of the Rumors tab",
+      "kind": "json",
+      "note": "The Rumors tab makes TWO calls and the registry only ever watched one. The coverage check did not notice, because it matches origins and both calls share a host: registering the origin once made the second path invisible. This entry exists to tell two failures apart. If random 404s and this answers, one route is gone and the other is fine, which points at the Worker's routing rather than at the whole API. If both 404 the prefix itself has moved and js/rumors.js needs a new base. md is fixed at 07-01 rather than today's date on purpose: a health check that changes its own question cannot tell a broken route from a quiet day. SHAPE ONLY, same as the entry above.",
       "headers": {
         "Origin": "https://jsierrahoopshype.github.io",
         "Referer": "https://jsierrahoopshype.github.io/nba-doomscroll/"
