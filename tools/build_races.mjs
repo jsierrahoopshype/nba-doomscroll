@@ -32,7 +32,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { buildFaceIndex, reportFaceIndex } from "./lib/faces.mjs";
+import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents } from "./lib/faces.mjs";
 import { raceFaceTile, decodePng, resize, encodePng } from "./lib/png.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -154,11 +154,43 @@ const MIN_SRC_BYTES = 15000;
 const FACE_DIR = path.join(OUT, "faces");
 const tileCache = new Map();
 
+/* ACCENTS: the race data spells names in ASCII, the files on disk keep their
+ * diacritics. So "Jusuf Nurkic" asked the filesystem for "Jusuf Nurkic.png"
+ * while "Jusuf Nurkić.png" sat right there, and those players silently fell
+ * through to the remote headshot URL instead of getting a baked tile.
+ *
+ * Folded once into an index, not folded per lookup: a directory listing is one
+ * syscall and there are thousands of lookups.
+ *
+ * Deliberately fold-only. tools/lib/faces.mjs has buildBcrIndex, which the
+ * other three builders use and which would also match on a suffix-stripped
+ * stem - and that resolves "Tim Hardaway" to his son's photograph unless its
+ * guards catch it. Accents are the gap; stem matching is a different decision
+ * about a builder whose output Jorge checks by eye, so it is not smuggled in
+ * here. Both live in tools/lib/faces.mjs; this builder takes the safe half. */
+let foldedFiles = null;   // folded stem -> absolute path, built on first use
+let accentHits = 0;
+
+function foldedIndex() {
+  if (!foldedFiles) foldedFiles = foldedPngIndex(BCR_FACES);
+  return foldedFiles;
+}
+
+function sourceFor(name) {
+  // Exact path first: a folder whose filenames are already ASCII resolves
+  // exactly as it did before this index existed.
+  const direct = path.join(BCR_FACES, name + ".png");
+  if (fs.existsSync(direct)) return direct;
+  const hit = foldedIndex().get(foldAccents(name));
+  if (hit) accentHits++;
+  return hit || direct;   // the direct path, so the statSync below reports it
+}
+
 function tileFor(name) {
   if (!BCR_FACES) return null;
   if (tileCache.has(name)) return tileCache.get(name);
   let out = null;
-  const src = path.join(BCR_FACES, name + ".png");
+  const src = sourceFor(name);
   try {
     if (fs.statSync(src).size >= MIN_SRC_BYTES) {
       const buf = raceFaceTile(src, TILE_W, TILE_H);
@@ -821,6 +853,11 @@ let withFace = 0, totalEnt = 0;
 for (const r of playerRaces) { for (const e of r.e) { totalEnt++; if (e.img) withFace++; } }
 const pct = totalEnt ? Math.round(100 * withFace / totalEnt) : 0;
 console.log(`Headshots: ${withFace}/${totalEnt} bar slots across player races (${pct}%). The rest show a bare bar.`);
+/* Named, not silent. These are the tiles that only exist because the lookup
+ * folds diacritics; before, each of them quietly became a remote URL. If this
+ * ever reads 0 against a folder that holds accented filenames, the fold has
+ * stopped working and nothing else would say so. */
+if (accentHits) console.log(`  ${accentHits} baked from a filename whose accents the race data drops.`);
 
 // What is actually left, so nobody chases the wrong fix. The gap is NOT that
 // nba-headshots is missing files — it holds 1,785 face crops. It is that

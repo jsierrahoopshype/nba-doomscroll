@@ -92,13 +92,6 @@ image.
   contact sheet. The aspect-ratio bug underneath it is fixed (see Done), so what
   is left is the framing — some sources sit high in the frame, some low, and the
   80% crop is the same for all of them.
-- **`build_races.mjs` cannot see an accented headshot filename.** `tileFor` looks
-  up `BCR_FACES/<name>.png` using the name as it appears in the race data, which
-  is plain ASCII, while the file on disk is `Jusuf Nurkić.png`. Those players
-  fall through to the remote `nba-headshots` URL instead of getting a baked tile.
-  `retile_faces.mjs` folds diacritics and matches them; the builder still does
-  not. Not urgent (the fallback works) and deliberately not fixed as a
-  side-effect of the retile work — it changes what a race build emits.
 - **Race library expansion**: franchise career races, earnings groupings.
 
 ---
@@ -299,6 +292,18 @@ backend, which breaks the no-server promise the whole thing rests on.
 ## Done, for reference
 
 Kept short so the list above stays the point.
+
+- Accented headshot filenames in `build_races.mjs`. The race data spells a name
+  in ASCII, the PNG on disk keeps its diacritics, so "Jusuf Nurkic" never met
+  "Jusuf Nurkić.png" and those players silently took a remote URL instead of a
+  baked tile. `foldedPngIndex` in `tools/lib/faces.mjs` folds a directory
+  listing once; `tileFor` tries the exact path first, so an already-ASCII folder
+  resolves exactly as before. Deliberately fold-only — `buildBcrIndex` also
+  matches a suffix-stripped stem, which is how "Tim Hardaway" reaches his son's
+  photograph, and that is a separate decision. The build now prints how many
+  tiles the fold recovered, so a fold that stops working says so.
+  `tools/test_folded_faces.mjs` covers it, including NFD filenames (macOS
+  stores names decomposed) and a folder holding both spellings.
 
 - Central link registry (`data/links.json`) and link-health test
   (`tools/test_links.mjs`). 27 destinations, each with what it is for and which
