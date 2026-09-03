@@ -301,6 +301,20 @@ a:hover{ text-decoration:underline }
 }
 .tr-text{ min-width:0 }
 .tr-count{ color:var(--text-secondary); opacity:.8; font-size:.76rem; white-space:nowrap }
+
+/* Rank-card detail: where he was sent, who came back. Only present on cards
+ * with enough builds in the loaded slice to support it, so this block is
+ * often absent and must not reserve space when it is. */
+.trd{ margin-top:.55rem; padding-top:.5rem; border-top:1px solid var(--hairline, rgba(0,0,0,.08)) }
+.trd-row{ display:flex; align-items:baseline; flex-wrap:wrap; gap:.3rem; margin-top:.2rem; font-size:.8rem }
+.trd-key{
+  flex:none; font-size:.56rem; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--text-secondary); min-width:5.6rem;
+}
+.trd-v{ white-space:nowrap }
+.trd-n{ color:var(--text-secondary); opacity:.75; font-size:.72rem }
+.trd-sep{ color:var(--text-secondary); opacity:.45 }
+.trd-note{ margin-top:.3rem; font-size:.62rem; color:var(--text-secondary); opacity:.7 }
 .td-label{
   margin-top:.6rem; font-size:.58rem; text-transform:uppercase; letter-spacing:.06em;
   color:var(--text-secondary);
