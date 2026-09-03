@@ -125,3 +125,50 @@ export function resolveSource(label, { explicit, markers, files }) {
   }
   return hits[0];
 }
+
+/* Find a CSV by its COLUMNS rather than its filename.
+ *
+ * A filename is a guess about what someone called a file; a header row is what
+ * the file actually is. The races builder wanted "Games.csv" and there is no
+ * such name on the machine - but there is a Games_enriched.csv, and a game.csv,
+ * and a Games_Playoffs_Since1946.csv, and only one of them carries the columns
+ * the builder reads. Asking for the columns picks that one and cannot pick a
+ * lookalike.
+ *
+ * Reads the first 8KB of each candidate, never the whole file: a header row is
+ * at the top or the file is not a CSV.
+ */
+export function findCsvWithColumns(cols, root) {
+  const home = root || os.homedir();
+  const want = cols.map(c => c.toLowerCase());
+  const hits = [];
+  const scan = dir => {
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); }
+    catch (e) { return; }
+    for (const e of entries) {
+      if (!e.isFile() || !/\.csv$/i.test(e.name)) continue;
+      const full = path.join(dir, e.name);
+      let head = "";
+      try {
+        const fd = fs.openSync(full, "r");
+        const buf = Buffer.alloc(8192);
+        const n = fs.readSync(fd, buf, 0, 8192, 0);
+        fs.closeSync(fd);
+        head = buf.slice(0, n).toString("utf8").split(/\r?\n/)[0] || "";
+      } catch (err) { continue; }
+      /* Split on commas only - a header cell holding a quoted comma would
+       * split wrongly, but it would also have to match a wanted column name
+       * to matter, and these are single words. */
+      const have = new Set(head.split(",").map(s =>
+        s.trim().replace(/^"+|"+$/g, "").toLowerCase()));
+      if (!want.every(w => have.has(w))) continue;
+      let mtime = 0;
+      try { mtime = fs.statSync(full).mtimeMs; } catch (err) {}
+      hits.push({ full, mtime });
+    }
+  };
+  scan(home);
+  walk(home, 0, scan);
+  return hits.sort((a, b) => b.mtime - a.mtime).map(h => h.full);
+}
