@@ -41,7 +41,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents } from "./lib/faces.mjs";
 import { raceFaceTile, decodePng, resize, encodePng } from "./lib/png.mjs";
-import { resolveSource, findFiles, findFolders } from "./lib/find.mjs";
+import { resolveSource, findFiles, findFolders, findCsvWithColumns, cleanPath } from "./lib/find.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -65,6 +65,10 @@ const KEEP = 15;         // rows stored per step; the player shows 10 and lets
  * --find locates each one by the files it must contain. --local still takes
  * them positionally and still wins, because this machine holds more than one
  * checkout of some repos and an explicit path is the only way to say which. */
+/* The columns the franchise races cannot be built without. Used to identify
+ * the games file by what it contains when nothing is called Games.csv. */
+const GAMES_COLUMNS = ["hometeamId", "awayteamId", "winner", "gameType"];
+
 const args = process.argv.slice(2);
 const li = args.indexOf("--local");
 const FIND = args.includes("--find") || li < 0;
@@ -108,19 +112,54 @@ if (FIND) {
     explicit: HSMETA,
     markers: [path.join("players", "metadata", "players.json")]
   });
-  GAMES_CSV = resolveSource("Games.csv", { explicit: GAMES_CSV, files: ["Games.csv"] });
+  /* By name first, then BY COLUMNS. There is no file called Games.csv on
+   * Jorge's machine - there is a Games_enriched.csv, a game.csv and a
+   * Games_Playoffs_Since1946.csv, and only one of them holds what this reads.
+   * A filename is what someone called a file; a header row is what the file
+   * is. So the fallback asks for the columns the builder cannot work without,
+   * which cannot match a lookalike. */
+  GAMES_CSV = cleanPath(GAMES_CSV);
+  if (!GAMES_CSV) {
+    const named = findFiles(["Games.csv"]);
+    if (named.length) {
+      GAMES_CSV = named[0];
+      console.log(`  searching for Games.csv... ${named.length} found`);
+      named.forEach((h, i) => console.log(`    ${i === 0 ? "using " : "also  "}${h}`));
+    } else {
+      process.stdout.write("  no Games.csv by name; searching by columns...");
+      const byCols = findCsvWithColumns(GAMES_COLUMNS);
+      console.log(` ${byCols.length} found`);
+      if (byCols.length) {
+        GAMES_CSV = byCols[0];
+        byCols.forEach((h, i) => console.log(`    ${i === 0 ? "using " : "also  "}${h}`));
+        if (byCols.length > 1) console.log("    (newest first. --games pins one.)");
+      }
+    }
+  } else if (!fs.existsSync(GAMES_CSV)) {
+    console.error(`  Games.csv: no such path: ${GAMES_CSV}`);
+    GAMES_CSV = null;
+  }
   if (!PD || !HSMETA || !GAMES_CSV) {
     /* Name the flag for the thing that is missing, rather than the generic
      * "pass explicit paths" that leaves someone reconstructing all five. */
     const miss = [[!PD, "--player-data"], [!HSMETA, "--headshots"], [!GAMES_CSV, "--games"]]
       .filter(m => m[0]).map(m => m[1]);
-    console.error(`\nMissing ${miss.length === 1 ? "a source" : "sources"} this build cannot run without.`);
-    console.error(`Point at ${miss.length === 1 ? "it" : "them"} and the rest are still found automatically:`);
-    console.error(`  node tools/build_races.mjs --find ${miss.map(m => m + ' "<path>"').join(" ")}`);
+    console.error(`\nMissing ${miss.length === 1 ? "a source" : "sources"} this build cannot run without: ${miss.join(", ")}.`);
+    /* NO PLACEHOLDER. A printed <path> has been pasted back verbatim often
+     * enough to count as a design fault rather than a slip, so what is printed
+     * is a command that computes the path into a variable and needs nothing
+     * substituted into it. */
     if (!GAMES_CSV) {
-      console.error("\nTo locate Games.csv, in PowerShell:");
-      console.error('  Get-ChildItem $HOME -Recurse -Filter "*.csv" -ErrorAction SilentlyContinue |');
-      console.error('    Where-Object Name -like "*game*" | Select-Object -First 10 FullName');
+      console.error("\nThe games file is not called Games.csv and does not carry");
+      console.error(`the columns this reads (${GAMES_COLUMNS.join(", ")}).`);
+      console.error("To see which of your CSVs has what, in PowerShell:");
+      console.error("");
+      console.error('  Get-ChildItem $HOME -Recurse -Filter "*.csv" -EA SilentlyContinue |');
+      console.error('    Where-Object Name -like "*game*" |');
+      console.error('    ForEach-Object { "{0}`n    {1}" -f $_.FullName, (Get-Content $_.FullName -First 1) }');
+      console.error("");
+      console.error("Then run this, replacing nothing - paste the path between the quotes:");
+      console.error("  node tools/build_races.mjs --find --games \"\"");
     }
     process.exit(1);
   }
