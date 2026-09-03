@@ -168,6 +168,29 @@ async function observe(link) {
   try { body = await res.text(); } catch (e) { o.error = "body unreadable"; return o; }
   o.bytes = body.length;
 
+  /* WHY A FAILING RESPONSE MAY SHOW ITS TEXT AND A HEALTHY ONE MAY NOT.
+   *
+   * Keys-never-values exists because the archive API answers with rumor
+   * records and this repo is public. A 4xx or 5xx body is not that: it is the
+   * server explaining a refusal, and the explanation is the whole diagnostic.
+   * "Not found" and "Unauthorized" arrive as the same {error} shape and mean
+   * entirely different repairs - a wrong path versus a missing credential -
+   * and hiding the difference cost a full round trip to learn which.
+   *
+   * The status gate is the safety rule, not a judgement about any one host: a
+   * server that answers 200 never has its body read, whatever it contains. */
+  if (res.status >= 400) {
+    let detail = body;
+    try {
+      const j = JSON.parse(body);
+      if (j && typeof j === "object" && !Array.isArray(j)) {
+        detail = j.error || j.message || j.detail || JSON.stringify(j);
+      }
+    } catch (e) { detail = body.replace(/<[^>]*>/g, " "); }
+    detail = String(detail).replace(/\s+/g, " ").trim().slice(0, 120);
+    if (detail) o.why = detail;
+  }
+
   if (/json/.test(o.type) || link.kind === "json") {
     try {
       const j = JSON.parse(body);
@@ -306,7 +329,12 @@ for (const link of links) {
     o.retried ? "(second try)" : ""
   ].filter(Boolean).join("  ");
 
-  if (o.status >= 400) { console.log(`  FAIL ${label} ${desc}`); bad++; continue; }
+  if (o.status >= 400) {
+    console.log(`  FAIL ${label} ${desc}`);
+    if (o.why) console.log(`       server says: ${o.why}`);
+    bad++;
+    continue;
+  }
 
   if (CHECK && baseline[link.id]) {
     const diff = differences(baseline[link.id], identity(o, link));
