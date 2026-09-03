@@ -242,7 +242,34 @@
             ' <span class="tr-count mono">(' + esc(fmtInt(p.count)) + ' of ' +
             esc(fmtInt(p.total)) + ')</span></div>' +
         '</div>' +
-      '</div>';
+      '</div>' +
+      rankDetail(p);
+  }
+
+  /* Where he was sent and who came back, but only on the cards js/trades.js
+   * judged to have the sample for it, and always labelled with the window it
+   * was counted over - which is the newest slice of the log, not the full week
+   * the share line above describes. Absent fields render nothing. */
+  function rankDetail(p) {
+    var dests = p.dests || [], back = p.back || [];
+    if (!dests.length && !back.length) return "";
+    var rows = "";
+    if (dests.length) {
+      rows += '<div class="trd-row"><span class="trd-key mono">SENT TO</span>' +
+        dests.map(function (d) {
+          return '<span class="trd-v">' + ent(d.team, "team") +
+            ' <span class="mono trd-n">' + esc(String(d.n)) + '</span></span>';
+        }).join('<span class="trd-sep">·</span>') + '</div>';
+    }
+    if (back.length) {
+      rows += '<div class="trd-row"><span class="trd-key mono">TRADED FOR</span>' +
+        back.map(function (d) {
+          return '<span class="trd-v">' + ent(d.name, "player") +
+            ' <span class="mono trd-n">' + esc(String(d.n)) + '</span></span>';
+        }).join('<span class="trd-sep">·</span>') + '</div>';
+    }
+    return '<div class="trd">' + rows +
+      '<div class="trd-note mono">' + esc(String(p.detail_note || "")) + '</div></div>';
   }
 
   /* Thousands separators, because "9977 trades" reads as a part number. */

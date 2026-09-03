@@ -508,6 +508,101 @@
     return out;
   }
 
+  /* ---------------- rank card detail, from the log ----------------
+   *
+   * WHY THIS IS NOT SIMPLY ADDED TO EVERY CARD.
+   *
+   * The digest counts the whole week server-side: Kyrie in 278 of 8,587
+   * builds. The browser only pulls the newest WANT_ROWS deals, roughly 7% of
+   * that week, so a destination tallied here rests on a sample. For a name
+   * near the top the sample is ~19 builds and a top destination means
+   * something. For rank 22 it is three, where "most common destination" means
+   * one reader tried it twice, and printing that under a 278-of-8,587 headline
+   * would read as authoritative and be noise.
+   *
+   * So detail is attached only where the sample supports it, and the console
+   * reports the distribution: RANK_DETAIL_MIN is a starting guess, and the
+   * live numbers are what should set it. Every other card renders exactly as
+   * it does today.
+   *
+   * Nothing here touches buildTrends, which computes its own team tallies for
+   * a different card over a different window. The two overlap and are
+   * deliberately not shared yet: unifying them changes a card that works. */
+  var RANK_DETAIL_MIN = 10;
+
+  /* Per player: how many deals in the loaded slice moved him, where to, and
+   * who came back the other way.
+   *
+   * "Traded for" is read off the deal, not guessed: for a leg moving P from A
+   * to B, the players coming back are the legs of the SAME deal moving from B
+   * to A. Picks are excluded on both sides - "2027 #14 pick" is not who a
+   * reader wanted. */
+  function rankTally(deals) {
+    var by = {};
+    (deals || []).forEach(function (legs) {
+      var seenHere = {};
+      legs.forEach(function (l) {
+        if (isPick(l.player)) return;
+        var to = abbrev(l.to_team), from = abbrev(l.from_team);
+        if (!to || !from) return;
+        var k = l.player + ">" + to;
+        if (seenHere[k]) return;      // one deal counts once per player
+        seenHere[k] = 1;
+        var e = by[l.player] || (by[l.player] = { builds: 0, to: {}, back: {} });
+        e.builds++;
+        e.to[to] = (e.to[to] || 0) + 1;
+        legs.forEach(function (o) {
+          if (o === l || isPick(o.player)) return;
+          // Coming the other way in this same deal: B -> A.
+          if (abbrev(o.from_team) === to && abbrev(o.to_team) === from) {
+            e.back[o.player] = (e.back[o.player] || 0) + 1;
+          }
+        });
+      });
+    });
+    return by;
+  }
+
+  function topOf(counts, n) {
+    return Object.keys(counts || {})
+      .map(function (k) { return { key: k, n: counts[k] }; })
+      .sort(function (a, b) { return b.n - a.n || a.key.localeCompare(b.key); })
+      .slice(0, n);
+  }
+
+  /* Adds `dests` and `back` to the rank cards that have the sample for it.
+   * Runs after the log resolves, so the digest path stays untouched. */
+  function enrichRankCards(cards, deals) {
+    var tally = rankTally(deals);
+    var enriched = 0, thin = 0;
+    (cards || []).forEach(function (c) {
+      if (!c || c.type !== "traderank" || !c.payload) return;
+      var e = tally[c.payload.player];
+      if (!e || e.builds < RANK_DETAIL_MIN) { thin++; return; }
+      var dests = topOf(e.to, 3).map(function (d) { return { team: d.key, n: d.n }; });
+      var back = topOf(e.back, 3).map(function (d) { return { name: d.key, n: d.n }; });
+      if (!dests.length && !back.length) { thin++; return; }
+      c.payload.dests = dests;
+      c.payload.back = back;
+      /* The card must say what these numbers are counted over, because it is
+       * NOT the week the share line above them describes. */
+      c.payload.detail_of = e.builds;
+      /* Ties the small numbers to the sample they came from. Rendering just
+       * "in the newest 604 builds" left a reader comparing 41 against the 278
+       * on the line above with no way to see they count different things. */
+      c.payload.detail_note = "from his " + e.builds + " builds in the newest " +
+        (deals || []).length + " trades";
+      enriched++;
+    });
+    if (enriched || thin) {
+      console.info("[doomscroll] rank detail: " + enriched + " of " + (enriched + thin) +
+        " cards had " + RANK_DETAIL_MIN + "+ builds in the newest " + (deals || []).length +
+        " deals" + (thin ? "; " + thin + " too thin to say where he went" : "") +
+        " (tune RANK_DETAIL_MIN in js/trades.js against this)");
+    }
+    return cards;
+  }
+
   function loadDigests() {
     var daily = fetchDigest("")
       .then(function (j) {
@@ -618,6 +713,8 @@
         " multi-team, " + stats.unbalanced + " failed the balance filter)" +
         (trends ? "; trends over " + deals.length + " deals" : "; too few deals for a trends card"));
       return digest.then(function (dcs) {
+        // The log is only known here, so the rank cards get their detail now.
+        enrichRankCards(dcs, deals);
         (dcs || []).slice().reverse().forEach(function (dc) { cards.unshift(dc); });
         return cards;
       });
