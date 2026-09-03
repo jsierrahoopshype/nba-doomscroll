@@ -78,10 +78,10 @@
     },
     {
       "id": "rumors-api",
-      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/random?limit=1",
+      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/random?limit=25",
       "used_by": "js/rumors.js — the Rumors tab",
       "kind": "json",
-      "note": "js/rumors.js calls /api/rumors/random?limit=25. Still 403 with the parameter, and the likeliest reason is the header a browser sends and Node does not: the page has an Origin, a bare fetch has none, and a Worker that allowlists origins sees the second as an unknown caller. So the check sends the origin the app actually runs from. If it still 403s the guess is wrong and the Worker is refusing for another reason - worth knowing either way. SHAPE ONLY: the response carries archive records and this repo is public.",
+      "note": "The Origin guess was right and only half the problem. Without headers this answered 403; with the app's Origin and Referer it answered 404, which is a different refusal: the Worker now accepts the caller and says the path does not exist. So the remaining unknown is the URL, not the identity. The probe now asks for exactly what js/rumors.js asks for - /api/rumors/random?limit=25, previously limit=1 - so a 404 here means the endpoint the app itself calls is gone rather than that the probe wrote a URL the app never uses. If it 404s on the app's own URL, the Rumors tab is broken in production too and this check has done its job. SHAPE ONLY: the response carries archive records and this repo is public.",
       "headers": {
         "Origin": "https://jsierrahoopshype.github.io",
         "Referer": "https://jsierrahoopshype.github.io/nba-doomscroll/"

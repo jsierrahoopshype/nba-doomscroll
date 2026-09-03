@@ -278,7 +278,18 @@ for (const link of links) {
     bad++;
     continue;
   }
-  const o = await observe(link);
+  /* One retry, and only for a connection that never answered. A slow host is
+   * not a dead link: bsky.app answered in 5.4s on one run and timed out on the
+   * next, and reporting that as a broken link teaches everyone to ignore the
+   * report. A 404 is not retried - it is an answer, and it will be the same
+   * answer twice. */
+  let o = await observe(link);
+  if (o.error) {
+    await new Promise(r => setTimeout(r, 1500));
+    const again = await observe(link);
+    if (!again.error) { o = again; o.retried = true; }
+    else o.error = `${o.error} (twice)`;
+  }
   const label = link.id.padEnd(22);
   if (o.error) {
     console.log(`  FAIL ${label} ${o.error}`);
@@ -291,7 +302,8 @@ for (const link of links) {
     o.title ? `"${o.title.slice(0, 46)}"` : "",
     o.shape ? `{${o.shape.slice(0, 60)}}` : "",
     o.final ? `-> ${o.final.slice(0, 60)}` : "",
-    `${o.ms}ms`
+    `${o.ms}ms`,
+    o.retried ? "(second try)" : ""
   ].filter(Boolean).join("  ");
 
   if (o.status >= 400) { console.log(`  FAIL ${label} ${desc}`); bad++; continue; }
