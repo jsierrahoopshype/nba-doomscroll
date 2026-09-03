@@ -29,7 +29,13 @@
   // building right now" feed.
   var WANT_ROWS = 600;
   var ROWS_WARN_AT = 20000;
-  var MACHINE_URL = "https://hoopsmatic.com/transactionmaster";
+  /* The tool sits at the root, not at /transactionmaster. The link check
+   * settled it: hoopsmatic.com/ answers 200 with the title "NBA Trade
+   * Machine", and /transactionmaster answers 404 with "No route for
+   * /transactionmaster" - the site's own router saying the path does not
+   * exist. Every trade, trend, digest and rank card, and every ?loop= deep
+   * link, is built from this one string. */
+  var MACHINE_URL = "https://hoopsmatic.com/";
   var LOGO_BASE = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/";
   var HEADSHOT_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/";
 

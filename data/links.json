@@ -25,10 +25,10 @@
     },
     {
       "id": "trade-machine",
-      "url": "https://hoopsmatic.com/transactionmaster",
+      "url": "https://hoopsmatic.com/?t=LAL,GSW",
       "used_by": "js/trades.js MACHINE_URL — every trade, trend, digest and rank card",
       "kind": "page",
-      "note": "BROKEN as of the first probe: 404, application/json {error}. Every trade, trend, digest and top-25 card taps through to this, and every ?loop= deep link is built on it. hoopsmatic.com's own homepage answers with the title 'NBA Trade Machine', so the tool appears to have moved to the root or to another path. The correct URL is Jorge's to give; this is not something to guess at, because guessing wrong sends every trade card somewhere else that also returns 200."
+      "note": "Was /transactionmaster, which 404'd with 'No route for /transactionmaster' - the site's own router, not a guess. The tool is at the root: hoopsmatic.com/ answers 200 titled 'NBA Trade Machine'. Probed WITH a query so the check exercises the shape the cards actually build, not a bare homepage: if the root ever stops accepting parameters, a bare probe would still pass while every card silently lost its trade."
     },
     {
       "id": "salary-season-finder",
