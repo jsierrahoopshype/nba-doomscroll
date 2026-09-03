@@ -896,7 +896,7 @@
       // the log, so it falls back to the empty tool rather than a wrong trade.
       case "trade": return c.payload.machine_url
         ? { url: c.payload.machine_url, label: "Open this trade" }
-        : { url: "https://hoopsmatic.com/transactionmaster", label: "Open Trade Machine" };
+        : { url: "https://hoopsmatic.com/", label: "Open Trade Machine" };
       case "tradetrend": return { url: c.payload.machine_url, label: "Build one yourself" };
       case "tradedigest": return { url: c.payload.machine_url, label: "Trade " + c.payload.player.split(" ").pop() };
       case "traderank":   return { url: c.payload.machine_url, label: "Trade " + c.payload.player.split(" ").pop() };
