@@ -22,7 +22,12 @@
  *   bio.csv (optional)            salary-season-finder's COLLEGE / TEAM column
  *
  * Usage:
- *   node tools/build_races.mjs --local <playerDataDir> <nbaHeadshotsRepo> <gamesCsv> [bioCsv]
+ *   node tools/build_races.mjs --find
+ *   node tools/build_races.mjs --local <playerDataDir> <nbaHeadshotsRepo> <gamesCsv> [bioCsv] [bcrFaces]
+ *
+ * --find locates every source by the files it must contain, so none of these
+ * paths has to be typed. --local still wins where a machine holds more than
+ * one checkout of the same repo.
  *
  * Writes data/races/index.json (catalog) and data/races/r/<slug>.json (one per
  * race). Leaves the old data/races/*.mp4 files alone — nothing reads them once
@@ -34,6 +39,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents } from "./lib/faces.mjs";
 import { raceFaceTile, decodePng, resize, encodePng } from "./lib/png.mjs";
+import { resolveSource, findFiles, findFolders } from "./lib/find.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -46,15 +52,68 @@ const LOGO_BASE = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/
 const KEEP = 15;         // rows stored per step; the player shows 10 and lets
                           // the rest animate in and out of the frame
 
+/* FIVE PATHS WAS FOUR TOO MANY.
+ *
+ * This builder asked for a player-data checkout, a headshots repo, a CSV, a
+ * second CSV and a headshots folder, all typed by hand. That is exactly the
+ * shape of request that produced a placeholder pasted verbatim more than once,
+ * and it is why two pools sat unbuilt for weeks: not because the work was
+ * hard, but because nobody had the paths to hand.
+ *
+ * --find locates each one by the files it must contain. --local still takes
+ * them positionally and still wins, because this machine holds more than one
+ * checkout of some repos and an explicit path is the only way to say which. */
 const args = process.argv.slice(2);
-if (args[0] !== "--local" || args.length < 4) {
-  console.error("usage: node tools/build_races.mjs --local <playerData> <nbaHeadshotsRepo> <gamesCsv> [bioCsv] [barRaceHeadshotsDir]");
+const li = args.indexOf("--local");
+const FIND = args.includes("--find") || li < 0;
+let [PD, HSMETA, GAMES_CSV, BIO_CSV, BCR_FACES] = li >= 0 ? args.slice(li + 1) : [];
+
+if (!FIND && (li < 0 || args.length - li - 1 < 3)) {
+  console.error("usage: node tools/build_races.mjs --find");
+  console.error("   or: node tools/build_races.mjs --local <playerData> <nbaHeadshotsRepo> <gamesCsv> [bioCsv] [barRaceHeadshotsDir]");
   console.error("  bioCsv:  salary-season-finder/data_sources/bio.csv — adds the college/club races");
   console.error("  faces:   bar-chart-race/assets/headshots — the preferred headshot source");
   console.error("           (its ../logos is picked up automatically for franchise races)");
   process.exit(1);
 }
-const [PD, HSMETA, GAMES_CSV, BIO_CSV, BCR_FACES] = args.slice(1);
+
+if (FIND) {
+  console.log("Locating source data…");
+  /* Each source is named by files it CANNOT be without. rsStats.json alone
+   * would match a stale partial copy; naming several means the folder that
+   * answers is the real checkout. */
+  PD = resolveSource("nba-player-data", {
+    explicit: PD,
+    markers: ["rsStats.json", "poStats.json", "salaries.json", "player-headshots.json"]
+  });
+  HSMETA = resolveSource("nba-headshots", {
+    explicit: HSMETA,
+    markers: [path.join("players", "metadata", "players.json")]
+  });
+  const gamesHit = GAMES_CSV || resolveSource("Games.csv", { files: ["Games.csv"] });
+  GAMES_CSV = gamesHit;
+  if (!PD || !HSMETA || !GAMES_CSV) {
+    console.error("\nMissing a source this build cannot run without. Pass --local with explicit paths.");
+    process.exit(1);
+  }
+  /* The last two are optional: without them the build simply emits fewer
+   * races and says so, rather than failing. So a miss is a note, not an exit. */
+  if (!BIO_CSV) {
+    const hits = findFiles(["bio.csv"]);
+    if (hits.length) { BIO_CSV = hits[0]; console.log(`  using ${BIO_CSV}`); }
+    else console.log("  bio.csv not found — the college and club races will be skipped.");
+  }
+  if (!BCR_FACES) {
+    const hits = findFolders([path.join("assets", "headshots")]);
+    if (hits.length) {
+      BCR_FACES = path.join(hits[0], "assets", "headshots");
+      console.log(`  using ${BCR_FACES}`);
+    } else {
+      console.log("  bar-chart-race headshots not found — tiles will fall back to remote URLs.");
+    }
+  }
+  console.log("");
+}
 
 const readJson = p => JSON.parse(fs.readFileSync(p, "utf8"));
 const num = v => { const n = parseFloat(String(v == null ? "" : v).replace(/[$,]/g, "")); return isNaN(n) ? 0 : n; };
