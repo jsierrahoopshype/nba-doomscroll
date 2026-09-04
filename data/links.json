@@ -79,9 +79,9 @@
     {
       "id": "rumors-api",
       "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/index",
-      "used_by": "js/rumors.js — the Rumors tab (SEE NOTE: the app calls endpoints that do not exist)",
+      "used_by": "the archive's own index — not called by the app, kept as the reachability check",
       "kind": "json",
-      "note": "RESOLVED, and worse than a dead route. js/rumors.js calls /api/rumors/random and /api/rumors/on-this-day. This Worker serves /api/rumors/index, /api/rumors/latest and /api/rumors/part/N. Neither of the app's two endpoints has ever existed, so the Rumors tab has never once shown live data - load() catches both failures, warns to the console and returns [], and the tab falls back to its sample cards looking perfectly healthy. That is why nobody noticed. This entry now probes an endpoint that does exist, so a 200 here means the archive is reachable and the remaining work is in the client or the Worker, not in the connection. Access is gated on Referer and Origin rather than a key. SHAPE ONLY: the response carries archive records and this repo is public.",
+      "note": "FIXED. js/rumors.js used to call /api/rumors/random and /api/rumors/on-this-day. This Worker serves /api/rumors/index, /api/rumors/latest and /api/rumors/part/N. Neither of the app's two endpoints has ever existed, so the Rumors tab has never once shown live data - load() catches both failures, warns to the console and returns [], and the tab falls back to its sample cards looking perfectly healthy. That is why nobody noticed. The client now reads /latest instead - see the entry below. This one stays because it is the cheapest proof that the archive is reachable at all, and it reports total_rumors, which is how a stalled hourly refresh would show up. Access is gated on Referer and Origin rather than a key. SHAPE ONLY: the response carries archive records and this repo is public.",
       "headers": {
         "Origin": "https://jsierrahoopshype.github.io",
         "Referer": "https://jsierrahoopshype.github.io/hoopshype-rumors/hoopshype_rumors_tool.html"
@@ -90,9 +90,9 @@
     {
       "id": "rumors-latest",
       "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/latest",
-      "used_by": "nothing yet — the endpoint a working Rumors tab would read",
+      "used_by": "js/rumors.js LATEST_URL — every card in the Rumors tab",
       "kind": "json",
-      "note": "Registered ahead of the client that will use it. The tab currently asks for /random and /on-this-day, which this Worker does not serve; whichever way that is fixed - endpoints added to the Worker, or the client rewritten around what exists - this is the call that has to succeed. Probing it now means the day someone writes that client, the question of whether the archive answers is already settled. Part files are not probed: parts 1..N-1 never change and the newest is large, and a health check has no business downloading tens of megabytes.",
+      "note": "The Rumors tab reads this and nothing else. Answers array[100] of the most recent entries carrying date, archive_date, text, quote, outlet and source_url - which is exactly what the cards render, so no Worker change was needed after all. If this ever stops being an array the tab renders nothing rather than guessing at a new shape. Part files are not probed: parts 1..N-1 never change and the newest is large, and a health check has no business downloading tens of megabytes.",
       "headers": {
         "Origin": "https://jsierrahoopshype.github.io",
         "Referer": "https://jsierrahoopshype.github.io/hoopshype-rumors/hoopshype_rumors_tool.html"

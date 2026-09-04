@@ -5,9 +5,26 @@
  * holds invented placeholder text only, and is what shows if the endpoints are
  * not reachable.
  *
- * Endpoints (see proposals/rumors-endpoints/ for the Worker side):
- *   GET /api/rumors/on-this-day?md=MM-DD&limit=20
- *   GET /api/rumors/random?limit=25
+ * Endpoint:
+ *   GET /api/rumors/latest    -> array of the 100 most recent entries
+ *
+ * IT USED TO CALL TWO ENDPOINTS THAT DO NOT EXIST.
+ *
+ * /api/rumors/on-this-day and /api/rumors/random were written against a Worker
+ * design that was never built. The Worker serves /api/rumors/index, /latest
+ * and /part/N. Both calls 404'd from the first day, load() caught them, warned
+ * to the console and returned [], and the tab fell back to its sample cards
+ * looking entirely healthy - so the Rumors tab has never once shown a real
+ * rumor. The link registry found it; a reader never could have.
+ *
+ * ON THIS DAY IS NOT BACK YET, AND CANNOT BE FROM HERE.
+ *
+ * "On this day" means searching 652,000 entries for a month and day across
+ * every year. /latest holds the most recent hundred, so none of them will
+ * match today's date from a past year, and the part files are tens of
+ * megabytes each - not something to download into a phone to find twenty
+ * matches. That feature needs an endpoint on the Worker. Until it exists the
+ * tab shows recent rumors, which is real, or nothing.
  *
  * Every entry arrives as a <=280-char excerpt carrying a source_url, and every
  * card links back to hoopshype.com — the same constraint the Content Stream
@@ -20,11 +37,14 @@
   "use strict";
 
   var API = "https://hoopshype-rumors-api.thejorgesierra.workers.dev";
-  var OTD_URL = API + "/api/rumors/on-this-day";
-  var RANDOM_URL = API + "/api/rumors/random";
+  var LATEST_URL = API + "/api/rumors/latest";
   var BLOCKLIST_URL = "data/rumor-blocklist.json";
 
   var blocklist = null;
+
+  /* How many of the hundred reach the feed. The whole set would swamp a tab
+   * that also carries archive cards, and the engine spaces them out anyway. */
+  var MAX_CARDS = 25;
 
   function loadBlocklist() {
     if (blocklist) return Promise.resolve(blocklist);
@@ -88,9 +108,11 @@
     };
   }
 
-  // Local date, deliberately: the Worker accepts any date within a day of its
-  // own UTC date, so a reader west of UTC still gets "today" rather than an
-  // empty file.
+  /* UNUSED while on-this-day is deferred, and kept on purpose: it is four
+   * lines and it encodes a decision worth not making twice. Local date, not
+   * UTC - a reader west of UTC asking for "today" should get their today, and
+   * the endpoint that will eventually want this accepts a day either side.
+   * Delete it if on-this-day is abandoned rather than deferred. */
   function todayMd() {
     var d = new Date();
     return ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
@@ -103,26 +125,43 @@
     });
   }
 
-  /* Returns rumor cards, or an empty array if the endpoints are not live yet.
+  /* Returns rumor cards, or an empty array if the archive is not reachable.
    * Never throws: the Rumors tab keeps its sample cards on any failure. */
   function load() {
     return loadBlocklist().then(function (bl) {
-      return Promise.all([
-        fetchJson(OTD_URL + "?md=" + todayMd() + "&limit=20").catch(function (e) {
-          console.warn("[doomscroll] on-this-day unavailable:", e.message); return null;
-        }),
-        fetchJson(RANDOM_URL + "?limit=25").catch(function (e) {
-          console.warn("[doomscroll] random rumors unavailable:", e.message); return null;
-        })
-      ]).then(function (res) {
-        var cards = [];
-        (((res[0] || {}).entries) || []).forEach(function (e, i) {
-          if (e && e.source_url && !isBlocked(e, bl)) cards.push(toCard(e, i, true));
+      return fetchJson(LATEST_URL).then(function (rows) {
+        /* The endpoint answers with a bare array. Anything else means the
+         * Worker changed shape, and rendering nothing is better than
+         * rendering whatever a changed payload happens to contain. */
+        if (!Array.isArray(rows)) {
+          console.warn("[doomscroll] rumors: expected an array, got " +
+            (rows && typeof rows === "object" ? Object.keys(rows).join(",") : typeof rows));
+          return [];
+        }
+        var usable = rows.filter(function (e) {
+          return e && e.source_url && e.text && !isBlocked(e, bl);
         });
-        (((res[1] || {}).entries) || []).forEach(function (e, i) {
-          if (e && e.source_url && !isBlocked(e, bl)) cards.push(toCard(e, i, false));
+
+        /* SHUFFLED, because the endpoint returns the same hundred entries to
+         * everyone until the archive updates. Without this the tab is
+         * identical on every visit, which is the opposite of what a feed is
+         * for. Fisher-Yates over a copy: the caller's array is not ours. */
+        var pool = usable.slice();
+        for (var i = pool.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+        }
+
+        var cards = pool.slice(0, MAX_CARDS).map(function (e, i) {
+          return toCard(e, i, false);
         });
+        console.info("[doomscroll] rumors: " + cards.length + " cards from " +
+          rows.length + " recent entries (" + (rows.length - usable.length) +
+          " blocked or incomplete)");
         return cards;
+      }).catch(function (e) {
+        console.warn("[doomscroll] live rumors unavailable:", e.message);
+        return [];
       });
     }).catch(function (e) {
       console.warn("[doomscroll] live rumors skipped:", e.message);
