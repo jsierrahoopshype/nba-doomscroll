@@ -590,38 +590,6 @@
    }
   },
   {
-   "slug": "franchise-wins",
-   "group": "Franchises",
-   "title": "All-time franchise wins",
-   "subtitle": "Regular season and playoffs, cumulative",
-   "unit": "wins",
-   "fmt": "int",
-   "kind": "team",
-   "tier": 1,
-   "note": "",
-   "steps": 76,
-   "span": "1950-2025",
-   "leader": "Los Angeles Lakers",
-   "file": "data/races/r/franchise-wins.json",
-   "tags": {
-    "category": [
-     "franchise",
-     "history"
-    ],
-    "players": [],
-    "teams": [
-     "LAL",
-     "BOS",
-     "PHI",
-     "SAS",
-     "GSW",
-     "NYK",
-     "DET",
-     "CHI"
-    ]
-   }
-  },
-  {
    "slug": "franchise-playoff-wins",
    "group": "Franchises",
    "title": "All-time franchise playoff wins",
