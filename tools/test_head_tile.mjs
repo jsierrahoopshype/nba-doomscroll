@@ -17,7 +17,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { decodePng, encodePng, resize, crop } from "./lib/png.mjs";
-import { headRaceTile } from "./lib/faces.mjs";
+import { headRaceTile, TILE_HEAD_HEIGHT, TILE_HEAD_CENTRE } from "./lib/faces.mjs";
 
 const png = { decodePng, encodePng, resize, crop };
 let pass = 0, fail = 0;
@@ -28,17 +28,33 @@ function ok(label, cond, detail) {
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "headtile-"));
 
-/* A cut-out: transparent everywhere, a red head, blue shoulders below it. */
-function cutout(name, { w, h, headCx, headCy, headR, shoulderTop }) {
+/* A cut-out shaped like the real thing: a narrow crown widening to cheekbones,
+ * a neck, then shoulders twice the head's width running to the bottom edge.
+ *
+ * The first fixtures were a plain circle on a rectangle, and that shape hid the
+ * bug that mattered: on a real portrait the top rows are a few pixels of hair,
+ * which is what made a "crown width" reference collapse. A fixture has to have
+ * the feature the code reasons about or it tests nothing. */
+function cutout(name, { w, h, headCx, headTop, headH, headW, shoulders = true }) {
   const data = Buffer.alloc(w * h * 4, 0);
+  const headBottom = headTop + headH;
+  const neckW = headW * 0.42;
+  const shoulderTop = headBottom + Math.round(headH * 0.10);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const i = (y * w + x) * 4;
-    const dx = x - headCx, dy = y - headCy;
-    if (dx * dx + dy * dy <= headR * headR) {
-      data[i] = 220; data[i+1] = 40; data[i+2] = 40; data[i+3] = 255;      // head
-    } else if (y >= shoulderTop && Math.abs(x - headCx) <= headR * 2.1) {
-      data[i] = 40; data[i+1] = 80; data[i+2] = 220; data[i+3] = 255;      // shoulders
+    let hit = 0;
+    if (y >= headTop && y < headBottom) {
+      // Ellipse: a few pixels wide at the crown, widest at the cheekbones.
+      const t = (y - headTop) / headH;
+      const r = (headW / 2) * Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.55) / 0.55, 2)));
+      if (Math.abs(x - headCx) <= r) hit = 1;
     }
+    if (!hit && shoulders && y >= headBottom && y < shoulderTop &&
+        Math.abs(x - headCx) <= neckW / 2) hit = 2;
+    if (!hit && shoulders && y >= shoulderTop &&
+        Math.abs(x - headCx) <= headW * 1.05) hit = 2;
+    if (hit === 1) { data[i] = 220; data[i+1] = 40; data[i+2] = 40; data[i+3] = 255; }
+    else if (hit === 2) { data[i] = 40; data[i+1] = 80; data[i+2] = 220; data[i+3] = 255; }
   }
   const f = path.join(dir, name);
   fs.writeFileSync(f, encodePng({ w, h, data }));
@@ -74,8 +90,8 @@ const W = 112, H = 80;
 /* THE CASE THE FIXED CROP GETS WRONG: two sources framing the same person
  * differently. A tight portrait and a chest-up one currently produce heads of
  * very different sizes; after normalising they should not. */
-const tight = cutout("tight.png",  { w: 400, h: 500, headCx: 200, headCy: 150, headR: 110, shoulderTop: 250 });
-const wide  = cutout("wide.png",   { w: 400, h: 900, headCx: 200, headCy: 130, headR: 60,  shoulderTop: 195 });
+const tight = cutout("tight.png", { w: 400, h: 520, headCx: 200, headTop: 30, headH: 260, headW: 190 });
+const wide  = cutout("wide.png",  { w: 400, h: 900, headCx: 200, headTop: 60, headH: 150, headW: 110 });
 
 const tTight = headRaceTile(tight, W, H, png);
 const tWide  = headRaceTile(wide,  W, H, png);
@@ -92,6 +108,22 @@ if (hTight && hWide) {
   const diff = Math.abs(hTight.height - hWide.height);
   ok("a tight and a wide source give heads of near-equal size",
     diff < 0.12, `tight ${hTight.height.toFixed(3)} vs wide ${hWide.height.toFixed(3)} (diff ${diff.toFixed(3)})`);
+
+  /* AGREEMENT IS NOT CORRECTNESS.
+   *
+   * The test above passed while the crop was zooming into foreheads on real
+   * photographs, because two crops wrong in the same way agree perfectly. So
+   * the size is also checked against what it claims to produce. */
+  ok("the head is about the size the constant asks for, not just consistent",
+    Math.abs(hTight.height - TILE_HEAD_HEIGHT) < 0.18 &&
+    Math.abs(hWide.height - TILE_HEAD_HEIGHT) < 0.18,
+    `target ${TILE_HEAD_HEIGHT}, got ${hTight.height.toFixed(3)} and ${hWide.height.toFixed(3)}`);
+
+  /* Over-zoom has a signature: the head runs off both the top and the bottom,
+   * so almost nothing of the tile is background. */
+  ok("the tile is not a close-up of a forehead",
+    hTight.height < 0.95 && hWide.height < 0.95,
+    `${hTight.height.toFixed(3)} and ${hWide.height.toFixed(3)} of the tile`);
 
   const cdiff = Math.abs(hTight.centre - hWide.centre);
   ok("and at near-equal height in the frame",
@@ -117,7 +149,7 @@ if (hTight && hWide) {
  * not a fault, and these tiles are drawn over a coloured bar where that
  * transparency is invisible. What actually has to hold is that the head is all
  * there and nothing was read from outside the source. */
-const edge = cutout("edge.png", { w: 400, h: 600, headCx: 70, headCy: 120, headR: 60, shoulderTop: 185 });
+const edge = cutout("edge.png", { w: 400, h: 600, headCx: 70, headTop: 40, headH: 150, headW: 115 });
 const tEdge = headRaceTile(edge, W, H, png);
 ok("a head near the edge still produces a tile", !!tEdge);
 if (tEdge) {
@@ -128,6 +160,20 @@ if (tEdge) {
   ok("and it is still about the intended size",
     hEdge && Math.abs(hEdge.height - hTight.height) < 0.15,
     hEdge ? `edge ${hEdge.height.toFixed(3)} vs tight ${hTight.height.toFixed(3)}` : "no head found");
+}
+
+/* A head-only cut-out, floating with no shoulders. There is no neck to find,
+ * so the whole subject is the head - and the crop must not treat the widest
+ * part of the head as a shoulder line and zoom in. */
+const headOnly = cutout("headonly.png",
+  { w: 300, h: 300, headCx: 150, headTop: 40, headH: 200, headW: 150, shoulders: false });
+const tHeadOnly = headRaceTile(headOnly, W, H, png);
+ok("a head-only cut-out still produces a tile", !!tHeadOnly);
+if (tHeadOnly) {
+  const hOnly = headIn(tHeadOnly.buf);
+  ok("and is not zoomed into part of the face",
+    hOnly && hOnly.height < 0.95 && Math.abs(hOnly.height - TILE_HEAD_HEIGHT) < 0.22,
+    hOnly ? `head is ${hOnly.height.toFixed(3)} of the tile` : "no head found");
 }
 
 /* No alpha, nothing to measure. Returning null is what makes the caller fall

@@ -508,8 +508,8 @@ export function foldedPngIndex(dir) {
  * current set already does rather than at some ideal: the median tile should
  * barely move, and only the outliers should travel. Tune by eye against
  * tools/build_face_compare.mjs, not by argument. */
-const TILE_HEAD_HEIGHT = 0.72;   // head box height as a fraction of tile height
-const TILE_HEAD_CENTRE = 0.46;   // where the head's centre sits down the tile
+export const TILE_HEAD_HEIGHT = 0.72;   // head box height as a fraction of tile height
+export const TILE_HEAD_CENTRE = 0.46;   // where the head's centre sits down the tile
 
 /**
  * A race tile cropped around the head rather than around the frame.
@@ -567,32 +567,56 @@ export function headRaceTile(src, outW, outH, png) {
 
   const width = y => (spanMin[y] < 0 ? 0 : spanMax[y] - spanMin[y] + 1);
 
-  /* A reference width from the top of the head, where nothing else can
-   * intrude. Median rather than mean: the very first rows are a few pixels of
-   * hair and would drag an average down. */
-  const refRows = [];
-  const refDepth = Math.max(3, Math.round((bottom - top + 1) * 0.12));
-  for (let y = top; y < Math.min(h, top + refDepth); y++) if (width(y)) refRows.push(width(y));
-  refRows.sort((a, b) => a - b);
-  const crown = refRows[Math.floor(refRows.length / 2)] || 1;
+  /* FINDING THE NECK: WHAT THE FIRST TWO TRIES GOT WRONG
+   *
+   * Try one took the head as the top 34% of the subject - a fraction standing
+   * in for a measurement, the same mistake as the fixed 80% crop.
+   *
+   * Try two measured a "crown width" from the top 12% of the subject and
+   * called the neck the first row 1.55x wider than that. On a synthetic circle
+   * that works. On a real portrait the top 12% is a few pixels of hair, so
+   * every row below it is more than 1.55x wider, the neck landed just under
+   * the crown, the head measured as almost nothing and the crop zoomed into a
+   * forehead. It shipped past a test because the test asked whether two
+   * fixtures agreed with each other, and two crops wrong in the same way agree
+   * perfectly.
+   *
+   * What is actually true of a head-and-shoulders cut-out: the shoulders are
+   * roughly twice as wide as the head and they run to the bottom edge, because
+   * the picture is cut at the chest. So the widest row IS the shoulders, and
+   * the neck is where the subject first approaches that width. Both are
+   * measured from this picture; neither is a constant about pictures.
+   */
+  let maxW = 0;
+  for (let y = top; y <= bottom; y++) if (width(y) > maxW) maxW = width(y);
 
-  /* Walk down until the subject is decisively wider than the crown. 1.55 sits
-   * between a head at its widest (cheekbones, maybe 1.2x the crown) and
-   * shoulders (well past 2x), so it is not near either. */
-  const SHOULDER = 1.55;
-  let neck = bottom;
-  let headW = crown;
-  for (let y = top; y <= bottom; y++) {
-    const wy = width(y);
-    if (!wy) continue;
-    if (wy > crown * SHOULDER) { neck = y; break; }
-    if (wy > headW) headW = wy;
+  /* Does this cut-out even have shoulders? If the bottom edge is near the
+   * widest row, the subject is cut at the chest and the widest thing is the
+   * shoulders. If not - a head-only cut-out, floating - there is no neck to
+   * find and the whole subject is the head. */
+  const bottomW = width(bottom);
+  const hasShoulders = maxW > 0 && bottomW >= maxW * 0.82;
+
+  let neck = bottom + 1;
+  if (hasShoulders) {
+    const NECK_AT = 0.62;   // fraction of shoulder width where the neck ends
+    for (let y = top; y <= bottom; y++) {
+      if (width(y) > maxW * NECK_AT) { neck = y; break; }
+    }
+    /* A floor, and only a floor. If the threshold fires in the first fifth of
+     * the subject the reading is not credible - a head is not that short - and
+     * one bad row should not be allowed to zoom the crop into a forehead
+     * again. This bounds the damage; it does not do the measuring. */
+    const minHead = Math.round((bottom - top + 1) * 0.20);
+    if (neck - top < minHead) neck = top + minHead;
   }
-  const headH = Math.max(4, neck - top);
-  /* Horizontal centre from the head rows only: shoulders are often asymmetric
-   * and would pull the centre sideways. */
+  const headH = Math.max(4, Math.min(neck, bottom + 1) - top);
+
+  /* Horizontal centre from the HEAD rows only. Shoulders are frequently
+   * asymmetric - a turned body, an arm partly in frame - and including them
+   * drags the centre sideways and puts the face off to one side. */
   let cxLo = w, cxHi = -1;
-  for (let y = top; y < neck; y++) {
+  for (let y = top; y < top + headH && y <= bottom; y++) {
     if (spanMin[y] < 0) continue;
     if (spanMin[y] < cxLo) cxLo = spanMin[y];
     if (spanMax[y] > cxHi) cxHi = spanMax[y];
@@ -610,5 +634,20 @@ export function headRaceTile(src, outW, outH, png) {
   y = Math.max(0, Math.min(y, h - ch));
 
   const box = png.crop(img, x, y, cw, ch);
-  return { buf: png.encodePng(png.resize(box, outW, outH)), method: "head" };
+  /* The measurement travels with the tile. When a crop looks wrong the first
+   * question is whether the head was found correctly or placed correctly, and
+   * those need different fixes - returning where it thinks the head is means
+   * tools/build_face_compare.mjs can draw it and settle that by looking,
+   * rather than by another round of guessing. Fractions of the source. */
+  return {
+    buf: png.encodePng(png.resize(box, outW, outH)),
+    method: "head",
+    head: {
+      top: top / h,
+      neck: Math.min(top + headH, h) / h,
+      cx: headCx / w,
+      hasShoulders,
+      crop: { x: x / w, y: y / h, w: cw / w, h: ch / h }
+    }
+  };
 }
