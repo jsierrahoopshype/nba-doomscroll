@@ -1,5 +1,5 @@
 {
- "built": "2026-08-25",
+ "built": "2026-09-03",
  "races": [
   {
    "slug": "career-points",
@@ -599,9 +599,9 @@
    "kind": "team",
    "tier": 1,
    "note": "",
-   "steps": 80,
-   "span": "1947-2026",
-   "leader": "Boston Celtics",
+   "steps": 76,
+   "span": "1950-2025",
+   "leader": "Los Angeles Lakers",
    "file": "data/races/r/franchise-wins.json",
    "tags": {
     "category": [
@@ -610,14 +610,14 @@
     ],
     "players": [],
     "teams": [
-     "BOS",
      "LAL",
+     "BOS",
      "PHI",
-     "NYK",
+     "SAS",
      "GSW",
-     "ATL",
+     "NYK",
      "DET",
-     "OKC"
+     "CHI"
     ]
    }
   },
@@ -631,8 +631,8 @@
    "kind": "team",
    "tier": 2,
    "note": "",
-   "steps": 77,
-   "span": "1950-2026",
+   "steps": 76,
+   "span": "1950-2025",
    "leader": "Los Angeles Lakers",
    "file": "data/races/r/franchise-playoff-wins.json",
    "tags": {
@@ -646,10 +646,10 @@
      "BOS",
      "PHI",
      "SAS",
-     "NYK",
      "GSW",
+     "NYK",
      "DET",
-     "OKC"
+     "CHI"
     ]
    }
   },
@@ -663,8 +663,8 @@
    "kind": "team",
    "tier": 1,
    "note": "Champion taken as the winner of the last playoff game each season played.",
-   "steps": 76,
-   "span": "1951-2026",
+   "steps": 75,
+   "span": "1951-2025",
    "leader": "Boston Celtics",
    "file": "data/races/r/franchise-titles.json",
    "tags": {
@@ -680,8 +680,8 @@
      "CHI",
      "SAS",
      "PHI",
-     "NYK",
-     "DET"
+     "DET",
+     "HOU"
     ]
    }
   },
