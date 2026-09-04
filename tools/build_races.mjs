@@ -165,16 +165,36 @@ if (FIND) {
   }
   /* The last two are optional: without them the build simply emits fewer
    * races and says so, rather than failing. So a miss is a note, not an exit. */
+  /* EVERY candidate is printed, not just the winner. These two were the
+   * exception and it cost a build: the faces search took an hf_space copy
+   * holding a fraction of the portraits, coverage came out at 32%, and the
+   * output gave no hint that a fuller folder had been passed over. Showing one
+   * line per candidate is the difference between a wrong choice you can see
+   * and a wrong choice you cannot. */
   if (!BIO_CSV) {
     const hits = findFiles(["bio.csv"]);
-    if (hits.length) { BIO_CSV = hits[0]; console.log(`  using ${BIO_CSV}`); }
-    else console.log("  bio.csv not found — the college and club races will be skipped.");
+    if (hits.length) {
+      BIO_CSV = hits[0];
+      hits.forEach((h, i) => console.log(`    ${i === 0 ? "using " : "also  "}${h}`));
+    } else console.log("  bio.csv not found — the college and club races will be skipped.");
   }
   if (!BCR_FACES) {
-    const hits = findFolders([path.join("assets", "headshots")]);
+    const hits = findFolders([path.join("assets", "headshots")])
+      .map(d => path.join(d, "assets", "headshots"));
     if (hits.length) {
-      BCR_FACES = path.join(hits[0], "assets", "headshots");
-      console.log(`  using ${BCR_FACES}`);
+      /* Newest is the wrong tie-break for a picture library: a folder touched
+       * yesterday can hold 400 files where an older one holds 5,000, and the
+       * bigger library is what a race wants. So these are ranked by how many
+       * PNGs they actually contain. */
+      const counted = hits.map(dir => {
+        let n = 0;
+        try { n = fs.readdirSync(dir).filter(f => /\.png$/i.test(f)).length; } catch (e) {}
+        return { dir, n };
+      }).sort((a, b) => b.n - a.n);
+      BCR_FACES = counted[0].dir;
+      counted.forEach((c, i) =>
+        console.log(`    ${i === 0 ? "using " : "also  "}${c.dir}  (${c.n} PNGs)`));
+      if (counted.length > 1) console.log("    (most portraits wins. --faces pins one.)");
     } else {
       console.log("  bar-chart-race headshots not found — tiles will fall back to remote URLs.");
     }
@@ -602,6 +622,32 @@ for (const g of games) {
   }
 }
 const finalsBySeason = lastPlayoffGame;
+
+/* IS THIS ACTUALLY THE WHOLE SCHEDULE?
+ *
+ * franchise-wins counts every row; franchise-playoff-wins counts the rows
+ * marked Playoffs. Hand it a playoffs-only export and both races come out
+ * identical - same steps, same entities, same byte count - while the first one
+ * still calls itself "All-time franchise wins" and is off by a factor of ten.
+ * Nothing errors, because a playoffs-only file is a perfectly valid CSV.
+ *
+ * The build now says so. It does not refuse: which file to use is Jorge's
+ * call, and a playoffs-only run is still useful for the playoff races. */
+const typeTally = new Map();
+for (const g of games) typeTally.set(g.gameType, (typeTally.get(g.gameType) || 0) + 1);
+const regularSeasonRows = games.length - (typeTally.get("Playoffs") || 0);
+if (games.length && regularSeasonRows === 0) {
+  console.log("");
+  console.log("  !! The games file holds ONLY playoff rows.");
+  console.log(`     ${path.basename(GAMES_CSV)}: ${games.length} rows, all gameType=Playoffs.`);
+  console.log("     franchise-wins is supposed to be every win a franchise has;");
+  console.log("     from this file it is playoff wins, identical to franchise-playoff-wins.");
+  console.log("     Point --games at a full schedule to fix it, or drop those two races.");
+  console.log("");
+} else if (games.length && regularSeasonRows / games.length < 0.5) {
+  console.log(`  note: only ${Math.round(100 * regularSeasonRows / games.length)}% of the games file is` +
+    ` non-playoff. franchise-wins will be low.`);
+}
 add(buildRace({
   slug: "franchise-wins", group: "Franchises",
   title: "All-time franchise wins", subtitle: "Regular season and playoffs, cumulative",
