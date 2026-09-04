@@ -17,7 +17,19 @@
  * The one case the tool was built for was the one case it could not see.
  */
 import fs from "fs";
-const SRC = new URL("./test_links.mjs", import.meta.url).pathname;
+import { fileURLToPath } from "url";
+
+/* fileURLToPath, NOT url.pathname.
+ *
+ * .pathname on Windows yields "/C:/Users/Jorge%20Sierra/..." - a leading slash
+ * that is not part of the path, and a space left percent-encoded - so
+ * readFileSync throws and this test failed on Jorge's machine while passing on
+ * Linux. It went unnoticed because it had never been run there until the batch
+ * file started running the whole suite on every patch.
+ *
+ * fileURLToPath is the function that exists for exactly this and gets both
+ * right on every platform. */
+const SRC = fileURLToPath(new URL("./test_links.mjs", import.meta.url));
 const src = fs.readFileSync(SRC, "utf8");
 
 // lift the two pure functions the checking rests on
