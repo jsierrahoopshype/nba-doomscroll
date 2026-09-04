@@ -587,8 +587,8 @@ export function headRaceTile(src, outW, outH, png) {
    * the neck is where the subject first approaches that width. Both are
    * measured from this picture; neither is a constant about pictures.
    */
-  let maxW = 0;
-  for (let y = top; y <= bottom; y++) if (width(y) > maxW) maxW = width(y);
+  let maxW = 0, maxY = top;
+  for (let y = top; y <= bottom; y++) if (width(y) > maxW) { maxW = width(y); maxY = y; }
 
   /* Does this cut-out even have shoulders? If the bottom edge is near the
    * widest row, the subject is cut at the chest and the widest thing is the
@@ -599,16 +599,32 @@ export function headRaceTile(src, outW, outH, png) {
 
   let neck = bottom + 1;
   if (hasShoulders) {
-    const NECK_AT = 0.62;   // fraction of shoulder width where the neck ends
-    for (let y = top; y <= bottom; y++) {
-      if (width(y) > maxW * NECK_AT) { neck = y; break; }
+    /* THE NECK IS THE NARROWEST POINT, not the first wide one.
+     *
+     * Try three took the neck to be the first row reaching 62% of the shoulder
+     * width. That works on an average head and fails on a big one: an afro is
+     * already wider than that at the crown, so the test fired on the first row
+     * and the tile came out as nothing but hair.
+     *
+     * Every head-and-shoulders portrait has the same shape going down -
+     * whatever the hair, it narrows at the jaw and neck before the shoulders
+     * flare out. That pinch is the narrowest row between the crown and the
+     * widest row, and it is a feature of the person rather than an assumption
+     * about how tightly they were photographed. Big hair, a headband, a bald
+     * head: all still have a neck.
+     *
+     * Starting a little below the crown, because the very top rows are a few
+     * pixels of hair and are narrower than any neck. */
+    const from = top + Math.max(2, Math.round((maxY - top) * 0.15));
+    let best = Infinity;
+    for (let y = from; y < maxY; y++) {
+      const wy = width(y);
+      if (!wy) continue;
+      /* <= rather than <: on a tie take the LOWER row. The pinch is usually a
+       * few rows of equal width and the bottom of it is the shoulder line. */
+      if (wy <= best) { best = wy; neck = y; }
     }
-    /* A floor, and only a floor. If the threshold fires in the first fifth of
-     * the subject the reading is not credible - a head is not that short - and
-     * one bad row should not be allowed to zoom the crop into a forehead
-     * again. This bounds the damage; it does not do the measuring. */
-    const minHead = Math.round((bottom - top + 1) * 0.20);
-    if (neck - top < minHead) neck = top + minHead;
+    if (!isFinite(best)) neck = bottom + 1;
   }
   const headH = Math.max(4, Math.min(neck, bottom + 1) - top);
 
@@ -634,6 +650,23 @@ export function headRaceTile(src, outW, outH, png) {
   y = Math.max(0, Math.min(y, h - ch));
 
   const box = png.crop(img, x, y, cw, ch);
+
+  /* LAST GUARD: did the crop land on the subject at all?
+   *
+   * Everything above is geometry, and geometry can be confidently wrong. If
+   * the resulting tile is mostly empty the crop has wandered off the person,
+   * and handing back nothing puts the caller on the existing crop - which is
+   * imperfect but never blank. Cheap, and it is the difference between a tile
+   * that is slightly badly framed and one that is not a photograph. */
+  let boxOpaque = 0;
+  for (let i = 3; i < box.data.length; i += 4) if (box.data[i] >= ALPHA_MIN) boxOpaque++;
+  /* 12%, not a comfortable-looking number like 30%. A head-only cut-out - no
+   * shoulders, an oval in a landscape crop - legitimately fills about 22% of
+   * the tile, and 30% rejected it. The guard is for a crop that has left the
+   * person entirely, which reads near zero; anything stricter starts throwing
+   * away tiles that are merely sparse. */
+  if (boxOpaque < (box.data.length / 4) * 0.12) return null;
+
   /* The measurement travels with the tile. When a crop looks wrong the first
    * question is whether the head was found correctly or placed correctly, and
    * those need different fixes - returning where it thinks the head is means
