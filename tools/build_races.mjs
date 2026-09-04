@@ -711,6 +711,44 @@ for (const g of playoffGames) {
 }
 const finalsBySeason = lastPlayoffGame;
 
+/* WHICH SEASONS HAVE PLAYOFFS BUT NO CHAMPION, BY NAME.
+ *
+ * franchise-playoff-wins covers 79 seasons and franchise-titles only 77, so two
+ * seasons hold playoff games whose last game names nobody. A count cannot be
+ * investigated; a list of years can. Printed rather than fixed, because the
+ * cause decides the fix: a missing final is a data gap, while two finals in one
+ * season is a season-attribution bug in gameSeason().
+ *
+ * The tie-break is worth knowing about too. The clinching game is found by
+ * comparing date strings, and where the primary schedule carries no time of
+ * day, two games on the same last date are separated only by which was read
+ * first - which the playoff merge changed. Rare (a Finals game 7 has no
+ * same-day company) but not impossible, and silent when it happens. */
+const seasonsWithPlayoffs = new Set();
+for (const g of playoffGames) {
+  const step = gameSeason(g);
+  if (step) seasonsWithPlayoffs.add(step);
+}
+const seasonsWithoutChampion = [...seasonsWithPlayoffs]
+  .filter(s => !finalsBySeason.has(s)).sort();
+if (seasonsWithoutChampion.length) {
+  console.log(`  ${seasonsWithoutChampion.length} season(s) have playoff games but no champion: ` +
+    seasonsWithoutChampion.join(", "));
+}
+/* Two games sharing the last date of a season: the champion is then decided by
+ * read order, which is not a decision anyone made. */
+const sameDayFinals = [];
+for (const [step, cur] of finalsBySeason) {
+  const tied = playoffGames.filter(g =>
+    gameSeason(g) === step &&
+    String(g.gameDateTimeEst || g.gameDate || "") === cur.when);
+  if (tied.length > 1) sameDayFinals.push(`${step} (${tied.length} games)`);
+}
+if (sameDayFinals.length) {
+  console.log(`  ${sameDayFinals.length} season(s) end with more than one game on the last date,` +
+    ` so the champion is read order, not data: ${sameDayFinals.join(", ")}`);
+}
+
 /* IS THIS ACTUALLY THE WHOLE SCHEDULE?
  *
  * franchise-wins counts every row; franchise-playoff-wins counts the rows
