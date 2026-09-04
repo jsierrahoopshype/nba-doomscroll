@@ -1,6 +1,6 @@
 {
  "built": "2026-09-04",
- "count": 215,
+ "count": 214,
  "cards": [
   {
    "id": "race-career-points",
@@ -668,43 +668,6 @@
     "steps": 80,
     "leader": "LeBron James",
     "file": "data/races/r/playoff-games.json"
-   }
-  },
-  {
-   "id": "race-franchise-wins",
-   "type": "race",
-   "tab": [
-    "races"
-   ],
-   "tags": {
-    "content_type": "race",
-    "players": [],
-    "teams": [
-     "LAL",
-     "BOS",
-     "PHI",
-     "SAS",
-     "GSW",
-     "NYK",
-     "DET",
-     "CHI"
-    ],
-    "era": "all-time",
-    "category": "franchise"
-   },
-   "payload": {
-    "slug": "franchise-wins",
-    "title": "All-time franchise wins",
-    "subtitle": "Regular season and playoffs, cumulative",
-    "span": "1950-2025",
-    "group": "Franchises",
-    "unit": "wins",
-    "kind": "team",
-    "tier": 1,
-    "note": "",
-    "steps": 76,
-    "leader": "Los Angeles Lakers",
-    "file": "data/races/r/franchise-wins.json"
    }
   },
   {
