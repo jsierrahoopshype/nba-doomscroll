@@ -100,10 +100,10 @@
     },
     {
       "id": "trade-log",
-      "url": "https://nba-trade-calculator.thejorgesierra.workers.dev/api/trade-log?limit=5",
+      "url": "https://hoopsmatic.com/api/trade-log?limit=5",
       "used_by": "js/trades.js TRADE_LOG_URL",
       "kind": "json",
-      "note": "Asked for five rows, not six hundred: this is a health check, not a fetch."
+      "note": "Asked for five rows, not six hundred: this is a health check, not a fetch. Moved off nba-trade-calculator.thejorgesierra.workers.dev after that subdomain was disabled in Cloudflare - the Worker was healthy the whole time, serving hoopsmatic.com, but the workers.dev hostname stopped reaching it and returned Cloudflare's own HTML 404. The check caught it the same day; a reader would have seen an empty Trades tab and had no way to say why. NOTE FOR NEXT TIME: trade-digest, trade-digest-weekly, cors-proxy, rumors-api and rumors-latest are all still on workers.dev and would fail exactly the same way."
     },
     {
       "id": "trade-digest",
