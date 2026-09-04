@@ -31,6 +31,11 @@
  * --player-data / --headshots / --games / --bio / --faces, for a file the
  * search cannot reach (another drive, or below a skipped folder).
  *
+ * --playoffs names a SECOND games file, read only for playoff history. The
+ * schedule on this machine ends in June 2023 while the playoff export runs to
+ * May 2025, so the playoff races and the championship count merge the two.
+ * franchise-wins deliberately does not: see the comment above winInc.
+ *
  * Writes data/races/index.json (catalog) and data/races/r/<slug>.json (one per
  * race). Leaves the old data/races/*.mp4 files alone — nothing reads them once
  * this lands, but deleting them is a separate, deliberate commit.
@@ -42,7 +47,7 @@ import { fileURLToPath } from "url";
 import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents } from "./lib/faces.mjs";
 import { raceFaceTile, decodePng, resize, encodePng } from "./lib/png.mjs";
 import { resolveSource, findFiles, findFolders, findCsvWithColumns, cleanPath } from "./lib/find.mjs";
-import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan } from "./lib/games.mjs";
+import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan, mergePlayoffs } from "./lib/games.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -70,6 +75,7 @@ const args = process.argv.slice(2);
 const li = args.indexOf("--local");
 const FIND = args.includes("--find") || li < 0;
 let [PD, HSMETA, GAMES_CSV, BIO_CSV, BCR_FACES] = li >= 0 ? args.slice(li + 1) : [];
+let PLAYOFF_CSV = null;
 
 /* NAMED OVERRIDES, so one source the search cannot reach does not send anyone
  * back to typing all five. A file kept on another drive, or below a folder the
@@ -86,6 +92,9 @@ HSMETA = flag("headshots") || HSMETA;
 GAMES_CSV = flag("games") || GAMES_CSV;
 BIO_CSV = flag("bio") || BIO_CSV;
 BCR_FACES = flag("faces") || BCR_FACES;
+/* A second games file read ONLY for playoff history, where the main schedule
+ * does not reach far enough. Found automatically; this pins it. */
+PLAYOFF_CSV = flag("playoffs") || PLAYOFF_CSV;
 
 if (!FIND && (li < 0 || args.length - li - 1 < 3)) {
   console.error("usage: node tools/build_races.mjs --find");
@@ -151,6 +160,22 @@ if (FIND) {
           `           ${c.full ? "full schedule" : "PLAYOFFS ONLY"}, ` +
           `${c.span.rows.toLocaleString()} rows, ${c.span.from || "?"} to ${c.span.to || "?"}`));
         if (ranked.length > 1) console.log("    (full schedule first, then most rows. --games pins one.)");
+
+        /* A REJECTED CANDIDATE CAN STILL BE WORTH READING.
+         *
+         * The playoffs-only file loses on coverage and is right to lose - but
+         * it runs to May 2025 while the chosen schedule stops in June 2023, so
+         * discarding it costs two championships. Any candidate whose history
+         * reaches further than the winner's is kept as a playoff top-up. */
+        const chosenTo = ranked[0].span.to || "";
+        const extra = ranked.slice(1)
+          .filter(c => (c.span.to || "") > chosenTo)
+          .sort((a, b) => String(b.span.to).localeCompare(String(a.span.to)));
+        if (!PLAYOFF_CSV && extra.length) {
+          PLAYOFF_CSV = extra[0].f;
+          console.log(`    playoff top-up: ${PLAYOFF_CSV}`);
+          console.log(`           reaches ${extra[0].span.to}, past the chosen schedule's ${chosenTo || "?"}`);
+        }
       }
     }
   } else if (!fs.existsSync(GAMES_CSV)) {
@@ -298,6 +323,26 @@ try {
 } catch (e) {
   console.error("\n" + e.message);
   process.exit(1);
+}
+
+/* The playoff-history top-up. Optional: without it the playoff races simply
+ * end where the primary schedule ends, which is the behaviour that existed
+ * before this file was ever consulted. */
+let playoffGames = games.filter(g => g.gameType === "Playoffs");
+if (PLAYOFF_CSV) {
+  try {
+    const sec = normalizeGames(parseCsv(fs.readFileSync(PLAYOFF_CSV, "utf8")));
+    const merged = mergePlayoffs(games, sec.rows);
+    playoffGames = merged.rows;
+    console.log(`  playoff history topped up from ${path.basename(PLAYOFF_CSV)}: ` +
+      `${merged.fromPrimary.toLocaleString()} playoff games in the schedule, ` +
+      `${merged.added.toLocaleString()} more it did not have.`);
+    if (!merged.added) {
+      console.log("    (nothing new — the schedule already covers that file.)");
+    }
+  } catch (e) {
+    console.log(`  playoff top-up skipped: ${e.message.split("\n")[0]}`);
+  }
 }
 
 // Which names resolve to a face crop that is actually committed, with the
@@ -638,17 +683,31 @@ const winInc = [], poWinInc = [];
 // when this was first built. Deliberately NOT read off awards.json either: its
 // TEAM column on an "NBA Champion" row is the player's team, not the champion.
 const lastPlayoffGame = new Map();
+
+/* TOTAL WINS COME FROM THE PRIMARY SCHEDULE ONLY.
+ *
+ * Not from the merged set below. The primary file ends in June 2023 and the
+ * playoff file runs to May 2025, so a merged total would count regular-season
+ * wins through 2023 and playoff wins through 2025 - a race whose two halves
+ * stop in different years, which is a subtler wrong number than the one this
+ * whole exercise started with. It ends where its data ends. */
 for (const g of games) {
   const step = gameSeason(g);
   const w = g.winner;
   if (!step || !w) continue;
   winInc.push({ step, key: w, value: 1 });
-  if (g.gameType === "Playoffs") {
-    poWinInc.push({ step, key: w, value: 1 });
-    const when = String(g.gameDateTimeEst || g.gameDate || "");
-    const cur = lastPlayoffGame.get(step);
-    if (!cur || when > cur.when) lastPlayoffGame.set(step, { step, key: w, value: 1, when });
-  }
+}
+
+/* Playoff wins and championships read the MERGED playoff set, which is the
+ * primary's playoff rows topped up from the playoff-history file. */
+for (const g of playoffGames) {
+  const step = gameSeason(g);
+  const w = g.winner;
+  if (!step || !w) continue;
+  poWinInc.push({ step, key: w, value: 1 });
+  const when = String(g.gameDateTimeEst || g.gameDate || "");
+  const cur = lastPlayoffGame.get(step);
+  if (!cur || when > cur.when) lastPlayoffGame.set(step, { step, key: w, value: 1, when });
 }
 const finalsBySeason = lastPlayoffGame;
 

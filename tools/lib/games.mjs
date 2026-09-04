@@ -190,3 +190,48 @@ export function scheduleSpan(file) {
   }
   return { rows: lines.length - 1, from, to };
 }
+
+/**
+ * Playoff games from a primary schedule, topped up from a playoff-history file.
+ *
+ * WHY TWO FILES
+ *
+ * The NBA game table runs 1946 to June 2023 and holds every game. The playoff
+ * export runs 1947 to May 2025 and holds only playoffs. Neither is a superset:
+ * pick the first and the last two champions vanish, pick the second and
+ * "All-time franchise wins" becomes playoff wins. The honest answer is to stop
+ * asking one file to do two jobs.
+ *
+ * ONLY the playoff-derived races use this. franchise-wins keeps reading the
+ * primary schedule alone, so it ends where that file ends rather than mixing a
+ * regular season that stops in 2023 with playoffs that run to 2025 - a race
+ * whose two halves end in different years is worse than one that plainly ends
+ * early.
+ *
+ * Duplicates are matched on date plus both team ids. Not on game id: the two
+ * files number games differently, and an id collision between them would merge
+ * two unrelated games while an id mismatch would double-count every shared one.
+ *
+ * @returns {{rows:object[], fromPrimary:number, added:number}}
+ */
+export function mergePlayoffs(primaryRows, secondaryRows) {
+  const isPlayoff = g => g.gameType === "Playoffs";
+  const key = g => [
+    String(g.gameDate || "").slice(0, 10),
+    String(g.hometeamId || ""),
+    String(g.awayteamId || "")
+  ].join("|");
+
+  const out = primaryRows.filter(isPlayoff);
+  const seen = new Set(out.map(key));
+  let added = 0;
+  for (const g of (secondaryRows || [])) {
+    if (!isPlayoff(g)) continue;
+    const k = key(g);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(g);
+    added++;
+  }
+  return { rows: out, fromPrimary: out.length - added, added };
+}
