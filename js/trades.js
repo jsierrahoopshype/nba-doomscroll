@@ -20,7 +20,20 @@
 (function (root) {
   "use strict";
 
-  var TRADE_LOG_URL = "https://nba-trade-calculator.thejorgesierra.workers.dev/api/trade-log";
+  /* The CUSTOM DOMAIN, not the workers.dev subdomain.
+   *
+   * This read nba-trade-calculator.thejorgesierra.workers.dev until that
+   * subdomain was switched off in Cloudflare. The Worker never changed and was
+   * never down - it serves hoopsmatic.com and answered perfectly there the
+   * whole time - but requests to the workers.dev hostname stopped reaching it
+   * and fell through to Cloudflare's own "Page not found", so every trade card
+   * and the trends card quietly disappeared.
+   *
+   * A custom domain is the more durable address anyway: workers.dev is a
+   * per-account toggle that can be turned off for reasons that have nothing to
+   * do with this feed. Worth remembering that the digest Worker below is still
+   * on workers.dev and carries the same risk. */
+  var TRADE_LOG_URL = "https://hoopsmatic.com/api/trade-log";
   // The log holds ~446K rows. If the endpoint ever returns all of them that is
   // tens of MB over a phone connection, so ask for a slice. The param is
   // harmless if the Worker ignores it — but then the full payload arrives, and
