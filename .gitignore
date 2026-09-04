@@ -12,3 +12,8 @@ preview.html
 # when last checked. Machine-written, machine-read, and specific to when it
 # ran - not something to review in a diff.
 data/link-baseline.json
+
+# Written by tools/build_face_sheet.mjs: a QA contact sheet of every race tile,
+# regenerated from data/races/faces whenever it is wanted. A build artifact, and
+# it would churn in a diff every time a tile is rebuilt.
+tools/face-sheet.html
