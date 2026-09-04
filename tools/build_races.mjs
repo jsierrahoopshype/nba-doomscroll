@@ -42,6 +42,7 @@ import { fileURLToPath } from "url";
 import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents } from "./lib/faces.mjs";
 import { raceFaceTile, decodePng, resize, encodePng } from "./lib/png.mjs";
 import { resolveSource, findFiles, findFolders, findCsvWithColumns, cleanPath } from "./lib/find.mjs";
+import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames } from "./lib/games.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -65,10 +66,6 @@ const KEEP = 15;         // rows stored per step; the player shows 10 and lets
  * --find locates each one by the files it must contain. --local still takes
  * them positionally and still wins, because this machine holds more than one
  * checkout of some repos and an explicit path is the only way to say which. */
-/* The columns the franchise races cannot be built without. Used to identify
- * the games file by what it contains when nothing is called Games.csv. */
-const GAMES_COLUMNS = ["hometeamId", "awayteamId", "winner", "gameType"];
-
 const args = process.argv.slice(2);
 const li = args.indexOf("--local");
 const FIND = args.includes("--find") || li < 0;
@@ -127,12 +124,26 @@ if (FIND) {
       named.forEach((h, i) => console.log(`    ${i === 0 ? "using " : "also  "}${h}`));
     } else {
       process.stdout.write("  no Games.csv by name; searching by columns...");
-      const byCols = findCsvWithColumns(GAMES_COLUMNS);
+      /* Both schemas, and then RANKED BY WHETHER THEY HOLD A FULL SCHEDULE.
+       *
+       * Newest-first picked a playoffs-only subset and shipped a race titled
+       * "All-time franchise wins" showing playoff wins. The property that
+       * actually matters is not the filename, not the column names and not the
+       * modification time - it is whether the file contains regular-season
+       * games. So that is what gets checked, by reading the first few hundred
+       * rows of each candidate. */
+      const byCols = [...new Set([
+        ...findCsvWithColumns(GAMES_COLUMNS),
+        ...findCsvWithColumns(GAME_TABLE_COLUMNS)
+      ])];
       console.log(` ${byCols.length} found`);
-      if (byCols.length) {
-        GAMES_CSV = byCols[0];
-        byCols.forEach((h, i) => console.log(`    ${i === 0 ? "using " : "also  "}${h}`));
-        if (byCols.length > 1) console.log("    (newest first. --games pins one.)");
+      const ranked = byCols.map(f => ({ f, full: hasRegularSeason(f) }))
+        .sort((a, b) => (b.full === true) - (a.full === true));
+      if (ranked.length) {
+        GAMES_CSV = ranked[0].f;
+        ranked.forEach((c, i) => console.log(
+          `    ${i === 0 ? "using " : "also  "}${c.f}   ${c.full ? "full schedule" : "PLAYOFFS ONLY"}`));
+        if (ranked.length > 1) console.log("    (a full schedule wins. --games pins one.)");
       }
     }
   } else if (!fs.existsSync(GAMES_CSV)) {
@@ -269,7 +280,18 @@ const bioRows = readJson(path.join(PD, "bio.json"));
 const salaries = readJson(path.join(PD, "salaries.json"));
 const awards = readJson(path.join(PD, "awards.json"));
 const headMap = readJson(path.join(PD, "player-headshots.json"));
-const games = parseCsv(fs.readFileSync(GAMES_CSV, "utf8"));
+let games;
+try {
+  const norm = normalizeGames(parseCsv(fs.readFileSync(GAMES_CSV, "utf8")));
+  games = norm.rows;
+  if (norm.schema === "game-table") {
+    console.log("  games file uses the NBA game-table schema; columns mapped.");
+    if (norm.noResult) console.log(`  ${norm.noResult} rows carry no W/L and count as no result.`);
+  }
+} catch (e) {
+  console.error("\n" + e.message);
+  process.exit(1);
+}
 
 // Which names resolve to a face crop that is actually committed, with the
 // father/son collisions in the name map screened out. See tools/lib/faces.mjs —
