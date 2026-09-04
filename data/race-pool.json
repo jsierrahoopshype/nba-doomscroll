@@ -720,11 +720,11 @@
      "LAL",
      "BOS",
      "PHI",
-     "GSW",
      "SAS",
+     "GSW",
+     "NYK",
      "DET",
-     "CHI",
-     "NYK"
+     "CHI"
     ],
     "era": "all-time",
     "category": "franchise"
@@ -733,13 +733,13 @@
     "slug": "franchise-playoff-wins",
     "title": "All-time franchise playoff wins",
     "subtitle": "Postseason games won, cumulative",
-    "span": "1947-2023",
+    "span": "1947-2025",
     "group": "Franchises",
     "unit": "wins",
     "kind": "team",
     "tier": 2,
     "note": "",
-    "steps": 67,
+    "steps": 79,
     "leader": "Los Angeles Lakers",
     "file": "data/races/r/franchise-playoff-wins.json"
    }
@@ -754,14 +754,14 @@
     "content_type": "race",
     "players": [],
     "teams": [
-     "LAL",
      "BOS",
+     "LAL",
      "GSW",
      "CHI",
      "SAS",
      "PHI",
      "DET",
-     "NYK"
+     "HOU"
     ],
     "era": "all-time",
     "category": "franchise"
@@ -770,14 +770,14 @@
     "slug": "franchise-titles",
     "title": "The championship count",
     "subtitle": "NBA titles, cumulative by season",
-    "span": "1949-2023",
+    "span": "1949-2025",
     "group": "Franchises",
     "unit": "titles",
     "kind": "team",
     "tier": 1,
     "note": "Champion taken as the winner of the last playoff game each season played.",
-    "steps": 65,
-    "leader": "Los Angeles Lakers",
+    "steps": 77,
+    "leader": "Boston Celtics",
     "file": "data/races/r/franchise-titles.json"
    }
   },
