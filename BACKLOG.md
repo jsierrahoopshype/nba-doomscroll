@@ -88,10 +88,24 @@ image.
   ranks 2 to 25 cannot show them. Giving those cards the same depth as the
   digest card means teaching `computeDigest` to return a per-player breakdown,
   which is a Worker change and a deploy.
-- **Headshot normalisation**, the rest of it: per-player crop overrides and a QA
-  contact sheet. The aspect-ratio bug underneath it is fixed (see Done), so what
-  is left is the framing — some sources sit high in the frame, some low, and the
-  80% crop is the same for all of them.
+- **Headshot framing: per-player overrides, if it is ever worth it.** The QA
+  contact sheet is built (`tools/build_face_sheet.mjs`) and it settled the
+  question the aspect-ratio fix left open: with 752 tiles side by side, heads
+  vary in SIZE as much as in height, because the crop takes a fixed 80% of
+  sources that frame their subjects differently.
+  AUTOMATIC NORMALISATION WAS TRIED AND REVERTED. `headRaceTile` in
+  tools/lib/faces.mjs finds the head from the cut-out's alpha channel and crops
+  around it; `tools/build_face_compare.mjs` renders before/after/detection, and
+  `tools/test_head_tile.mjs` covers the geometry. It went through three
+  detection methods — a fixed 34% band, a crown-width ratio, then the narrowest
+  row between crown and shoulders — and the third one measured WORSE on the
+  contact sheet (168 tiles off the median against 105) and looked no better to
+  Jorge, so it was reverted in bcc5374. The code is still there and unused.
+  Do not reach for a fourth heuristic. If the framing matters again, the honest
+  route is per-player overrides for the two dozen worst tiles: slower, but a
+  person decides each one. Worth reading first: the compare tool's third row
+  draws where detection thinks the crown and neck are, which is how to tell a
+  detection failure from a placement one without another round trip.
 - **Race library expansion**: franchise career races, earnings groupings.
 
 ---
