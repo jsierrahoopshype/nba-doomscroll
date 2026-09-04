@@ -14,7 +14,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import {
-  GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan
+  GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan, mergePlayoffs
 } from "./lib/games.mjs";
 
 let pass = 0, fail = 0;
@@ -148,6 +148,51 @@ ok("season_id supplies the span when there is no date column",
 
 ok("a missing file measures as empty rather than crashing",
   scheduleSpan(path.join(dir, "gone.csv")).rows === 0);
+
+/* ---------------- topping up playoff history ---------------- */
+
+/* The schedule runs to 2023 and the playoff export to 2025. Neither is a
+ * superset of the other, so the merge has to add what is genuinely new without
+ * double-counting a game both files describe. */
+const primary = [
+  { gameDate: "2023-06-12", hometeamId: "1", awayteamId: "2", gameType: "Playoffs", winner: "1" },
+  { gameDate: "2022-11-02", hometeamId: "1", awayteamId: "2", gameType: "Regular Season", winner: "1" }
+];
+const secondary = [
+  { gameDate: "2023-06-12", hometeamId: "1", awayteamId: "2", gameType: "Playoffs", winner: "1" },
+  { gameDate: "2025-05-02", hometeamId: "3", awayteamId: "4", gameType: "Playoffs", winner: "3" }
+];
+
+const merged = mergePlayoffs(primary, secondary);
+ok("regular-season games never reach the playoff set",
+  merged.rows.every(g => g.gameType === "Playoffs"), `got ${merged.rows.length} rows`);
+ok("a game both files describe is counted once",
+  merged.rows.filter(g => g.gameDate === "2023-06-12").length === 1);
+ok("a game only the second file has is added",
+  merged.rows.some(g => g.gameDate === "2025-05-02"));
+ok("the counts are reported honestly",
+  merged.fromPrimary === 1 && merged.added === 1,
+  `fromPrimary=${merged.fromPrimary} added=${merged.added}`);
+
+/* The dedupe key is date plus both team ids, NOT game id: the two files number
+ * games differently, so ids would either collide across unrelated games or
+ * miss every shared one. */
+const differentIds = mergePlayoffs(
+  [{ gameId: "A1", gameDate: "2023-06-12", hometeamId: "1", awayteamId: "2", gameType: "Playoffs", winner: "1" }],
+  [{ gameId: "0042200401", gameDate: "2023-06-12", hometeamId: "1", awayteamId: "2", gameType: "Playoffs", winner: "1" }]
+);
+ok("the same game under two different ids is still one game",
+  differentIds.rows.length === 1 && differentIds.added === 0);
+
+/* Same date, different teams: two real games, not a duplicate. */
+const sameDay = mergePlayoffs(
+  [{ gameDate: "2023-05-01", hometeamId: "1", awayteamId: "2", gameType: "Playoffs", winner: "1" }],
+  [{ gameDate: "2023-05-01", hometeamId: "5", awayteamId: "6", gameType: "Playoffs", winner: "5" }]
+);
+ok("two different games on one date both survive", sameDay.rows.length === 2);
+
+ok("no second file means the primary's playoffs, unchanged",
+  mergePlayoffs(primary, null).rows.length === 1);
 
 fs.rmSync(dir, { recursive: true, force: true });
 console.log(`\n${pass} passed, ${fail} failed`);
