@@ -89,23 +89,44 @@ if defined ISMAIL (
   echo  applying with git am ^(message comes from the patch^)...
   git am "!PATCHFILE!"
   if errorlevel 1 (
+    REM  STRICT FIRST, THEN THREE-WAY.
+    REM
+    REM  A plain `git am` matches the context lines around each change exactly,
+    REM  and this working copy is CRLF while the patches are written LF, which
+    REM  is enough to make it refuse a patch that is otherwise perfectly good.
+    REM  --3way matches on the blob the patch was made against instead, so line
+    REM  endings and harmless drift stop mattering. It is the second attempt
+    REM  rather than the first because when strict works it is unambiguous, and
+    REM  a three-way merge can leave conflict markers that need a person.
     echo.
-    echo  git am failed. Backing out so the repo is not left mid-apply.
+    echo  Strict apply refused it. Retrying as a three-way merge...
     git am --abort
-    echo  Try: git apply "!PATCHFILE!"
-    echo.
-    pause
-    exit /b 1
+    git am --3way "!PATCHFILE!"
+    if errorlevel 1 (
+      echo.
+      echo  That failed too. Backing out; the repo is untouched.
+      git am --abort
+      echo.
+      echo  This usually means the repo has moved on from what the patch was
+      echo  written against. Say so and a fresh patch can be cut.
+      echo.
+      pause
+      exit /b 1
+    )
   )
 ) else (
   echo  applying with git apply...
   git apply "!PATCHFILE!"
   if errorlevel 1 (
-    echo.
-    echo  The patch did not apply. Nothing was changed.
-    echo.
-    pause
-    exit /b 1
+    echo  Strict apply refused it. Retrying as a three-way merge...
+    git apply --3way "!PATCHFILE!"
+    if errorlevel 1 (
+      echo.
+      echo  The patch did not apply. Nothing was changed.
+      echo.
+      pause
+      exit /b 1
+    )
   )
   git add -A
   REM  A plain diff has no message, so the filename becomes one. Not elegant,
