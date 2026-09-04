@@ -17,3 +17,4 @@ data/link-baseline.json
 # regenerated from data/races/faces whenever it is wanted. A build artifact, and
 # it would churn in a diff every time a tile is rebuilt.
 tools/face-sheet.html
+tools/face-compare.png
