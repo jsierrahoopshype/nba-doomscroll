@@ -42,7 +42,7 @@ import { fileURLToPath } from "url";
 import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents } from "./lib/faces.mjs";
 import { raceFaceTile, decodePng, resize, encodePng } from "./lib/png.mjs";
 import { resolveSource, findFiles, findFolders, findCsvWithColumns, cleanPath } from "./lib/find.mjs";
-import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames } from "./lib/games.mjs";
+import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan } from "./lib/games.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -137,13 +137,20 @@ if (FIND) {
         ...findCsvWithColumns(GAME_TABLE_COLUMNS)
       ])];
       console.log(` ${byCols.length} found`);
-      const ranked = byCols.map(f => ({ f, full: hasRegularSeason(f) }))
-        .sort((a, b) => (b.full === true) - (a.full === true));
+      /* Then by COVERAGE among the full ones. Two valid full schedules were
+       * found and the newer won, which cost ten seasons of champions -
+       * franchise-titles fell from 75 steps to 65 with nothing to say why,
+       * because a filesystem date decided a question about history. */
+      const ranked = byCols.map(f => ({ f, full: hasRegularSeason(f), span: scheduleSpan(f) }))
+        .sort((a, b) =>
+          ((b.full === true) - (a.full === true)) || (b.span.rows - a.span.rows));
       if (ranked.length) {
         GAMES_CSV = ranked[0].f;
         ranked.forEach((c, i) => console.log(
-          `    ${i === 0 ? "using " : "also  "}${c.f}   ${c.full ? "full schedule" : "PLAYOFFS ONLY"}`));
-        if (ranked.length > 1) console.log("    (a full schedule wins. --games pins one.)");
+          `    ${i === 0 ? "using " : "also  "}${c.f}\n` +
+          `           ${c.full ? "full schedule" : "PLAYOFFS ONLY"}, ` +
+          `${c.span.rows.toLocaleString()} rows, ${c.span.from || "?"} to ${c.span.to || "?"}`));
+        if (ranked.length > 1) console.log("    (full schedule first, then most rows. --games pins one.)");
       }
     }
   } else if (!fs.existsSync(GAMES_CSV)) {

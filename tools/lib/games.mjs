@@ -142,3 +142,51 @@ export function normalizeGames(rows) {
   err.code = "UNKNOWN_GAMES_SCHEMA";
   throw err;
 }
+
+/**
+ * How much history does this file actually cover?
+ *
+ * WHY ROW COUNT AND NOT MODIFICATION TIME
+ *
+ * Two full schedules were found and the newer one won, which is how the build
+ * lost ten seasons of champions: franchise-titles dropped from 75 steps to 65
+ * and nothing said why, because both files are valid full schedules and the
+ * tie-break was a date on a filesystem. Coverage is the property that decides
+ * which of two schedules is better, so coverage is what gets measured.
+ *
+ * Reads the whole file - tens of MB, once per candidate, and only during the
+ * search. The alternative is choosing between two files by a fact about
+ * neither of them.
+ *
+ * @returns {{rows:number, from:string|null, to:string|null}}
+ */
+export function scheduleSpan(file) {
+  let text = "";
+  try { text = fs.readFileSync(file, "utf8"); } catch (e) { return { rows: 0, from: null, to: null }; }
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return { rows: 0, from: null, to: null };
+
+  const cols = lines[0].split(",").map(s => s.trim().replace(/^"+|"+$/g, ""));
+  /* Either schema names its date differently; season_id carries the year when
+   * no usable date column is present. */
+  let idx = cols.indexOf("gameDate");
+  if (idx < 0) idx = cols.indexOf("game_date");
+  const iSeason = cols.indexOf("season_id");
+
+  let from = null, to = null;
+  for (const line of lines.slice(1)) {
+    const cells = line.split(",");
+    let v = null;
+    if (idx >= 0) {
+      v = String(cells[idx] || "").trim().replace(/^"+|"+$/g, "").slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) v = null;
+    } else if (iSeason >= 0) {
+      const s = String(cells[iSeason] || "").trim().replace(/^"+|"+$/g, "");
+      v = /^\d{5}$/.test(s) ? s.slice(1) : null;
+    }
+    if (!v) continue;
+    if (from === null || v < from) from = v;
+    if (to === null || v > to) to = v;
+  }
+  return { rows: lines.length - 1, from, to };
+}

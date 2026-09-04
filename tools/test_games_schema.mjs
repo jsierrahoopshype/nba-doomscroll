@@ -14,7 +14,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import {
-  GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames
+  GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan
 } from "./lib/games.mjs";
 
 let pass = 0, fail = 0;
@@ -115,6 +115,39 @@ ok("and the error names both schemas it wanted",
   GAME_TABLE_COLUMNS.every(c => threw.message.includes(c)));
 
 ok("an empty file is not an error", normalizeGames([]).schema === "empty");
+
+/* ---------------- measuring coverage ---------------- */
+
+/* The tie-break that cost ten seasons of champions. Two valid full schedules,
+ * and the newer one won on a filesystem date. What separates them is history,
+ * so history is what has to be measured. */
+const deep = write("deep.csv",
+  "season_id,team_id_home,team_id_away,wl_home,game_date\n" +
+  "21946,1,2,W,1946-11-01\n" +
+  "22000,1,2,W,2000-11-01\n" +
+  "22024,1,2,L,2025-01-05\n");
+const shallow = write("shallow.csv",
+  "season_id,team_id_home,team_id_away,wl_home,game_date\n" +
+  "22000,1,2,W,2000-11-01\n");
+
+const deepSpan = scheduleSpan(deep);
+ok("row count is the data rows, not the header", deepSpan.rows === 3, `got ${deepSpan.rows}`);
+ok("the span runs from the earliest date to the latest",
+  deepSpan.from === "1946-11-01" && deepSpan.to === "2025-01-05",
+  `got ${deepSpan.from} to ${deepSpan.to}`);
+ok("the deeper file outranks the shallower one",
+  deepSpan.rows > scheduleSpan(shallow).rows);
+
+/* season_id carries the year when no date column exists, so a file without
+ * dates still reports a span rather than nothing. */
+const noDates = write("nodates.csv",
+  "season_id,team_id_home,team_id_away,wl_home\n21946,1,2,W\n22024,1,2,L\n");
+const nd = scheduleSpan(noDates);
+ok("season_id supplies the span when there is no date column",
+  nd.from === "1946" && nd.to === "2024", `got ${nd.from} to ${nd.to}`);
+
+ok("a missing file measures as empty rather than crashing",
+  scheduleSpan(path.join(dir, "gone.csv")).rows === 0);
 
 fs.rmSync(dir, { recursive: true, force: true });
 console.log(`\n${pass} passed, ${fail} failed`);
