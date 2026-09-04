@@ -78,24 +78,24 @@
     },
     {
       "id": "rumors-api",
-      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/random?limit=25",
-      "used_by": "js/rumors.js — the Rumors tab",
+      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/index",
+      "used_by": "js/rumors.js — the Rumors tab (SEE NOTE: the app calls endpoints that do not exist)",
       "kind": "json",
-      "note": "CONFIRMED BROKEN, not a probe artefact. The Origin guess was right and only half the problem. Without headers this answered 403; with the app's Origin and Referer it answered 404, which is a different refusal: the Worker now accepts the caller and says the path does not exist. So the remaining unknown is the URL, not the identity. The probe now asks for exactly what js/rumors.js asks for - /api/rumors/random?limit=25, previously limit=1 - so a 404 here means the endpoint the app itself calls is gone rather than that the probe wrote a URL the app never uses. If it 404s on the app's own URL, the Rumors tab is broken in production too and this check has done its job. SHAPE ONLY: the response carries archive records and this repo is public.",
+      "note": "RESOLVED, and worse than a dead route. js/rumors.js calls /api/rumors/random and /api/rumors/on-this-day. This Worker serves /api/rumors/index, /api/rumors/latest and /api/rumors/part/N. Neither of the app's two endpoints has ever existed, so the Rumors tab has never once shown live data - load() catches both failures, warns to the console and returns [], and the tab falls back to its sample cards looking perfectly healthy. That is why nobody noticed. This entry now probes an endpoint that does exist, so a 200 here means the archive is reachable and the remaining work is in the client or the Worker, not in the connection. Access is gated on Referer and Origin rather than a key. SHAPE ONLY: the response carries archive records and this repo is public.",
       "headers": {
         "Origin": "https://jsierrahoopshype.github.io",
-        "Referer": "https://jsierrahoopshype.github.io/nba-doomscroll/"
+        "Referer": "https://jsierrahoopshype.github.io/hoopshype-rumors/hoopshype_rumors_tool.html"
       }
     },
     {
-      "id": "rumors-otd",
-      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/on-this-day?md=07-01&limit=20",
-      "used_by": "js/rumors.js OTD_URL — the on-this-day half of the Rumors tab",
+      "id": "rumors-latest",
+      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/latest",
+      "used_by": "nothing yet — the endpoint a working Rumors tab would read",
       "kind": "json",
-      "note": "The Rumors tab makes TWO calls and the registry only ever watched one. The coverage check did not notice, because it matches origins and both calls share a host: registering the origin once made the second path invisible. This entry exists to tell two failures apart. If random 404s and this answers, one route is gone and the other is fine, which points at the Worker's routing rather than at the whole API. If both 404 the prefix itself has moved and js/rumors.js needs a new base. md is fixed at 07-01 rather than today's date on purpose: a health check that changes its own question cannot tell a broken route from a quiet day. SHAPE ONLY, same as the entry above.",
+      "note": "Registered ahead of the client that will use it. The tab currently asks for /random and /on-this-day, which this Worker does not serve; whichever way that is fixed - endpoints added to the Worker, or the client rewritten around what exists - this is the call that has to succeed. Probing it now means the day someone writes that client, the question of whether the archive answers is already settled. Part files are not probed: parts 1..N-1 never change and the newest is large, and a health check has no business downloading tens of megabytes.",
       "headers": {
         "Origin": "https://jsierrahoopshype.github.io",
-        "Referer": "https://jsierrahoopshype.github.io/nba-doomscroll/"
+        "Referer": "https://jsierrahoopshype.github.io/hoopshype-rumors/hoopshype_rumors_tool.html"
       }
     },
     {
