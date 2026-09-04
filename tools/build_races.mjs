@@ -44,8 +44,8 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents, headRaceTile } from "./lib/faces.mjs";
-import { raceFaceTile, decodePng, resize, encodePng, crop } from "./lib/png.mjs";
+import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents } from "./lib/faces.mjs";
+import { raceFaceTile, decodePng, resize, encodePng } from "./lib/png.mjs";
 import { resolveSource, findFiles, findFolders, findCsvWithColumns, cleanPath } from "./lib/find.mjs";
 import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan, mergePlayoffs } from "./lib/games.mjs";
 
@@ -390,7 +390,6 @@ const tileCache = new Map();
  * here. Both live in tools/lib/faces.mjs; this builder takes the safe half. */
 let foldedFiles = null;   // folded stem -> absolute path, built on first use
 let accentHits = 0;
-let headCrops = 0, frameCrops = 0;
 
 function foldedIndex() {
   if (!foldedFiles) foldedFiles = foldedPngIndex(BCR_FACES);
@@ -414,19 +413,7 @@ function tileFor(name) {
   const src = sourceFor(name);
   try {
     if (fs.statSync(src).size >= MIN_SRC_BYTES) {
-      /* Around the head where the picture says where the head is, around the
-       * frame where it does not.
-       *
-       * The fixed 80% crop is correct arithmetic on an assumption that does
-       * not hold - that every source frames its subject alike - and a contact
-       * sheet of 752 tiles showed heads at wildly different sizes because of
-       * it. headRaceTile measures instead, and returns null rather than
-       * guessing when there is no alpha channel to measure or when the crop
-       * it produced has clearly left the person. Those fall back here, so a
-       * source that cannot be measured keeps exactly the tile it had. */
-      const head = headRaceTile(src, TILE_W, TILE_H, { decodePng, encodePng, resize, crop });
-      if (head) headCrops++; else frameCrops++;
-      const buf = head ? head.buf : raceFaceTile(src, TILE_W, TILE_H);
+      const buf = raceFaceTile(src, TILE_W, TILE_H);
       if (buf) {
         const slug = name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
         fs.mkdirSync(FACE_DIR, { recursive: true });
@@ -1180,12 +1167,6 @@ console.log(`Headshots: ${withFace}/${totalEnt} bar slots across player races ($
  * ever reads 0 against a folder that holds accented filenames, the fold has
  * stopped working and nothing else would say so. */
 if (accentHits) console.log(`  ${accentHits} baked from a filename whose accents the race data drops.`);
-/* The split is printed because it is the one number that says whether the head
- * measurement is doing anything. If frame crops dominate, most sources have no
- * alpha and this is mostly the old behaviour wearing a new name. */
-if (headCrops || frameCrops) {
-  console.log(`  crops: ${headCrops} measured around the head, ${frameCrops} fell back to the frame.`);
-}
 
 // What is actually left, so nobody chases the wrong fix. The gap is NOT that
 // nba-headshots is missing files — it holds 1,785 face crops. It is that
