@@ -465,3 +465,150 @@ export function foldedPngIndex(dir) {
   }
   return idx;
 }
+
+/* ---------------- head-normalised race tile ----------------
+ *
+ * WHAT IS WRONG WITH THE FIXED-FRACTION TILE
+ *
+ * raceFaceTile takes the top 80% of whatever it is given and cover-crops that
+ * to 1.4:1. That is correct arithmetic on an assumption that does not hold:
+ * that every source frames its subject the same way. They do not. A contact
+ * sheet of 752 tiles shows heads at wildly different sizes - some filling the
+ * frame with the crown cut off, others small and low with dead space above -
+ * because an official NBA portrait, an old scanned photo and a bbref crop
+ * place the head in different parts of the picture. Each tile is fine alone.
+ * Together they do not look like one set.
+ *
+ * A fixed fraction cannot fix that. Only finding the head can.
+ *
+ * WHY alphaBox AND NOT SOMETHING CLEVERER
+ *
+ * These portraits are cut-outs: the subject is opaque and the background is
+ * transparent, so the alpha channel says exactly where the person is. That is
+ * a fact in the file, not an inference from it. alphaBox already does this and
+ * headTile already relies on it for the circular avatars on the Teammates
+ * cards, so this is the same proven measurement applied to a shape that never
+ * got it.
+ *
+ * The obvious alternative - find the face by looking for skin tones - is worse
+ * on both counts. It guesses where alpha knows, and it degrades with skin
+ * tone, which in a league that is majority Black players means it would fail
+ * hardest on most of the set. Not a trade worth making when the answer is
+ * sitting in the alpha channel.
+ *
+ * WHEN THERE IS NO ALPHA
+ *
+ * Old scans and JPEG-sourced images arrive opaque, and there is nothing to
+ * measure. Those fall back to the existing fixed-fraction tile unchanged,
+ * because a guessed crop is worse than a known-imperfect one. The caller is
+ * told which happened so the split is visible rather than assumed.
+ */
+
+/* Fractions of the OUTPUT tile, chosen to sit near the middle of what the
+ * current set already does rather than at some ideal: the median tile should
+ * barely move, and only the outliers should travel. Tune by eye against
+ * tools/build_face_compare.mjs, not by argument. */
+const TILE_HEAD_HEIGHT = 0.72;   // head box height as a fraction of tile height
+const TILE_HEAD_CENTRE = 0.46;   // where the head's centre sits down the tile
+
+/**
+ * A race tile cropped around the head rather than around the frame.
+ *
+ * FINDING THE NECK, NOT ASSUMING IT
+ *
+ * The first version of this took the head to be the top 34% of the cut-out and
+ * measured its width there. That is the same mistake as the fixed 80% crop it
+ * was meant to replace: a fraction standing in for a measurement. On a tight
+ * portrait the band is all head; on a chest-up one it reaches the shoulders, so
+ * "head width" became shoulder width and the head came out half the size. A
+ * test with one tight and one wide cut-out caught it - 0.512 against 0.250 of
+ * the tile - which no amount of staring at the code would have.
+ *
+ * So the head is found by where the SUBJECT GETS WIDER. Walking down from the
+ * crown, opaque width holds roughly steady through the head and then jumps at
+ * the shoulders. That jump is the neck, it is in the picture rather than in a
+ * constant, and it does not care how the photographer framed the shot.
+ *
+ * @param {string} src   source PNG
+ * @param {number} outW  tile width
+ * @param {number} outH  tile height
+ * @param {object} png   the png module (passed in, as headTile does, so this
+ *                       file and png.mjs do not import each other)
+ * @returns {{buf:Buffer, method:"head"}|null} null when there is no cut-out to
+ *   measure, so the caller falls back to the existing crop.
+ */
+export function headRaceTile(src, outW, outH, png) {
+  const img = png.decodePng(src);
+  if (!img) return null;
+  const { w, h, data } = img;
+
+  /* Opaque span per row, and the subject's bounds. */
+  const ALPHA_MIN = 16;
+  const spanMin = new Int32Array(h).fill(-1);
+  const spanMax = new Int32Array(h).fill(-1);
+  let top = -1, bottom = -1, opaque = 0;
+  for (let y = 0; y < h; y++) {
+    let lo = -1, hi = -1;
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] < ALPHA_MIN) continue;
+      if (lo < 0) lo = x;
+      hi = x;
+      opaque++;
+    }
+    spanMin[y] = lo; spanMax[y] = hi;
+    if (lo >= 0) { if (top < 0) top = y; bottom = y; }
+  }
+  if (top < 0) return null;
+
+  /* No transparency at all means this is not a cut-out - an old scan, or a
+   * JPEG re-saved as PNG. There is nothing to measure and a guess would be
+   * worse than the existing crop, so hand back nothing. */
+  if (opaque > w * h * 0.995) return null;
+
+  const width = y => (spanMin[y] < 0 ? 0 : spanMax[y] - spanMin[y] + 1);
+
+  /* A reference width from the top of the head, where nothing else can
+   * intrude. Median rather than mean: the very first rows are a few pixels of
+   * hair and would drag an average down. */
+  const refRows = [];
+  const refDepth = Math.max(3, Math.round((bottom - top + 1) * 0.12));
+  for (let y = top; y < Math.min(h, top + refDepth); y++) if (width(y)) refRows.push(width(y));
+  refRows.sort((a, b) => a - b);
+  const crown = refRows[Math.floor(refRows.length / 2)] || 1;
+
+  /* Walk down until the subject is decisively wider than the crown. 1.55 sits
+   * between a head at its widest (cheekbones, maybe 1.2x the crown) and
+   * shoulders (well past 2x), so it is not near either. */
+  const SHOULDER = 1.55;
+  let neck = bottom;
+  let headW = crown;
+  for (let y = top; y <= bottom; y++) {
+    const wy = width(y);
+    if (!wy) continue;
+    if (wy > crown * SHOULDER) { neck = y; break; }
+    if (wy > headW) headW = wy;
+  }
+  const headH = Math.max(4, neck - top);
+  /* Horizontal centre from the head rows only: shoulders are often asymmetric
+   * and would pull the centre sideways. */
+  let cxLo = w, cxHi = -1;
+  for (let y = top; y < neck; y++) {
+    if (spanMin[y] < 0) continue;
+    if (spanMin[y] < cxLo) cxLo = spanMin[y];
+    if (spanMax[y] > cxHi) cxHi = spanMax[y];
+  }
+  const headCx = cxHi < 0 ? w / 2 : (cxLo + cxHi) / 2;
+
+  const scale = (outH * TILE_HEAD_HEIGHT) / headH;
+  let cw = Math.round(outW / scale), ch = Math.round(outH / scale);
+  cw = Math.max(1, Math.min(cw, w));
+  ch = Math.max(1, Math.min(ch, h));
+
+  let x = Math.round(headCx - cw / 2);
+  let y = Math.round(top + headH / 2 - ch * TILE_HEAD_CENTRE);
+  x = Math.max(0, Math.min(x, w - cw));
+  y = Math.max(0, Math.min(y, h - ch));
+
+  const box = png.crop(img, x, y, cw, ch);
+  return { buf: png.encodePng(png.resize(box, outW, outH)), method: "head" };
+}
