@@ -648,11 +648,22 @@ if (games.length && regularSeasonRows === 0) {
   console.log(`  note: only ${Math.round(100 * regularSeasonRows / games.length)}% of the games file is` +
     ` non-playoff. franchise-wins will be low.`);
 }
-add(buildRace({
-  slug: "franchise-wins", group: "Franchises",
-  title: "All-time franchise wins", subtitle: "Regular season and playoffs, cumulative",
-  unit: "wins", kind: "team", tier: 1, tags: { category: ["franchise", "history"] }
-}, winInc, franchiseEntity));
+/* SKIPPED rather than shipped wrong. A race titled "All-time franchise wins"
+ * built from a playoffs-only file is not a thin version of the truth, it is a
+ * different number wearing the right label - the Lakers show ~500 wins instead
+ * of ~3,500 and a reader has no way to tell. One fewer race is a gap; this
+ * would be a lie on the page. The playoff race below is still correct and
+ * still ships. Point --games at a full schedule and this comes back on its
+ * own. */
+if (regularSeasonRows > 0) {
+  add(buildRace({
+    slug: "franchise-wins", group: "Franchises",
+    title: "All-time franchise wins", subtitle: "Regular season and playoffs, cumulative",
+    unit: "wins", kind: "team", tier: 1, tags: { category: ["franchise", "history"] }
+  }, winInc, franchiseEntity));
+} else {
+  console.log("  franchise-wins            SKIPPED — would be playoff wins under a regular-season title");
+}
 
 add(buildRace({
   slug: "franchise-playoff-wins", group: "Franchises",
