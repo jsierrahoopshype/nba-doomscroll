@@ -103,7 +103,7 @@ for (const m of measured) {
   const before = raceFaceTile(src, W, H);
   const after = headRaceTile(src, W, H, { decodePng, encodePng, resize, crop });
   if (!before || !after) continue;          // no alpha: it would fall back anyway
-  picks.push({ ...m, src, before, after: after.buf });
+  picks.push({ ...m, src, before, after: after.buf, head: after.head });
 }
 
 if (!picks.length) {
@@ -114,7 +114,7 @@ if (!picks.length) {
 
 const COLS = Math.min(8, picks.length);
 const rows = Math.ceil(picks.length / COLS);
-const cellH = H * 2 + PAD + GAP;
+const cellH = H * 3 + PAD * 2 + GAP;
 const cw = COLS * (W + PAD) + PAD;
 const ch = rows * cellH + PAD;
 const out = Buffer.alloc(cw * ch * 4);
@@ -142,18 +142,65 @@ function blit(pngBuf, ox, oy) {
   }
 }
 
+/* THE DIAGNOSTIC ROW.
+ *
+ * When a crop comes out wrong there are two different questions - was the head
+ * found in the wrong place, or found correctly and placed badly - and they
+ * need different fixes. The first attempt at this shipped a crop that zoomed
+ * into foreheads, and telling those two apart cost a whole round trip. So the
+ * third row is the source itself, letterboxed to the tile, with green lines
+ * where the code believes the crown and the neck are and a blue line down the
+ * head's centre. If those lines are wrong, detection is wrong. If they are
+ * right and the tile above still looks bad, the constants are wrong. */
+function blitSourceWithHead(p, ox, oy) {
+  const img = decodePng(p.src);
+  if (!img) return;
+  const s = Math.min(W / img.w, H / img.h);
+  const dw = Math.max(1, Math.round(img.w * s)), dh = Math.max(1, Math.round(img.h * s));
+  const small = resize(img, dw, dh);
+  const px = Math.round((W - dw) / 2), py = Math.round((H - dh) / 2);
+  for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) {
+    const si = (y * dw + x) * 4, d = ((oy + py + y) * cw + ox + px + x) * 4;
+    const a = small.data[si + 3] / 255;
+    out[d]     = Math.round(small.data[si]     * a + out[d]     * (1 - a));
+    out[d + 1] = Math.round(small.data[si + 1] * a + out[d + 1] * (1 - a));
+    out[d + 2] = Math.round(small.data[si + 2] * a + out[d + 2] * (1 - a));
+  }
+  const line = (yFrac, r, g, b) => {
+    const yy = oy + py + Math.round(yFrac * dh);
+    if (yy < oy || yy >= oy + H) return;
+    for (let x = 0; x < dw; x++) {
+      const d = (yy * cw + ox + px + x) * 4;
+      out[d] = r; out[d + 1] = g; out[d + 2] = b;
+    }
+  };
+  if (p.head) {
+    line(p.head.top, 60, 230, 90);
+    line(p.head.neck, 60, 230, 90);
+    const xx = ox + px + Math.round(p.head.cx * dw);
+    for (let y = 0; y < dh; y++) {
+      const d = ((oy + py + y) * cw + xx) * 4;
+      out[d] = 80; out[d + 1] = 160; out[d + 2] = 255;
+    }
+  }
+}
+
 picks.forEach((p, i) => {
   const ox = PAD + (i % COLS) * (W + PAD);
   const oy = PAD + Math.floor(i / COLS) * cellH;
   blit(p.before, ox, oy);
   blit(p.after, ox, oy + H + PAD);
+  blitSourceWithHead(p, ox, oy + (H + PAD) * 2);
 });
 
 try { fs.unlinkSync(TMP); } catch (e) { /* already gone */ }
 fs.writeFileSync(OUT, encodePng({ w: cw, h: ch, data: out }));
 console.log(`\n${picks.length} of the ${WANT} most out-of-set tiles had an alpha source.`);
-console.log("  top row of each pair: the crop as it ships now");
-console.log("  bottom row:           cropped around the head");
+console.log("  row 1 of each group: the crop as it ships now");
+console.log("  row 2:               cropped around the head");
+console.log("  row 3:               the source, with the detected crown, neck and centre");
+const shoulderless = picks.filter(p => p.head && !p.head.hasShoulders).length;
+if (shoulderless) console.log(`  ${shoulderless} source(s) read as head-only, with no shoulder line to find.`);
 console.log(`\nwrote ${OUT}`);
 console.log("Look at it before anything is changed. If the bottom rows are not");
 console.log("plainly better, the constants are wrong or the approach is.");
