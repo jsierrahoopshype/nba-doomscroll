@@ -631,8 +631,8 @@
    "kind": "team",
    "tier": 2,
    "note": "",
-   "steps": 67,
-   "span": "1947-2023",
+   "steps": 79,
+   "span": "1947-2025",
    "leader": "Los Angeles Lakers",
    "file": "data/races/r/franchise-playoff-wins.json",
    "tags": {
@@ -645,11 +645,11 @@
      "LAL",
      "BOS",
      "PHI",
-     "GSW",
      "SAS",
+     "GSW",
+     "NYK",
      "DET",
-     "CHI",
-     "NYK"
+     "CHI"
     ]
    }
   },
@@ -663,9 +663,9 @@
    "kind": "team",
    "tier": 1,
    "note": "Champion taken as the winner of the last playoff game each season played.",
-   "steps": 65,
-   "span": "1949-2023",
-   "leader": "Los Angeles Lakers",
+   "steps": 77,
+   "span": "1949-2025",
+   "leader": "Boston Celtics",
    "file": "data/races/r/franchise-titles.json",
    "tags": {
     "category": [
@@ -674,14 +674,14 @@
     ],
     "players": [],
     "teams": [
-     "LAL",
      "BOS",
+     "LAL",
      "GSW",
      "CHI",
      "SAS",
      "PHI",
      "DET",
-     "NYK"
+     "HOU"
     ]
    }
   },
