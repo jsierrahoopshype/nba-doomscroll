@@ -47,9 +47,18 @@
     },
     {
       "id": "media-vote-tracker",
-      "url": "https://jsierrahoopshype.github.io/media-vote-tracker/",
-      "used_by": "js/cards.js tapTarget — lean and oddity cards",
-      "kind": "page"
+      "url": "https://hoopsmatic.com/award-voting/player.html?p=jayson-tatum",
+      "used_by": "js/cards.js onHoopsmatic — every lean and oddity card",
+      "kind": "page",
+      "note": "HoopsMatic content on a HoopsMatic domain. The ballot pools were built when the tracker only lived at jsierrahoopshype.github.io/media-vote-tracker/, so hundreds of deployed cards still carry that URL; js/cards.js rewrites the prefix at render time rather than rebuilding the pools. Probed on a DEEP link, not the front page: the cards all point at player.html with a slug, and a front-page probe would stay green while every card 404'd."
+    },
+    {
+      "id": "media-vote-tracker-old",
+      "url": "https://jsierrahoopshype.github.io/media-vote-tracker",
+      "used_by": "js/cards.js onHoopsmatic — matched and REWRITTEN, never navigated to",
+      "kind": "page",
+      "probe": false,
+      "note": "Not a destination. This is the prefix hundreds of already-deployed ballot cards carry in their payload, which onHoopsmatic swaps for hoopsmatic.com/award-voting/ at render time. Registered because the coverage check reads URLs out of the source and would otherwise report it as an unregistered destination every run - and a coverage check people learn to ignore is worse than none. Not probed: whether the old GitHub Pages site still answers has no bearing on this feed, since nothing here sends anyone there any more. Delete this entry when the pools are next rebuilt with the new prefix baked in, and the rewrite with it."
     },
     {
       "id": "content-stream",

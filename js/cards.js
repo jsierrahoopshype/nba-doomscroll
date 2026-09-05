@@ -153,13 +153,35 @@
   /* Who the Trade Machine is moving. A leaderboard of players by how many
    * distinct deals people built around them, with where those deals sent them.
    * Every row opens the machine's trade-loop generator for that player. */
+  /* SHARES, NOT COUNTS.
+   *
+   * "13 builds" answers nothing on its own - out of what? Thirteen is enormous
+   * against 40 trades and invisible against 4,000, and the denominator was in
+   * the subtitle where nobody does the division. The percentage is the thing a
+   * reader actually wants, so the card does the arithmetic.
+   *
+   * The destination shares are of THAT PLAYER's builds, not of all trades:
+   * "Denver in 46% of them" is a fact about where people send him, which is
+   * the question the row is answering. Sharing a denominator with the headline
+   * number would make every destination look tiny and say nothing. */
+  function pct(n, of) {
+    if (!of) return null;
+    var v = (n / of) * 100;
+    // Under a tenth of a percent reads as 0.0%, which looks like a bug. A share
+    // that small is better said than measured.
+    if (v > 0 && v < 0.1) return "<0.1%";
+    return (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10) + "%";
+  }
+
   function renderTradeTrend(c) {
     var p = c.payload;
     var rows = (p.players || []).map(function (pl, i) {
       var dests = (pl.dests || []).map(function (d) {
+        var share = pct(d.n, pl.builds);
         return '<span class="tt-dest">' + ent(d.team, "team") +
-          '<span class="tt-dest-n mono">' + d.n + '</span></span>';
+          (share ? '<span class="tt-dest-n mono">' + esc(share) + '</span>' : "") + '</span>';
       }).join("");
+      var share = pct(pl.builds, p.deals);
       return '<a class="tt-row" href="' + escAttr(pl.url) + '" target="_blank" rel="noopener">' +
         '<span class="tt-rank mono">' + (i + 1) + '</span>' +
         face(pl.img, pl.name) +
@@ -167,13 +189,14 @@
           '<span class="tt-name">' + esc(pl.name) + '</span>' +
           '<span class="tt-dests">' + (dests || '<span class="tt-dest-none">no clear destination</span>') + '</span>' +
         '</span>' +
-        '<span class="tt-builds mono"><b>' + pl.builds + '</b>' +
-          '<span>build' + (pl.builds === 1 ? "" : "s") + '</span></span>' +
+        '<span class="tt-builds mono"><b>' + esc(share || String(pl.builds)) + '</b>' +
+          '<span>of trades</span></span>' +
       '</a>';
     }).join("");
     return '<div class="vs-headline">' + esc(p.headline) + '</div>' +
-      '<div class="card-sub">Across <span class="mono">' + esc(String(p.deals)) +
-        '</span> trades readers built ' + esc(p.span) + ' · the number is how many of them included that player</div>' +
+      '<div class="card-sub">Share of the <span class="mono">' + esc(String(p.deals)) +
+        '</span> trades readers built ' + esc(p.span) +
+        ' · under each name, where they were sent</div>' +
       '<div class="tt-list">' + rows + '</div>';
   }
 
@@ -237,10 +260,11 @@
         face(p.img, p.player, "face lg") +
         '<div class="tr-text">' +
           '<div class="td-name-big">' + ent(p.player, "player") + '</div>' +
+          /* The percentage alone. "(228 of 8,373)" was the same fact twice,
+           * in a form nobody reads, and it made the line long enough to wrap
+           * on a phone. */
           '<div class="td-share"><b class="mono">' + esc(p.share.toFixed(1)) + '%</b>' +
-            ' of every trade built in ' + esc(p.period) +
-            ' <span class="tr-count mono">(' + esc(fmtInt(p.count)) + ' of ' +
-            esc(fmtInt(p.total)) + ')</span></div>' +
+            ' of every trade built in ' + esc(p.period) + '</div>' +
         '</div>' +
       '</div>' +
       rankDetail(p);
@@ -365,8 +389,23 @@
       ? '<div class="rumor-otd mono">' + esc(p.years_ago) + ' year' + (p.years_ago === 1 ? "" : "s") + ' ago today</div>'
       : "";
     var quote = p.quote ? '<blockquote class="rumor-quote">&ldquo;' + esc(p.quote) + '&rdquo;</blockquote>' : "";
-    return head +
-      '<p class="rumor-text">' + esc(p.text) + '</p>' + quote +
+    /* THE RUMOR ITSELF IS THE LINK.
+     *
+     * Every rumor comes from somewhere - a beat writer, a podcast, a broadcast
+     * - and that somewhere is the reason to believe it. Burying the source
+     * behind a "Read on HoopsHype" button at the bottom of the card makes the
+     * text look like it came from nowhere.
+     *
+     * Underlined the same way entities are, so it reads as a thing that leads
+     * somewhere without shouting. The card's own tap-through now goes to the
+     * HoopsHype rumors page, so the two destinations are different and both
+     * are useful: this one is where the quote came from, that one is more of
+     * the same. */
+    var text = p.source_url
+      ? '<a class="rumor-text rumor-src" href="' + escAttr(p.source_url) +
+        '" target="_blank" rel="noopener">' + esc(p.text) + '</a>'
+      : '<p class="rumor-text">' + esc(p.text) + '</p>';
+    return head + text + quote +
       '<div class="card-sub">' + esc(p.outlet) + ' · <span class="mono">' + esc(p.archive_date) + '</span></div>';
   }
 
@@ -927,7 +966,11 @@
       case "tradetrend": return { url: c.payload.machine_url, label: "Build one yourself" };
       case "tradedigest": return { url: c.payload.machine_url, label: "Trade " + c.payload.player.split(" ").pop() };
       case "traderank":   return { url: c.payload.machine_url, label: "Trade " + c.payload.player.split(" ").pop() };
-      case "rumor": return { url: c.payload.source_url || "https://hoopshype.com/rumors/", label: "Read on HoopsHype" };
+      /* Always the rumors page, never the source. The source is now the
+       * underlined text itself, and two controls pointing at the same URL
+       * wastes one of them - this one is "more like this", which is what a
+       * feed's tap-through should be. */
+      case "rumor": return { url: "https://hoopshype.com/rumors/", label: "Read on HoopsHype" };
       case "vs":    return { url: c.payload.compare_url, label: "Full comparison" };
       /* Cards built by tools/build_salary.mjs carry a destination of their own,
        * pre-populated with the player. Older cap-share cards keep the existing
@@ -938,14 +981,34 @@
         return c.payload.url
           ? { url: c.payload.url, label: c.payload.cta || "See full salary history" }
           : { url: "https://hoopsmatic.com/salary-season-finder", label: "Salary Season Finder" };
-      /* Deep-linked to the player or the voter the card is about, rather than
+      /* HoopsMatic content belongs on HoopsMatic.
+   *
+   * The ballot pools were built when the tracker only existed on GitHub Pages,
+   * so several hundred cards carry a jsierrahoopshype.github.io URL baked into
+   * their payload. The tracker now lives at hoopsmatic.com/award-voting/, and
+   * sending a reader of a HoopsMatic feed to a github.io page is a seam they
+   * should never see.
+   *
+   * Rewritten HERE rather than in the pools, for the same reason the teammates
+   * slug is: it applies to every card already deployed without rebuilding
+   * anything. A URL that is already on hoopsmatic.com, or anywhere else, is
+   * left exactly as it is. */
+  function onHoopsmatic(url) {
+    var s = String(url || "");
+    return s.indexOf("https://jsierrahoopshype.github.io/media-vote-tracker/") === 0
+      ? "https://hoopsmatic.com/award-voting/" +
+        s.slice("https://jsierrahoopshype.github.io/media-vote-tracker/".length)
+      : s;
+  }
+
+  /* Deep-linked to the player or the voter the card is about, rather than
        * the tracker's front page. "Media Vote Tracker" as a destination made
        * the reader find the thing again themselves. There is no award/season
        * filter parameter on the tracker yet, so the subject is as exact as the
        * link can currently be. */
       case "oddity": return c.payload.url
-        ? { url: c.payload.url, label: c.payload.cta || "See the ballots" }
-        : { url: "https://jsierrahoopshype.github.io/media-vote-tracker/", label: "Media Vote Tracker" };
+        ? { url: onHoopsmatic(c.payload.url), label: c.payload.cta || "See the ballots" }
+        : { url: "https://hoopsmatic.com/award-voting/", label: "Media Vote Tracker" };
       // No tap-through. The race IS the destination; sending someone to the
       // HoopsMatic homepage from it added nothing.
       case "race":  return null;
