@@ -225,6 +225,18 @@ a:hover{ text-decoration:underline }
   font-family:'JetBrains Mono',monospace;
 }
 .rumor-text{ font-size:1.05rem; font-weight:650; line-height:1.38; letter-spacing:-.005em }
+/* The rumor text when it carries its source. Block, because it replaces a <p>
+   and has to keep the paragraph's spacing; underlined the same dotted way as
+   an entity, so a card full of links still has one visual grammar rather than
+   two. Colour stays inherited - a body of blue link text at this size would
+   read as a list of links instead of as a sentence. */
+a.rumor-src{
+  display:block; margin:0 0 .55rem; color:inherit; text-decoration:underline;
+  text-decoration-style:dotted; text-decoration-color:var(--border);
+  text-underline-offset:3px; transition:.15s;
+}
+a.rumor-src:hover{ text-decoration-style:solid; text-decoration-color:var(--accent) }
+a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; border-radius:3px }
 .rumor-quote{
   margin:.5rem 0 .1rem; padding:.4rem .65rem;
   border-left:2px solid var(--orange);
@@ -275,10 +287,14 @@ a:hover{ text-decoration:underline }
 .tt-dests{ display:flex; flex-wrap:wrap; gap:.1rem .5rem; align-items:baseline }
 .tt-dest{ display:inline-flex; align-items:baseline; gap:.15rem }
 .tt-dest-n{ font-size:.6rem; color:var(--text-secondary) }
+/* A percentage needs a hair more room than "6" did, and a space before it so
+   "DEN46%" does not read as one token. */
+.tt-dest-n{ margin-left:.18rem }
 .tt-dest-none{ font-size:.7rem; color:var(--text-secondary) }
 .tt-builds{ flex:none; text-align:right; line-height:1.1 }
 .tt-builds b{ display:block; font-size:1.05rem; color:var(--t-trade) }
-.tt-builds span{ font-size:.55rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.06em }
+.tt-builds span{ font-size:.55rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.06em;
+                 white-space:nowrap }
 
 /* -------- trade daily digest -------- */
 .td-rank{
