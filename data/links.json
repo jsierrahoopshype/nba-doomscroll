@@ -117,9 +117,9 @@
     {
       "id": "trade-movers",
       "url": "https://hoopsmatic.com/api/trade-log/movers?days=7&limit=3",
-      "used_by": "js/trades.js MOVERS_URL - the SENT TO / TRADED FOR lines on the Weekly Top 25 cards",
+      "used_by": "js/trades.js MOVERS_URL - builds the whole Weekly Top 25, cards and all",
       "kind": "json",
-      "note": "Three players, not twenty-five: a health check, not a fetch. Answers {source, days, since, totalTrades, totalMoves, players[]} where each player carries to[] and with[] with a pct on each. The identity that matters here is `days`: js/trades.js refuses the payload unless it echoes the window it was asked for, because a Worker that ignored the parameter would hand back a different span and the cards would label it as a week. Same custom domain as trade-log, deliberately - this route lives in the same Worker and would go down with it, and putting it on workers.dev would have re-created the failure that took the Trades tab out. If this breaks, the cards fall back to the sampled numbers computed in the browser and say so in their own note; nothing disappears."
+      "note": "Three players, not twenty-five: a health check, not a fetch. Answers {source, days, since, totalTrades, totalMoves, players[]} where each player carries to[] and with[] with a pct on each. The identity that matters here is `days`: js/trades.js refuses the payload unless it echoes the window it was asked for, because a Worker that ignored the parameter would hand back a different span and the cards would label it as a week. Same custom domain as trade-log, deliberately - this route lives in the same Worker and would go down with it, and putting it on workers.dev would have re-created the failure that took the Trades tab out. This is now the SOURCE of the Top 25, not a garnish on it: the digest returns ten names and no per-player detail, so cards built from it were nine thin ones. If this breaks the feed falls back to exactly those nine, enriched from a browser-side sample and labelled as such - degraded, not gone."
     },
     {
       "id": "trade-digest",

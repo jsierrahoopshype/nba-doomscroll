@@ -203,56 +203,76 @@
   /* The Trade Machine's own daily digest — the same numbers, from the same
    * endpoint, as the card that goes out on social. Computed server-side over
    * the whole log, which is why it can say "the last 24 hours" and mean it. */
-  function renderTradeDigest(c) {
-    var p = c.payload;
-    /* Every row is a link that builds the trade it describes: a destination
-     * row opens the machine with him already on his way there, a return-piece
-     * row opens it with both players in. Nothing here asks the reader to type
-     * a name into a search box. */
-    function bars(list, kind) {
-      var top = list[0] ? list[0].pct : 100;
-      return list.map(function (x) {
-        var w = Math.max(6, Math.round(x.pct / (top || 1) * 100));
-        return '<a class="td-row" href="' + escAttr(x.url) + '" target="_blank" rel="noopener" ' +
-          'title="' + escAttr(kind === "dest"
-            ? "Build " + p.player + " to " + x.name + " in the Trade Machine"
-            : "Build " + p.player + " for " + x.name + " in the Trade Machine") + '">' +
-          '<span class="td-fill" style="width:' + w + '%"></span>' +
-          (kind === "dest"
-            ? '<img class="team-logo" loading="lazy" src="' + escAttr(x.logo) + '" alt="" ' +
-              'onerror="this.style.visibility=\'hidden\'">'
-            : face(x.img, x.name)) +
-          '<span class="td-name">' + esc(x.name) + '</span>' +
-          '<span class="td-pct mono">' + esc(x.pct.toFixed(1)) + '%</span>' +
-        '</a>';
-      }).join("");
-    }
-    var rank = p.rank || 1;
+  /* Every row is a link that builds the trade it describes: a destination row
+   * opens the machine with him already on his way there, a return-piece row
+   * opens it with both players in. Nothing here asks the reader to type a name
+   * into a search box.
+   *
+   * Lifted out of renderTradeDigest unchanged so the Weekly Top 25 cards can
+   * use it too. They could not before: their numbers came off a sample and did
+   * not deserve this much room. They come off the same full window now. */
+  function tradeBars(list, kind, player) {
+    var top = list[0] ? list[0].pct : 100;
+    return list.map(function (x) {
+      var w = Math.max(6, Math.round(x.pct / (top || 1) * 100));
+      return '<a class="td-row" href="' + escAttr(x.url) + '" target="_blank" rel="noopener" ' +
+        'title="' + escAttr(kind === "dest"
+          ? "Build " + player + " to " + x.name + " in the Trade Machine"
+          : "Build " + player + " for " + x.name + " in the Trade Machine") + '">' +
+        '<span class="td-fill" style="width:' + w + '%"></span>' +
+        (kind === "dest"
+          ? '<img class="team-logo" loading="lazy" src="' + escAttr(x.logo) + '" alt="" ' +
+            'onerror="this.style.visibility=\'hidden\'">'
+          : face(x.img, x.name)) +
+        '<span class="td-name">' + esc(x.name) + '</span>' +
+        '<span class="td-pct mono">' + esc((+x.pct).toFixed(1)) + '%</span>' +
+      '</a>';
+    }).join("");
+  }
+
+  /* The body both cards share: who, what share of the window, where he went,
+   * who came back. The only thing that differs between a digest card and a
+   * Top 25 card is the chip above it and the window it counts. */
+  function tradeBreakdown(p, rank) {
+    var dests = p.dests || [], back = p.back || [];
     return '<div class="td-rank mono">No. ' + esc(String(rank)) +
         ' most-traded player · ' + esc(p.period) + '</div>' +
       '<div class="td-hero">' + face(p.img, p.player, "face lg") +
       '<div class="td-hero-text">' +
         '<div class="td-name-big">' + ent(p.player, "player") + '</div>' +
-        '<div class="td-share"><b class="mono">' + esc(p.share.toFixed(1)) + '%</b>' +
+        '<div class="td-share"><b class="mono">' + esc((+p.share).toFixed(1)) + '%</b>' +
           ' of every trade built in ' + esc(p.period) + '</div>' +
       '</div></div>' +
-      (p.dests.length ? '<div class="td-label mono">Most common destinations</div>' +
-        '<div class="td-list">' + bars(p.dests, "dest") + '</div>' : "") +
-      (p.back.length ? '<div class="td-label mono">Most traded for</div>' +
-        '<div class="td-list">' + bars(p.back, "back") + '</div>' : "");
+      (dests.length ? '<div class="td-label mono">Most common destinations</div>' +
+        '<div class="td-list">' + tradeBars(dests, "dest", p.player) + '</div>' : "") +
+      (back.length ? '<div class="td-label mono">Most traded for</div>' +
+        '<div class="td-list">' + tradeBars(back, "back", p.player) + '</div>' : "");
+  }
+
+  /* The Trade Machine's own daily digest — the same numbers, from the same
+   * endpoint, as the card that goes out on social. Computed server-side over
+   * the whole log, which is why it can say "the last 24 hours" and mean it. */
+  function renderTradeDigest(c) {
+    return tradeBreakdown(c.payload, c.payload.rank || 1);
   }
 
   /* One of the week's most-traded players, ranks 2 to 25.
    *
-   * Deliberately thinner than the digest card above, because the data is
-   * thinner: the Worker computes destinations and return pieces for the number
-   * one only, and `topPlayers` is a ranked [name, count] list. So the card says
-   * the two things it can stand behind - where he sits in the week, and how
-   * much of the week's traffic he was - and links into the machine with him
-   * already loaded. Dressing it up to look as substantial as the digest card
-   * would be claiming detail that does not exist. */
+   * Two layouts, and which one you get is decided by the data, not by taste.
+   *
+   * /api/trade-log/movers computes destinations and return pieces for all 25
+   * over the same seven days the share line describes, so those cards get the
+   * digest card's full layout: logos, bars, percentages. Earlier this detail
+   * existed for the number one only, and a thin card was the honest response
+   * to thin data.
+   *
+   * When the Worker does not answer, the fallback below is that older card,
+   * unchanged - a share line, and whatever the browser could count off its own
+   * sample, labelled as such. Dressing THAT up would be claiming detail that
+   * does not exist. */
   function renderTradeRank(c) {
     var p = c.payload;
+    if (p.detail_full) return tradeBreakdown(p, p.rank);
     return '<div class="td-rank mono">No. ' + esc(String(p.rank)) +
         ' most-traded player · ' + esc(p.period) + '</div>' +
       '<div class="tr-row">' +
