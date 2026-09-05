@@ -583,7 +583,7 @@
         j.players.forEach(function (p) { if (p && p.player) by[p.player] = p; });
         console.info("[doomscroll] movers: " + j.players.length + " players over " +
           (j.totalTrades || 0).toLocaleString() + " trades in the last " + j.days + " days");
-        return by;
+        return { by: by, list: j.players, days: j.days, totalTrades: j.totalTrades || 0 };
       })
       .catch(function (e) {
         console.warn("[doomscroll] trade movers unavailable:", e.message);
@@ -629,6 +629,85 @@
       .map(function (k) { return { key: k, n: counts[k] }; })
       .sort(function (a, b) { return b.n - a.n || a.key.localeCompare(b.key); })
       .slice(0, n);
+  }
+
+  /* The Weekly Top 25, built from the movers endpoint rather than the digest.
+   *
+   * WHY THIS REPLACED THE DIGEST AS THE SOURCE.
+   *
+   * The digest's `topPlayers` is a ranked [name, count] list and nothing more,
+   * so a card built from it could say where a player ranked and no more than
+   * that. It also returns TEN names, not twenty-five, so "Weekly Top 25" was
+   * nine cards in practice. And it is served from workers.dev, the per-account
+   * toggle that took the whole Trades tab out once already.
+   *
+   * Movers answers all three at once: twenty-five players, each with his
+   * destinations and return pieces over the same seven days, on the custom
+   * domain. So the rank cards are built here, and the digest keeps the one
+   * thing it is still the only source for - the 24-hour card.
+   *
+   * The digest-built cards remain the fallback, untouched, for when this
+   * endpoint does not answer.
+   */
+  function moversRankCards(mv, skipName) {
+    var list = (mv && mv.list) || [];
+    var out = [];
+    for (var i = 0; i < list.length && i < TOP_N_WEEKLY; i++) {
+      var m = list[i];
+      if (!m || !m.player) continue;
+      /* The weekly digest card already covers this player properly. A second
+       * card about him in the same tab is strictly worse than none. */
+      if (skipName && m.player === skipName) continue;
+      var player = m.player;
+      var dests = (m.to || []).slice(0, 3).map(function (d) {
+        return {
+          name: d.name,
+          abbr: abbrev(d.name) || d.name,
+          logo: logoFor(d.name),
+          pct: +d.pct || 0,
+          url: loopUrl({ players: [player], to: d.name })
+        };
+      });
+      var back = (m['with'] || []).slice(0, 3).map(function (d) {
+        return {
+          name: d.name,
+          img: faceFor(d.name),
+          pct: +d.pct || 0,
+          url: loopUrl({ players: [player, d.name] })
+        };
+      });
+      // Nothing to show is not a card. Rank alone was the old card's whole
+      // point; it is not worth one now that the rest is available.
+      if (!dests.length && !back.length) continue;
+      out.push({
+        id: "trade-week-rank-" + (i + 1),
+        type: "traderank",
+        tab: ["trades"],
+        live: true,
+        story_key: "traderank|" + player,
+        story_family: "trade:weekly-rank",
+        quality_score: Math.round((1 - i / TOP_N_WEEKLY) * 100) / 100,
+        tags: {
+          content_type: "traderank",
+          players: [player].concat(back.map(function (b) { return b.name; })).slice(0, 5),
+          teams: dests.map(function (d) { return d.abbr; }).filter(Boolean),
+          era: "2020s",
+          category: "trade-machine"
+        },
+        payload: {
+          rank: i + 1,
+          player: player,
+          img: faceFor(player),
+          share: +m.share || 0,
+          period: "the last " + MOVERS_DAYS + " days",
+          dests: dests,
+          back: back,
+          detail_full: true,
+          machine_url: loopUrl({ players: [player] })
+        }
+      });
+    }
+    return out;
   }
 
   /* Adds `dests` and `back` to the rank cards, from the Worker where it
@@ -700,6 +779,42 @@
         " (tune RANK_DETAIL_MIN in js/trades.js against this)");
     }
     return cards;
+  }
+
+  /* Decides which source the Weekly Top 25 comes from, and says so.
+   *
+   * Movers wins when it answers, because it covers 25 players with real
+   * detail. The digest-built cards are dropped in that case rather than merged
+   * - two cards about the same player, from two windows, is the shape of bug
+   * this feed already had once. When movers is silent, nothing here fires and
+   * the digest cards get the sampled enrichment exactly as before.
+   */
+  function chooseRankCards(dcs, mv, deals) {
+    dcs = dcs || [];
+    if (mv && mv.list && mv.list.length) {
+      // Whoever the weekly digest card is about already has a better card.
+      var hero = null;
+      dcs.forEach(function (c) {
+        if (c && c.type === "tradedigest" && /\b7 days\b/.test(String(c.payload.period || ""))) {
+          hero = c.payload.player;
+        }
+      });
+      var built = moversRankCards(mv, hero);
+      if (built.length) {
+        var dropped = 0;
+        dcs = dcs.filter(function (c) {
+          if (c && c.type === "traderank") { dropped++; return false; }
+          return true;
+        }).concat(built);
+        console.info("[doomscroll] weekly top " + (built.length + (hero ? 1 : 0)) +
+          " built from the movers endpoint" +
+          (dropped ? " (replacing " + dropped + " thinner cards from the digest)" : "") +
+          (hero ? "; no. 1 stays on the digest card" : "; no digest card, so no. 1 is a rank card"));
+        return dcs;
+      }
+    }
+    enrichRankCards(dcs, deals, mv && mv.by);
+    return dcs;
   }
 
   function loadDigests() {
@@ -815,10 +930,9 @@
         " multi-team, " + stats.unbalanced + " failed the balance filter)" +
         (trends ? "; trends over " + deals.length + " deals" : "; too few deals for a trends card"));
       return Promise.all([digest, movers]).then(function (parts) {
-        // The log is only known here, so the rank cards get their detail now.
-        var dcs = parts[0];
-        enrichRankCards(dcs, deals, parts[1]);
-        (dcs || []).slice().reverse().forEach(function (dc) { cards.unshift(dc); });
+        // The log is only known here, so the rank cards are settled now.
+        var dcs = chooseRankCards(parts[0], parts[1], deals);
+        dcs.slice().reverse().forEach(function (dc) { cards.unshift(dc); });
         return cards;
       });
     }).catch(function (e) {
@@ -827,9 +941,7 @@
       // the Trades tab still has something real to say. The movers endpoint
       // does not need the log either, so the rank cards keep their detail.
       return Promise.all([digest, movers]).then(function (parts) {
-        var dcs = parts[0] || [];
-        enrichRankCards(dcs, [], parts[1]);
-        return dcs;
+        return chooseRankCards(parts[0], parts[1], []);
       }).catch(function () { return []; });
     });
   }

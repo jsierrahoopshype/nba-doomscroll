@@ -33,7 +33,8 @@ function runIIFE(src, extra = "") {
 
 runIIFE(read("js/trades.js"),
   "root.DoomTrades.__test = { rankTally: rankTally, enrichRankCards: enrichRankCards," +
-  " RANK_DETAIL_MIN: RANK_DETAIL_MIN };");
+  " RANK_DETAIL_MIN: RANK_DETAIL_MIN, moversRankCards: moversRankCards," +
+  " chooseRankCards: chooseRankCards, TOP_N_WEEKLY: TOP_N_WEEKLY };");
 
 const T = win.DoomTrades.__test;
 const MIN = T.RANK_DETAIL_MIN;
@@ -310,6 +311,154 @@ const movers = {
   check("an unknown city falls back to its own name",
     cards[0].payload.dests[0].team === "Sao Paulo",
     JSON.stringify(cards[0].payload.dests));
+}
+
+/* ---------------- 5. where the Top 25 comes from ----------------
+ *
+ * The rank cards used to be built from the digest's `topPlayers`. They are
+ * built from movers now, and the digest is the fallback. The switch has to
+ * hold in both directions: movers wins when it answers, and its absence
+ * leaves the old path running untouched.
+ */
+
+console.log("\nbuilding the top 25");
+
+/* A movers response of `n` players, most-traded first. */
+function moversList(n) {
+  const list = [];
+  for (let i = 0; i < n; i++) {
+    list.push({
+      player: "P" + i,
+      trades: 300 - i,
+      share: Math.round((30 - i) * 10) / 100,
+      from: [{ name: "Phoenix", n: 300 - i, pct: 99 }],
+      to:   [{ name: "Boston", n: 90, pct: 30 }, { name: "Miami", n: 60, pct: 20 }],
+      with: [{ name: "Counter" + i, n: 50, pct: 17 }]
+    });
+  }
+  return { by: Object.fromEntries(list.map(p => [p.player, p])), list: list, days: 7, totalTrades: 8218 };
+}
+
+const weeklyDigestCard = name => ({
+  type: "tradedigest",
+  payload: { player: name, period: "the last 7 days", rank: 1 }
+});
+const dailyDigestCard = () => ({
+  type: "tradedigest",
+  payload: { player: "Someone", period: "the last 24 hours", rank: 1 }
+});
+
+{
+  const mv = moversList(25);
+  const cards = T.moversRankCards(mv, null);
+  check("all twenty-five become cards when nobody is skipped",
+    cards.length === 25, "got " + cards.length);
+  check("ranked in the order the worker returned them",
+    cards[0].payload.rank === 1 && cards[0].payload.player === "P0" &&
+    cards[24].payload.rank === 25, JSON.stringify([cards[0].payload.player, cards[24].payload.rank]));
+  check("each card carries the full breakdown, so it renders the wide layout",
+    cards[0].payload.detail_full === true &&
+    cards[0].payload.dests.length === 2 && cards[0].payload.back.length === 1);
+  check("destinations carry a logo and an abbreviation for the bar rows",
+    cards[0].payload.dests[0].abbr === "BOS" && /\/bos\.svg$/.test(cards[0].payload.dests[0].logo),
+    cards[0].payload.dests[0].logo);
+  check("the period is the window the worker was asked for",
+    cards[0].payload.period === "the last 7 days", cards[0].payload.period);
+  check("rank one scores highest and rank 25 lowest, both above zero",
+    cards[0].quality_score > cards[24].quality_score && cards[24].quality_score > 0,
+    JSON.stringify([cards[0].quality_score, cards[24].quality_score]));
+  check("each player gets his own story key, so 25 of these do not clump",
+    new Set(cards.map(c => c.story_key)).size === 25);
+  check("the counterpart is tagged too, so entity filtering finds him",
+    cards[0].tags.players.indexOf("Counter0") >= 0, JSON.stringify(cards[0].tags.players));
+}
+
+{
+  // The digest's hero already has a better card. He must not get a second one.
+  const cards = T.moversRankCards(moversList(25), "P0");
+  check("the digest's number one is skipped, not duplicated",
+    cards.length === 24 && cards.every(c => c.payload.player !== "P0"),
+    "got " + cards.length);
+  check("and the ranks of everyone else are unchanged",
+    cards[0].payload.rank === 2 && cards[0].payload.player === "P1",
+    JSON.stringify([cards[0].payload.player, cards[0].payload.rank]));
+}
+
+{
+  // A player the worker ranked but knows nothing else about is not a card:
+  // rank alone was the old card's whole point, and it is not worth one now.
+  const mv = moversList(3);
+  mv.list[1].to = []; mv.list[1]["with"] = [];
+  const cards = T.moversRankCards(mv, null);
+  check("a player with no destinations and no counterparts is dropped",
+    cards.length === 2 && cards.every(c => c.payload.player !== "P1"),
+    JSON.stringify(cards.map(c => c.payload.player)));
+}
+
+{
+  // Never more than TOP_N_WEEKLY, whatever the endpoint sends.
+  const cards = T.moversRankCards(moversList(60), null);
+  check("the list is capped at the top 25", cards.length === T.TOP_N_WEEKLY,
+    "got " + cards.length);
+}
+
+console.log("\nchoosing between the two sources");
+
+{
+  const dcs = [dailyDigestCard(), weeklyDigestCard("P0"),
+               rankCard("Old1"), rankCard("Old2"), rankCard("Old3")];
+  const out = T.chooseRankCards(dcs, moversList(25), []);
+  const ranks = out.filter(c => c.type === "traderank");
+  const digests = out.filter(c => c.type === "tradedigest");
+  check("the digest's thin rank cards are replaced, not merged",
+    ranks.length === 24 && !ranks.some(c => /^Old/.test(c.payload.player)),
+    "got " + ranks.length);
+  check("both digest cards survive untouched",
+    digests.length === 2, "got " + digests.length);
+  check("the daily digest card is still first in the list",
+    out[0].payload.period === "the last 24 hours", out[0].payload.period);
+}
+
+{
+  // The endpoint being down is the ordinary case. Everything must fall back.
+  const withMovers = [weeklyDigestCard("P0"), rankCard("Old1")];
+  const without = [weeklyDigestCard("P0"), rankCard("Old1")];
+  const deals = repeat(MIN, () => [leg("Old1", "Phoenix", "Boston"),
+                                   leg("Guard", "Boston", "Phoenix")]);
+  const a = T.chooseRankCards(without, null, deals);
+  check("with no worker, the digest's cards are kept and enriched from the sample",
+    a.filter(c => c.type === "traderank").length === 1 &&
+    a[1].payload.dests[0].team === "BOS" && a[1].payload.detail_full === undefined,
+    JSON.stringify(a[1].payload.dests));
+  T.chooseRankCards(withMovers, { by: {}, list: [] }, deals);
+  check("an empty worker list is treated as no answer at all",
+    withMovers[1].payload.detail_full === undefined);
+}
+
+{
+  // Worker up, digest down. This is the failure the switch exists to survive:
+  // no digest card means no hero, so number one becomes a rank card.
+  const out = T.chooseRankCards([], moversList(25), []);
+  check("with no digest at all, the worker alone fills the tab",
+    out.length === 25 && out[0].payload.rank === 1 && out[0].payload.player === "P0",
+    "got " + out.length);
+}
+
+{
+  // A daily digest but no weekly one: the 24-hour hero is a different question
+  // and must NOT be skipped from the weekly list.
+  const out = T.chooseRankCards([dailyDigestCard()], moversList(25), []);
+  const ranks = out.filter(c => c.type === "traderank");
+  check("the 24-hour hero does not remove anyone from the 7-day list",
+    ranks.length === 25, "got " + ranks.length);
+}
+
+{
+  // Nulls and nonsense must not throw on a path that runs on every page load.
+  T.chooseRankCards(null, null, null);
+  T.chooseRankCards(undefined, { by: {}, list: null }, []);
+  T.chooseRankCards([], { list: [{}, { player: "" }] }, []);
+  check("malformed input does not throw", true);
 }
 
 console.log(failures ? "\n" + failures + " failure(s)" : "\nrank detail counts what it claims to count");
