@@ -543,6 +543,54 @@
    * deliberately not shared yet: unifying them changes a card that works. */
   var RANK_DETAIL_MIN = 10;
 
+  /* ---------------- rank card detail, from the Worker ----------------
+   *
+   * Everything above computes rank detail from a sample and says so. This is
+   * the same question answered properly: /api/trade-log/movers aggregates the
+   * full window in SQL over D1 and returns, per player, where he was sent most
+   * often and who came back the other way — over exactly the seven days the
+   * share line on the card already describes.
+   *
+   * So when it answers, its numbers replace the sampled ones and the "counted
+   * over a slice" caveat comes off with them. When it does not, the sampled
+   * path below is untouched and the cards render as they did before this
+   * existed. Two independent sources, best one wins, neither required.
+   *
+   * On the custom domain, like the trade log. Percentages come from the
+   * Worker; the card shows those and not the counts.
+   */
+  var MOVERS_URL = "https://hoopsmatic.com/api/trade-log/movers";
+  var MOVERS_DAYS = 7;
+
+  /** Resolves to { "<player>": {to:[{name,n,pct}], with:[...]}} or null. */
+  function loadMovers() {
+    return fetch(MOVERS_URL + "?days=" + MOVERS_DAYS + "&limit=" + TOP_N_WEEKLY, { credentials: "omit" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("movers " + r.status);
+        return r.json();
+      })
+      .then(function (j) {
+        if (!j || !Array.isArray(j.players) || !j.players.length) return null;
+        /* Same guard the weekly digest uses. A Worker that ignored ?days would
+         * hand back a different window and these numbers would be labelled as
+         * a week on a card that says "the last 7 days". */
+        if (+j.days !== MOVERS_DAYS) {
+          console.info("[doomscroll] movers returned a " + j.days + "-day window, not " +
+            MOVERS_DAYS + "; falling back to the sampled rank detail");
+          return null;
+        }
+        var by = {};
+        j.players.forEach(function (p) { if (p && p.player) by[p.player] = p; });
+        console.info("[doomscroll] movers: " + j.players.length + " players over " +
+          (j.totalTrades || 0).toLocaleString() + " trades in the last " + j.days + " days");
+        return by;
+      })
+      .catch(function (e) {
+        console.warn("[doomscroll] trade movers unavailable:", e.message);
+        return null;
+      });
+  }
+
   /* Per player: how many deals in the loaded slice moved him, where to, and
    * who came back the other way.
    *
@@ -583,17 +631,51 @@
       .slice(0, n);
   }
 
-  /* Adds `dests` and `back` to the rank cards that have the sample for it.
+  /* Adds `dests` and `back` to the rank cards, from the Worker where it
+   * answered and from the local sample otherwise.
    * Runs after the log resolves, so the digest path stays untouched. */
-  function enrichRankCards(cards, deals) {
+  function enrichRankCards(cards, deals, movers) {
     var tally = rankTally(deals);
-    var enriched = 0, thin = 0;
+    var full = 0, enriched = 0, thin = 0;
     (cards || []).forEach(function (c) {
       if (!c || c.type !== "traderank" || !c.payload) return;
+
+      /* Full-window numbers first. These cover the same seven days as the
+       * share line above them, so they carry no caveat and no sample note. */
+      var m = movers && movers[c.payload.player];
+      if (m) {
+        var mDests = (m.to || []).slice(0, 3).map(function (d) {
+          return {
+            team: abbrev(d.name) || d.name,
+            pct: d.pct,
+            url: loopUrl({ players: [c.payload.player], to: d.name })
+          };
+        });
+        var mBack = (m['with'] || []).slice(0, 3).map(function (d) {
+          return {
+            name: d.name,
+            pct: d.pct,
+            url: loopUrl({ players: [c.payload.player, d.name] })
+          };
+        });
+        if (mDests.length || mBack.length) {
+          c.payload.dests = mDests;
+          c.payload.back = mBack;
+          c.payload.detail_full = true;
+          c.payload.detail_note = "";   // nothing to qualify: same window as the share
+          full++;
+          return;
+        }
+      }
+
       var e = tally[c.payload.player];
       if (!e || e.builds < RANK_DETAIL_MIN) { thin++; return; }
-      var dests = topOf(e.to, 3).map(function (d) { return { team: d.key, n: d.n }; });
-      var back = topOf(e.back, 3).map(function (d) { return { name: d.key, n: d.n }; });
+      var dests = topOf(e.to, 3).map(function (d) {
+        return { team: d.key, n: d.n, pct: Math.round(d.n / e.builds * 1000) / 10 };
+      });
+      var back = topOf(e.back, 3).map(function (d) {
+        return { name: d.key, n: d.n, pct: Math.round(d.n / e.builds * 1000) / 10 };
+      });
       if (!dests.length && !back.length) { thin++; return; }
       c.payload.dests = dests;
       c.payload.back = back;
@@ -607,7 +689,11 @@
         (deals || []).length + " trades";
       enriched++;
     });
-    if (enriched || thin) {
+    if (full) {
+      console.info("[doomscroll] rank detail: " + full + " cards from the Worker over the full " +
+        MOVERS_DAYS + " days" + (enriched ? "; " + enriched + " from the local sample" : "") +
+        (thin ? "; " + thin + " with neither" : ""));
+    } else if (enriched || thin) {
       console.info("[doomscroll] rank detail: " + enriched + " of " + (enriched + thin) +
         " cards had " + RANK_DETAIL_MIN + "+ builds in the newest " + (deals || []).length +
         " deals" + (thin ? "; " + thin + " too thin to say where he went" : "") +
@@ -659,6 +745,9 @@
     // The digest is independent of the log: it is fetched alongside it and
     // simply absent if it fails.
     var digest = loadHeadshots().then(loadDigests);
+    // Independent of both the log and the digest: it needs neither to answer,
+    // and resolves to null rather than throwing if it cannot.
+    var movers = loadMovers();
     return loadHeadshots().then(function () {
       var sep = TRADE_LOG_URL.indexOf("?") >= 0 ? "&" : "?";
       return fetch(TRADE_LOG_URL + sep + "limit=" + WANT_ROWS, { credentials: "omit" });
@@ -725,17 +814,23 @@
         " logged deals (" + stats.dup + " duplicates, " + stats.multi +
         " multi-team, " + stats.unbalanced + " failed the balance filter)" +
         (trends ? "; trends over " + deals.length + " deals" : "; too few deals for a trends card"));
-      return digest.then(function (dcs) {
+      return Promise.all([digest, movers]).then(function (parts) {
         // The log is only known here, so the rank cards get their detail now.
-        enrichRankCards(dcs, deals);
+        var dcs = parts[0];
+        enrichRankCards(dcs, deals, parts[1]);
         (dcs || []).slice().reverse().forEach(function (dc) { cards.unshift(dc); });
         return cards;
       });
     }).catch(function (e) {
       console.warn("[doomscroll] trade log unavailable:", e.message);
       // The digest stands on its own: if the log is down but the digest is up,
-      // the Trades tab still has something real to say.
-      return digest.catch(function () { return []; });
+      // the Trades tab still has something real to say. The movers endpoint
+      // does not need the log either, so the rank cards keep their detail.
+      return Promise.all([digest, movers]).then(function (parts) {
+        var dcs = parts[0] || [];
+        enrichRankCards(dcs, [], parts[1]);
+        return dcs;
+      }).catch(function () { return []; });
     });
   }
 
