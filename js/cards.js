@@ -233,11 +233,21 @@
   /* The body both cards share: who, what share of the window, where he went,
    * who came back. The only thing that differs between a digest card and a
    * Top 25 card is the chip above it and the window it counts. */
-  function tradeBreakdown(p, rank) {
+  function tradeBreakdown(p, rank, showNumeral) {
     var dests = p.dests || [], back = p.back || [];
+    /* The numeral leads on the Top 25 cards and not on the digest cards. In a
+     * run of twenty-four near-identical cards the rank IS the thing that tells
+     * one from the next, and a reader scrolling past should not have to read a
+     * line of small caps to find it. A digest card has no run to be found in:
+     * it is always No. 1, and the header line says so.
+     *
+     * .tr-num and .td-hero are both already what they need to be - a flex
+     * child and a flex row - so this needs no CSS. */
     return '<div class="td-rank mono">No. ' + esc(String(rank)) +
         ' most-traded player · ' + esc(p.period) + '</div>' +
-      '<div class="td-hero">' + face(p.img, p.player, "face lg") +
+      '<div class="td-hero">' +
+      (showNumeral ? '<span class="tr-num mono">' + esc(String(rank)) + '</span>' : "") +
+      face(p.img, p.player, "face lg") +
       '<div class="td-hero-text">' +
         '<div class="td-name-big">' + ent(p.player, "player") + '</div>' +
         '<div class="td-share"><b class="mono">' + esc((+p.share).toFixed(1)) + '%</b>' +
@@ -272,7 +282,7 @@
    * does not exist. */
   function renderTradeRank(c) {
     var p = c.payload;
-    if (p.detail_full) return tradeBreakdown(p, p.rank);
+    if (p.detail_full) return tradeBreakdown(p, p.rank, true);
     return '<div class="td-rank mono">No. ' + esc(String(p.rank)) +
         ' most-traded player · ' + esc(p.period) + '</div>' +
       '<div class="tr-row">' +
