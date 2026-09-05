@@ -197,5 +197,120 @@ console.log("\nbounds");
     JSON.stringify(cards[0].payload.dests.map(d => d.team)));
 }
 
+/* ---------------- 4. the Worker's numbers ----------------
+ *
+ * /api/trade-log/movers answers the same question over the full week instead
+ * of over a sample. Two things have to hold: its numbers win when it answers,
+ * and its absence changes nothing at all.
+ *
+ * The shape below is the live one, trimmed:
+ *   { player, trades, moves, share, from:[], to:[{name,n,pct}], with:[...] }
+ */
+
+console.log("\nthe worker's numbers");
+
+const movers = {
+  "Loud": {
+    player: "Loud", trades: 204, share: 2.5,
+    to:   [{ name: "Boston", n: 91, pct: 44.6 }, { name: "Miami", n: 66, pct: 32.4 }],
+    with: [{ name: "Guard", n: 52, pct: 25.5 }]
+  }
+};
+
+{
+  // Loud also clears the sample gate, so this is a real contest between the
+  // two sources and not a walkover.
+  const deals = repeat(MIN + 4, () => [leg("Loud", "Phoenix", "Denver"),
+                                       leg("Wing", "Denver", "Phoenix")]);
+  const cards = [rankCard("Loud")];
+  T.enrichRankCards(cards, deals, movers);
+  const p = cards[0].payload;
+
+  check("the worker's destinations win over the sample's",
+    p.dests[0].team === "BOS" && p.dests[1].team === "MIA",
+    JSON.stringify(p.dests.map(d => d.team)));
+  check("percentages come from the worker",
+    p.dests[0].pct === 44.6 && p.back[0].pct === 25.5,
+    JSON.stringify([p.dests[0].pct, p.back[0].pct]));
+  check("counts are not shown as the value",
+    p.dests[0].n === undefined, JSON.stringify(p.dests[0]));
+  check("return pieces come from the worker too",
+    p.back.length === 1 && p.back[0].name === "Guard",
+    JSON.stringify(p.back));
+  check("the sample caveat is dropped, because it is not a sample",
+    p.detail_note === "" && p.detail_full === true,
+    JSON.stringify([p.detail_note, p.detail_full]));
+  check("each destination links to that trade in the machine",
+    /loop=1/.test(p.dests[0].url) && /to=Boston/.test(p.dests[0].url),
+    p.dests[0].url);
+  check("each return piece links to that swap",
+    /player=Loud%2CGuard/.test(p.back[0].url), p.back[0].url);
+  check("the share line is still never overwritten",
+    p.count === 278 && p.total === 8587);
+}
+
+{
+  // A player the worker did not rank still gets the sampled detail, caveat
+  // and all. The two sources coexist on the same list of cards.
+  const deals = repeat(MIN, () => [leg("Quiet", "Denver", "Miami"),
+                                   leg("Wing", "Miami", "Denver")]);
+  const cards = [rankCard("Quiet")];
+  T.enrichRankCards(cards, deals, movers);
+  const p = cards[0].payload;
+  check("a player missing from the worker falls back to the sample",
+    p.dests && p.dests[0].team === "MIA", JSON.stringify(p.dests));
+  check("and keeps the caveat that the sample needs",
+    /from his \d+ builds in the newest \d+ trades/.test(p.detail_note || "") &&
+    p.detail_full === undefined,
+    JSON.stringify(p.detail_note));
+  check("the sampled path also carries a percentage of his own builds",
+    p.dests[0].pct === 100 && p.back[0].pct === 100,
+    JSON.stringify([p.dests[0].pct, p.back[0].pct]));
+}
+
+{
+  // An entry with nothing in it must not shadow a sample that does have
+  // something. Empty is not an answer.
+  const hollow = { "Loud": { player: "Loud", to: [], with: [] } };
+  const deals = repeat(MIN, () => [leg("Loud", "Phoenix", "Boston"),
+                                   leg("Guard", "Boston", "Phoenix")]);
+  const cards = [rankCard("Loud")];
+  T.enrichRankCards(cards, deals, hollow);
+  check("an empty worker entry falls through to the sample",
+    cards[0].payload.dests[0].team === "BOS" && cards[0].payload.detail_note !== "",
+    JSON.stringify(cards[0].payload.dests));
+}
+
+{
+  // The endpoint being down is the ordinary case, not an error case.
+  const deals = repeat(MIN, () => [leg("Loud", "Phoenix", "Boston"),
+                                   leg("Guard", "Boston", "Phoenix")]);
+  const a = [rankCard("Loud")], b = [rankCard("Loud")];
+  T.enrichRankCards(a, deals, null);
+  T.enrichRankCards(b, deals);
+  check("a null worker response behaves exactly as before it existed",
+    JSON.stringify(a[0].payload) === JSON.stringify(b[0].payload));
+}
+
+{
+  // Worker up, log down. This is the pairing that broke the trades tab once
+  // already, and the rank cards should still say something.
+  const cards = [rankCard("Loud")];
+  T.enrichRankCards(cards, [], movers);
+  check("the worker alone is enough, with no log at all",
+    cards[0].payload.dests[0].team === "BOS", JSON.stringify(cards[0].payload.dests));
+}
+
+{
+  // A city the abbreviation table does not know must still render as itself
+  // rather than as the string "null".
+  const odd = { "Loud": { player: "Loud", to: [{ name: "Sao Paulo", n: 3, pct: 10 }], with: [] } };
+  const cards = [rankCard("Loud")];
+  T.enrichRankCards(cards, [], odd);
+  check("an unknown city falls back to its own name",
+    cards[0].payload.dests[0].team === "Sao Paulo",
+    JSON.stringify(cards[0].payload.dests));
+}
+
 console.log(failures ? "\n" + failures + " failure(s)" : "\nrank detail counts what it claims to count");
 process.exit(failures ? 1 : 0);

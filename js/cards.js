@@ -277,23 +277,35 @@
   function rankDetail(p) {
     var dests = p.dests || [], back = p.back || [];
     if (!dests.length && !back.length) return "";
+    /* Share of his own trades, not a count. A raw "41" next to the "228 of
+     * 8,373" on the line above invited a comparison between two things counted
+     * over different windows; a percentage of his own builds does not. Counts
+     * are still in the payload for anyone who wants them. */
+    function val(d) {
+      if (d.pct == null) return esc(String(d.n));
+      var v = +d.pct;
+      return esc((v >= 10 ? Math.round(v) : Math.round(v * 10) / 10) + "%");
+    }
     var rows = "";
     if (dests.length) {
       rows += '<div class="trd-row"><span class="trd-key mono">SENT TO</span>' +
         dests.map(function (d) {
           return '<span class="trd-v">' + ent(d.team, "team") +
-            ' <span class="mono trd-n">' + esc(String(d.n)) + '</span></span>';
+            ' <span class="mono trd-n">' + val(d) + '</span></span>';
         }).join('<span class="trd-sep">·</span>') + '</div>';
     }
     if (back.length) {
       rows += '<div class="trd-row"><span class="trd-key mono">TRADED FOR</span>' +
         back.map(function (d) {
           return '<span class="trd-v">' + ent(d.name, "player") +
-            ' <span class="mono trd-n">' + esc(String(d.n)) + '</span></span>';
+            ' <span class="mono trd-n">' + val(d) + '</span></span>';
         }).join('<span class="trd-sep">·</span>') + '</div>';
     }
+    /* Only the sampled path needs qualifying. When the numbers cover the same
+     * seven days as the share line above, an empty note is the honest one. */
+    var note = String(p.detail_note || "");
     return '<div class="trd">' + rows +
-      '<div class="trd-note mono">' + esc(String(p.detail_note || "")) + '</div></div>';
+      (note ? '<div class="trd-note mono">' + esc(note) + '</div>' : "") + '</div>';
   }
 
   /* Thousands separators, because "9977 trades" reads as a part number. */
