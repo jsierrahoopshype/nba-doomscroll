@@ -197,7 +197,7 @@ let dupSeasons = 0, phantomRows = 0, phantomSeasons = 0;
 for (const [key, rows] of rawRows) {
   const [player, y] = key.split("|");
   const year = parseInt(y, 10);
-  const cleaned = stripPhantomTeamRows(rows, statTeams.get(key));
+  const cleaned = stripPhantomTeamRows(rows, statTeams.get(key), year);
   if (cleaned.length !== rows.length) {
     phantomRows += rows.length - cleaned.length;
     phantomSeasons++;

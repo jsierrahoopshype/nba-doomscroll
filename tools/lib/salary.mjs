@@ -43,12 +43,36 @@
  * It never strips a player down to nothing: with no stats on file, or if every
  * row looks phantom, the rows come back unchanged for the caller to handle.
  *
+ * SCOPED TO THE IMPORTER'S OWN SEASONS, which the first version was not.
+ *
+ * Matching on "same salary, different teams" across all of history removed 16
+ * seasons it had no business touching:
+ *
+ *     Marcus Camby 2015    TOR $4,177,208 / HOU
+ *     Zylan Cheatham 2022  UTA $85,578 / MIA / NOP
+ *     Briante Weber 2016   MIA $30,887 / MEM
+ *
+ * Those are 10-day contracts. The 10-day minimum is a fixed formula, so a
+ * journeyman who signs one with two clubs in a season is paid the SAME amount
+ * by each. Two rows, one salary, two teams, both real - and dropping one
+ * understates his career, which is the same error as the overstatement this
+ * exists to fix, only pointing the other way and harder to notice.
+ *
+ * Identical salaries are not evidence of a copy. What identifies the bug is
+ * where the row came from: update-salaries.py writes only IMPORT_YEARS, so
+ * only those seasons can hold a row it invented. Everything else is left as
+ * it is.
+ *
  * @param {{team: string, amount: number}[]} rows  salary rows for one player-season
  * @param {Set<string>|string[]|null} playedTeams  teams rsStats has him playing for
+ * @param {number|string} year  the season; outside IMPORTER_YEARS nothing is stripped
  * @returns {{team: string, amount: number}[]} the rows worth trusting
  */
-export function stripPhantomTeamRows(rows, playedTeams) {
+export const IMPORTER_YEARS = new Set([2026]);
+
+export function stripPhantomTeamRows(rows, playedTeams, year) {
   if (!Array.isArray(rows) || rows.length < 2) return rows || [];
+  if (!IMPORTER_YEARS.has(parseInt(year, 10))) return rows;
   if (!playedTeams) return rows;
   const played = playedTeams instanceof Set ? playedTeams : new Set(playedTeams);
   if (!played.size) return rows;
