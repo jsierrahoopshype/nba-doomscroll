@@ -48,7 +48,7 @@ import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents } from "./
 import { raceFaceTile, decodePng, resize, encodePng } from "./lib/png.mjs";
 import { resolveSource, findFiles, findFolders, findCsvWithColumns, cleanPath } from "./lib/find.mjs";
 import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan, mergePlayoffs } from "./lib/games.mjs";
-import { buildRace } from "./lib/race.mjs";
+import { buildRace, careerYearOf } from "./lib/race.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -571,10 +571,15 @@ const HH_TOP10 = [
 
   // player -> season-ending year -> career year (1-based)
   const careerYear = new Map();
+  // player -> his season years, ascending. careerYearOf needs the list, not the
+  // map, because an award can land on a season he never played.
+  const seasonList = new Map();
   for (const [player, years] of seasonsOf) {
+    const sorted = [...years].sort((a, b) => a - b);
     const m = new Map();
-    [...years].sort((a, b) => a - b).forEach((y, i) => m.set(y, i + 1));
+    sorted.forEach((y, i) => m.set(y, i + 1));
     careerYear.set(player, m);
+    seasonList.set(player, sorted);
   }
 
   const BY_CAREER = [
@@ -642,18 +647,23 @@ const HH_TOP10 = [
   for (const c of BY_CAREER_AWARD) {
     const increments = [];
     const tally = new Map();
-    let offSeason = 0;
+    const carried = [];
+    let dropped = 0;
     for (const a of awards) {
       const player = a["PLAYER / COACH"];
-      const m = careerYear.get(player);
-      if (!m || !c.match(a.AWARD)) continue;
-      const cy = m.get(parseInt(a.YEAR, 10));
-      /* An award stamped with a season the player has no stat row for. Real
-       * cases exist (a title won in a season he did not appear in), and it is
-       * also what a year-stamp mismatch between the two files looks like, so
-       * it is counted rather than dropped in silence. */
-      if (!cy) { offSeason++; continue; }
-      increments.push({ step: String(cy).padStart(2, "0"), key: player, value: 1 });
+      const ys = seasonList.get(player);
+      if (!ys || !c.match(a.AWARD)) continue;
+      const year = parseInt(a.YEAR, 10);
+      /* An award stamped with a season the player never played is credited to
+       * the year he won it, not backdated - Magic's February 1992 All-Star,
+       * voted in three months after he retired, is his thirteenth year in the
+       * league and lands on Year 13. Each one is named in the output: it is
+       * also what a year-stamp mismatch between the two files would look like,
+       * and that should never pass unseen. */
+      const place = careerYearOf(ys, year);
+      if (!place) { dropped++; continue; }
+      if (!place.exact) carried.push(player.split(" ").pop() + " " + year + " -> Year " + place.careerYear);
+      increments.push({ step: String(place.careerYear).padStart(2, "0"), key: player, value: 1 });
       tally.set(player, (tally.get(player) || 0) + 1);
     }
 
@@ -665,8 +675,9 @@ const HH_TOP10 = [
 
     console.log("    " + c.what + ":  " +
       [...tally.entries()].sort((a, b) => b[1] - a[1])
-        .map(([n, v]) => n.split(" ").pop() + " " + v).join(", ") +
-      (offSeason ? "   (" + offSeason + " stamped to a season with no stat row)" : ""));
+        .map(([n, v]) => n.split(" ").pop() + " " + v).join(", "));
+    if (carried.length) console.log("      won in a season he did not play: " + carried.join(", "));
+    if (dropped) console.log("      " + dropped + " DROPPED, stamped before the player's first season");
 
     add(buildRace({
       slug: c.slug, group: "Career",
@@ -681,7 +692,10 @@ const HH_TOP10 = [
        * had yet. */
       minRows: 1,
       note: "Year 1 is each man's first NBA season with a stat line on file. " +
-            "The field is HoopsHype's top ten of all time, not the all-time leaders.",
+            "The field is HoopsHype's top ten of all time, not the all-time leaders. " +
+            "An award won in a season he did not play is credited to the year he won " +
+            "it: Magic Johnson's 1992 All-Star selection, voted in after he retired, " +
+            "lands on his Year 13.",
       tags: { category: ["career", "goat", "awards"] }
     }, increments, playerEntity));
   }
