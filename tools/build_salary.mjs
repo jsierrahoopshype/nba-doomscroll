@@ -34,6 +34,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { resolveSource } from "./lib/find.mjs";
+import { stripPhantomTeamRows, summariseSeason, MIN_PAYROLL_OF_CAP } from "./lib/salary.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -74,21 +75,16 @@ const MIN_PAYROLL_PLAYERS = 8; // a roster row count below this is incomplete da
 /* A roster COUNT cannot tell you a payroll is complete, and believing it could
  * is how "Luka Doncic was 47% of the LAL payroll in 2025-26" shipped. Eleven
  * men cleared the count above; the book they summed to was $96.8M when the
- * Lakers actually paid $197.1M, so the true share was 23%. LeBron - the
- * highest-paid player on the team - was simply not in the dataset, which is
- * also why the card named Austin Reaves as the next-highest earner.
+ * Lakers actually paid $197.1M, so the true share was 23%.
  *
- * The money can tell you what the count cannot. Every NBA team must spend at
- * least 90% of the cap (the salary floor) or write a cheque for the shortfall,
- * so a team-season summing to less than that is missing people, full stop. The
- * card was already printing the cap two lines above the claim it contradicted.
+ * What emptied that book is handled at source now - see stripPhantomTeamRows
+ * in ./lib/salary.mjs - but the guard stays, because it is about the
+ * arithmetic and not about any one cause. Every NBA team must spend at least
+ * 90% of the cap or write a cheque for the shortfall, so a team-season summing
+ * to less than that is missing people, whatever dropped them. The card was
+ * already printing the cap two lines above the claim it contradicted.
  *
- * Set below the floor rather than at it: a team genuinely at the floor should
- * still get its card, and the failure this catches is not marginal - the two
- * bad ones came in at 63% and 73%, against 121% to 224% for every card that
- * was right. Anything landing between 80% and 90% is worth a look rather than
- * a silent drop, so the builder prints those instead of just skipping them. */
-const MIN_PAYROLL_OF_CAP = 0.80;
+ * MIN_PAYROLL_OF_CAP lives in ./lib/salary.mjs, shared with the diagnostic. */
 const TOP_N = 5;
 const MAX_PER_PLAYER = 3;
 const MAX_PER_FAMILY_SHARE = 0.18;
@@ -139,23 +135,27 @@ const teamCode = t => {
 
 /* A player-season's salary.
  *
- * TWO DIFFERENT THINGS PRODUCE MULTIPLE ROWS, and treating them alike is
- * expensive. A genuine mid-season trade splits the salary: two rows, two
- * DIFFERENT amounts that sum to the season. The 2026 rows do something else -
- * the same full salary repeated under two teams, 117 times, which summed to
- * double pay and produced "Khris Middleton's points cost $109,645 each" off a
- * salary he was never paid.
+ * THREE THINGS PRODUCE MULTIPLE ROWS and they need different treatment.
  *
- * They are told apart by whether the amounts differ. Identical amounts are one
- * salary listed twice: counted once, and the team marked ambiguous so the
- * payroll families - which need to know whose book a man was on - leave that
- * season alone rather than putting LeBron James on Philadelphia's payroll.
+ *   1. A genuine mid-season trade. Two rows, two DIFFERENT amounts summing to
+ *      the season. Summed, and the season marked traded.
  *
- * Checked across the whole file: every season before 2026 has multi-row cases
- * with differing amounts (real trades); 2026 has 117 identical ones. This is a
- * data problem in nba-player-data, not a modelling choice, and it is recorded
- * in BACKLOG.md. */
-const pay = new Map();
+ *   2. The same salary written twice under one team. Counted once.
+ *
+ *   3. NEXT season's team carrying THIS season's money. salaries.json ends at
+ *      2026 with no 2027 season, and for 145 players who move for 2026-27 it
+ *      appends a second 2026 row naming the new team with the current salary
+ *      copied in. LeBron James is LA Lakers $52,627,153 and Philadelphia
+ *      $52,627,153; he is a 76er next season and is paid $3,876,529 there.
+ *
+ * Case 3 used to be mistaken for case 2 and the season was discarded as
+ * ambiguous, which cost the 2025-26 payroll cards more than half a roster.
+ * stripPhantomTeamRows removes those rows before any of this runs, using
+ * rsStats as the check on who actually played where. What reaches the code
+ * below is cases 1 and 2 only.
+ *
+ * Worth reporting upstream: this is a bug in nba-player-data, not a modelling
+ * choice, and the same rows will be wrong again next season. */
 const rawRows = new Map();
 for (const r of salaryRows) {
   const year = parseInt(r.YEAR, 10);
@@ -166,28 +166,20 @@ for (const r of salaryRows) {
   if (!rawRows.has(key)) rawRows.set(key, []);
   rawRows.get(key).push({ team: teamCode(r.TEAM), amount: amt });
 }
-let dupSeasons = 0;
-for (const [key, rows] of rawRows) {
-  const [player, y] = key.split("|");
-  const year = parseInt(y, 10);
-  const amounts = new Set(rows.map(r => r.amount));
-  const duplicated = rows.length > 1 && amounts.size === 1;
-  if (duplicated) dupSeasons++;
-  pay.set(key, {
-    player, year,
-    total: duplicated ? rows[0].amount : rows.reduce((n, r) => n + r.amount, 0),
-    teams: rows,
-    teamAmbiguous: duplicated,
-    traded: !duplicated && rows.length > 1
-  });
-}
 
+/* The stats are read BEFORE the salaries are interpreted, because who a man
+ * played for is what tells a real second team from a phantom one. They used to
+ * be read after, which is why the phantom rows had nothing to be checked
+ * against and got discarded as unknowable instead. */
 const stats = new Map();        // "PLAYER|YEAR" -> merged season line
+const statTeams = new Map();    // "PLAYER|YEAR" -> Set of teams he played for
 for (const r of statRows) {
   const year = parseInt(r.YEAR, 10);
   if (!r.PLAYER || !year) continue;
   const key = r.PLAYER + "|" + year;
   const gp = num(r.GP);
+  if (!statTeams.has(key)) statTeams.set(key, new Set());
+  statTeams.get(key).add(teamCode(r.TEAM));
   if (!stats.has(key)) {
     stats.set(key, { player: r.PLAYER, year, team: r.TEAM, gp: 0, min: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tpm: 0, rows: 0 });
   }
@@ -197,6 +189,28 @@ for (const r of statRows) {
   e.gp += gp; e.min += num(r.MIN); e.pts += num(r.PTS);
   e.reb += num(r.REB); e.ast += num(r.AST); e.stl += num(r.STL);
   e.blk += num(r.BLK); e.tpm += num(r["3P"]); e.rows++;
+}
+
+/* Now the salaries can be interpreted, with the phantom rows taken out first. */
+const pay = new Map();
+let dupSeasons = 0, phantomRows = 0, phantomSeasons = 0;
+for (const [key, rows] of rawRows) {
+  const [player, y] = key.split("|");
+  const year = parseInt(y, 10);
+  const cleaned = stripPhantomTeamRows(rows, statTeams.get(key));
+  if (cleaned.length !== rows.length) {
+    phantomRows += rows.length - cleaned.length;
+    phantomSeasons++;
+  }
+  const s = summariseSeason(cleaned);
+  if (s.teamAmbiguous) dupSeasons++;
+  pay.set(key, { player, year, ...s });
+}
+if (phantomSeasons) {
+  console.log(`  salaries: dropped ${phantomRows} row(s) across ${phantomSeasons} player-seasons ` +
+    `naming a team the stats do not have, at a salary copied from another row ` +
+    `— next season's move written into this season. Report upstream: it is a ` +
+    `bug in nba-player-data and the same rows recur every year.`);
 }
 
 const seasons = [];             // joined, one per player-season
