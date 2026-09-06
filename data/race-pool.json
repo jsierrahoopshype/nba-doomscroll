@@ -1,6 +1,6 @@
 {
  "built": "2026-09-06",
- "count": 218,
+ "count": 221,
  "cards": [
   {
    "id": "race-career-points",
@@ -541,6 +541,128 @@
     "steps": 23,
     "leader": "LeBron James",
     "file": "data/races/r/top10-career-year-assists.json"
+   }
+  },
+  {
+   "id": "race-top10-career-year-allnba",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Tim Duncan",
+     "Kareem Abdul-Jabbar",
+     "Kobe Bryant",
+     "Shaquille O'Neal"
+    ],
+    "teams": [
+     "CLE",
+     "SAS",
+     "LAL",
+     "CHI",
+     "BOS",
+     "GSW"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "top10-career-year-allnba",
+    "title": "The top 10 all-time, by career All-NBA selections",
+    "subtitle": "HoopsHype's ten greatest, Year 1 to the end. First, Second and Third Team, cumulative",
+    "span": "Year 1-Year 23",
+    "group": "Career",
+    "unit": "selections",
+    "kind": "player",
+    "tier": 1,
+    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders.",
+    "steps": 23,
+    "leader": "LeBron James",
+    "file": "data/races/r/top10-career-year-allnba.json"
+   }
+  },
+  {
+   "id": "race-top10-career-year-allstar",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Kareem Abdul-Jabbar",
+     "Kobe Bryant",
+     "Shaquille O'Neal",
+     "Tim Duncan"
+    ],
+    "teams": [
+     "CLE",
+     "LAL",
+     "SAS",
+     "CHI",
+     "GSW",
+     "BOS"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "top10-career-year-allstar",
+    "title": "The top 10 all-time, by career All-Star selections",
+    "subtitle": "HoopsHype's ten greatest, Year 1 to the end. Cumulative All-Star nods",
+    "span": "Year 1-Year 23",
+    "group": "Career",
+    "unit": "selections",
+    "kind": "player",
+    "tier": 1,
+    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders.",
+    "steps": 23,
+    "leader": "LeBron James",
+    "file": "data/races/r/top10-career-year-allstar.json"
+   }
+  },
+  {
+   "id": "race-top10-career-year-rings",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Bill Russell",
+     "Kareem Abdul-Jabbar",
+     "Michael Jordan",
+     "Magic Johnson",
+     "Tim Duncan"
+    ],
+    "teams": [
+     "BOS",
+     "LAL",
+     "CHI",
+     "SAS",
+     "CLE"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "top10-career-year-rings",
+    "title": "The top 10 all-time, by career championships",
+    "subtitle": "HoopsHype's ten greatest, Year 1 to the end. Rings, credited to the season won",
+    "span": "Year 1-Year 23",
+    "group": "Career",
+    "unit": "rings",
+    "kind": "player",
+    "tier": 1,
+    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders.",
+    "steps": 23,
+    "leader": "Bill Russell",
+    "file": "data/races/r/top10-career-year-rings.json"
    }
   },
   {
