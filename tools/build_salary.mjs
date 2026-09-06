@@ -71,6 +71,24 @@ const MIN_GP = 58;             // a rate over fewer games is a sample, not a sea
 const MIN_MIN = 1200;          // and not a bench role either
 const MIN_SEASON = 1991;       // salaries.json starts here
 const MIN_PAYROLL_PLAYERS = 8; // a roster row count below this is incomplete data
+/* A roster COUNT cannot tell you a payroll is complete, and believing it could
+ * is how "Luka Doncic was 47% of the LAL payroll in 2025-26" shipped. Eleven
+ * men cleared the count above; the book they summed to was $96.8M when the
+ * Lakers actually paid $197.1M, so the true share was 23%. LeBron - the
+ * highest-paid player on the team - was simply not in the dataset, which is
+ * also why the card named Austin Reaves as the next-highest earner.
+ *
+ * The money can tell you what the count cannot. Every NBA team must spend at
+ * least 90% of the cap (the salary floor) or write a cheque for the shortfall,
+ * so a team-season summing to less than that is missing people, full stop. The
+ * card was already printing the cap two lines above the claim it contradicted.
+ *
+ * Set below the floor rather than at it: a team genuinely at the floor should
+ * still get its card, and the failure this catches is not marginal - the two
+ * bad ones came in at 63% and 73%, against 121% to 224% for every card that
+ * was right. Anything landing between 80% and 90% is worth a look rather than
+ * a silent drop, so the builder prints those instead of just skipping them. */
+const MIN_PAYROLL_OF_CAP = 0.80;
 const TOP_N = 5;
 const MAX_PER_PLAYER = 3;
 const MAX_PER_FAMILY_SHARE = 0.18;
@@ -315,12 +333,40 @@ for (const s of seasons) {
   }
 }
 
-const payrolls = [...rosters.values()].filter(r => r.men.length >= MIN_PAYROLL_PLAYERS);
-for (const r of payrolls) {
+/* Two gates, and the second is the one that matters. Count first because it is
+ * cheap, then the book against that season's cap. A season with no cap on file
+ * cannot be checked, so it is dropped rather than trusted: an unverifiable
+ * share is the exact thing this guard exists to stop publishing. */
+const payrollAll = [...rosters.values()].filter(r => r.men.length >= MIN_PAYROLL_PLAYERS);
+for (const r of payrollAll) {
   r.men.sort((a, b) => b.amount - a.amount);
   r.total = r.men.reduce((n, m) => n + m.amount, 0);
   r.topShare = r.total ? r.men[0].amount / r.total : 0;
   r.top3Share = r.total ? (r.men.slice(0, 3).reduce((n, m) => n + m.amount, 0)) / r.total : 0;
+  r.cap = caps.get(r.year) || null;
+  r.ofCap = r.cap ? r.total / r.cap : null;
+}
+
+const payrolls = payrollAll.filter(r => r.ofCap !== null && r.ofCap >= MIN_PAYROLL_OF_CAP);
+{
+  const dropped = payrollAll.filter(r => payrolls.indexOf(r) < 0);
+  const marginal = payrolls.filter(r => r.ofCap < 0.9)
+    .sort((a, b) => a.ofCap - b.ofCap);
+  if (dropped.length) {
+    const worst = dropped.slice()
+      .sort((a, b) => (a.ofCap === null ? -1 : b.ofCap === null ? 1 : a.ofCap - b.ofCap))
+      .slice(0, 6)
+      .map(r => `${r.team} ${r.year} ${r.ofCap === null ? "no cap on file" :
+        (r.ofCap * 100).toFixed(0) + "% of cap, " + r.men.length + " men"}`);
+    console.log(`  payroll cards: dropped ${dropped.length} team-seasons whose book ` +
+      `is under ${(MIN_PAYROLL_OF_CAP * 100).toFixed(0)}% of the cap — the dataset is ` +
+      `missing players and the share would be wrong:\n    ${worst.join("\n    ")}`);
+  }
+  if (marginal.length) {
+    console.log(`  payroll cards: ${marginal.length} kept between ${(MIN_PAYROLL_OF_CAP * 100).toFixed(0)}% ` +
+      `and the 90% floor, worth an eye:\n    ` +
+      marginal.slice(0, 6).map(r => `${r.team} ${r.year} ${(r.ofCap * 100).toFixed(0)}%`).join(", "));
+  }
 }
 
 /* Most top-heavy payrolls: one man taking the largest share of his team's book. */
@@ -334,6 +380,11 @@ for (const r of payrolls.slice().sort((a, b) => b.topShare - a.topShare).slice(0
       season: seasonLabel(r.year), salary: fmtMoney(m.amount),
       cap_pct: caps.get(r.year) ? (m.amount / caps.get(r.year) * 100).toFixed(1) : "",
       cap: caps.get(r.year) ? fmtMoney(caps.get(r.year)) : "",
+      /* Not rendered. Recorded so the shipped pool can be checked without a
+       * second copy of the cap table living in a test file: the number that
+       * decided this card is a fact is carried by the card itself. */
+      of_cap: Math.round(r.ofCap * 1000) / 1000,
+      paid_players: r.men.length,
       detail: `${fmtMoney(m.amount)} of a ${fmtMoney(r.total)} book across ${r.men.length} paid players. ` +
               `The next-highest was ${r.men[1].player} at ${fmtMoney(r.men[1].amount)}.`,
       note: `Payroll here is the sum of the salaries in this dataset for that team and season, ` +
@@ -349,6 +400,9 @@ for (const r of payrolls.slice().sort((a, b) => b.total - a.total).slice(0, 8)) 
     {
       headline: `${r.team}'s five biggest salaries in ${seasonLabel(r.year)}`,
       subtitle: `${fmtMoney(r.total)} across ${r.men.length} paid players`,
+      // Not rendered; see the note on the concentration card above.
+      of_cap: Math.round(r.ofCap * 1000) / 1000,
+      paid_players: r.men.length,
       rows: r.men.slice(0, TOP_N).map((m, i) => ({
         rank: i + 1, name: m.player, img: faceFor(m.player),
         value: fmtMoney(m.amount),
