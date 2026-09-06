@@ -41,16 +41,30 @@ echo === ballot oddities ===
 node tools\build_oddities.mjs --local "%MVT_DATA%"
 if errorlevel 1 exit /b 1
 
-REM Optional: only runs when CAP_CSV is set in paths.cmd. Skipping it leaves the
-REM existing salary cards alone rather than failing the build.
+REM ALWAYS RUN, because "skipped" is a lie the day the cards are wrong.
+REM
+REM This used to be gated on CAP_CSV being set in paths.cmd, from when the
+REM builder needed both paths typed at it. It finds them itself now. The gate
+REM outlived the reason for it and became a trap: a rebuild that silently left
+REM the salary cards alone, printing a line nobody reads, on the same day those
+REM cards were the ones being fixed.
+REM
+REM Still not allowed to fail the build. If the sources are not on this machine
+REM it says so and the existing cards stay as they are, which is what the gate
+REM was protecting - just without pretending nothing was meant to happen.
+echo.
+echo === salary stories ===
 if defined CAP_CSV (
-  echo.
-  echo === salary stories ===
   node tools\build_salary.mjs --local "%NPD%" "%CAP_CSV%"
-  if errorlevel 1 exit /b 1
 ) else (
+  node tools\build_salary.mjs
+)
+if errorlevel 1 (
   echo.
-  echo   [skipped] salary stories - set CAP_CSV in tools\win\paths.cmd to build them
+  echo   Salary cards were NOT rebuilt - the builder could not find its sources.
+  echo   The existing ones are untouched and the rest of the build is fine.
+  echo   Set NPD and CAP_CSV in tools\win\paths.cmd to point it at them.
+  echo.
 )
 
 echo.
