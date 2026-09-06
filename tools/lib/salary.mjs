@@ -86,17 +86,39 @@ export function stripPhantomTeamRows(rows, playedTeams, year) {
 
 /** Re-derive a player-season from rows the strip above may have changed.
  *
- * Kept next to the strip because the two must agree about what a duplicate
- * means, and they did not when the logic was written twice. */
-export function summariseSeason(rows) {
+ * WHEN IDENTICAL AMOUNTS ARE ONE SALARY, AND WHEN THEY ARE TWO
+ *
+ * This used to count any repeated amount once, which was written for the 2026
+ * phantom rows and is wrong everywhere else. The 10-day minimum is a fixed
+ * formula, so Marcus Camby's two 2015 stints really were $4,177,208 each and
+ * he really was paid both. Counting them once understated twenty journeyman
+ * careers.
+ *
+ * Three cases, and the team is what separates them:
+ *
+ *   same amount, SAME team    one salary written twice. Counted once, always.
+ *   same amount, other teams  two real stints at a formula wage. Summed -
+ *                             EXCEPT inside the importer's own seasons, where
+ *                             an unresolved phantom can still look like this
+ *                             and summing it would double a man's pay.
+ *   different amounts         a mid-season trade. Summed.
+ *
+ * @param {{team: string, amount: number}[]} rows
+ * @param {number|string} year  the season, for the importer-year exception
+ */
+export function summariseSeason(rows, year) {
   const list = Array.isArray(rows) ? rows : [];
-  const amounts = new Set(list.map(r => r.amount));
-  const duplicated = list.length > 1 && amounts.size === 1;
+  const sameAmount = list.length > 1 && new Set(list.map(r => r.amount)).size === 1;
+  const sameTeam = list.length > 1 && new Set(list.map(r => r.team)).size === 1;
+  const importerSeason = IMPORTER_YEARS.has(parseInt(year, 10));
+  const countOnce = sameAmount && (sameTeam || importerSeason);
   return {
     teams: list,
-    total: duplicated ? list[0].amount : list.reduce((n, r) => n + r.amount, 0),
-    teamAmbiguous: duplicated,
-    traded: !duplicated && list.length > 1
+    total: countOnce ? list[0].amount : list.reduce((n, r) => n + r.amount, 0),
+    /* Still "ambiguous" only where nobody can say whose book he was on. Two
+     * 10-days name two real books and are not ambiguous at all. */
+    teamAmbiguous: countOnce && !sameTeam,
+    traded: !countOnce && list.length > 1
   };
 }
 

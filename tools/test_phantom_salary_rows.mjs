@@ -49,7 +49,7 @@ console.log("\nstripping the phantom row");
   check("LeBron: the team he did not play for goes",
     out.length === 1 && out[0].team === "LAL", teams(out));
 
-  const s = summariseSeason(out);
+  const s = summariseSeason(out, Y);
   check("and what is left is one clean, unambiguous season",
     s.total === 52627153 && !s.teamAmbiguous && !s.traded,
     JSON.stringify([s.total, s.teamAmbiguous, s.traded]));
@@ -62,11 +62,11 @@ console.log("\nstripping the phantom row");
   check("traded mid-season AND signed elsewhere: only the copy goes",
     out.length === 2 && teams(out) === "BOS,MIA", teams(out));
 
-  const s = summariseSeason(out);
+  const s = summariseSeason(out, Y);
   check("and the two real halves still sum to the season",
     s.total === 35000000 && s.traded, JSON.stringify([s.total, s.traded]));
 
-  const naive = summariseSeason(rows);
+  const naive = summariseSeason(rows, Y);
   check("without the strip it would have summed all three",
     naive.total === 55000000, String(naive.total));
 }
@@ -162,11 +162,31 @@ console.log("\nseasons the importer never wrote");
 console.log("\nthe season summary");
 
 {
-  const s = summariseSeason([row("LAL", 5000000), row("LAL", 5000000)]);
-  check("the same salary twice under ONE team counts once",
-    s.total === 5000000 && s.teamAmbiguous, String(s.total));
-  const e = summariseSeason([]);
+  /* Same team, same amount: one salary written twice, whatever the year. */
+  for (const y of [Y, 2015]) {
+    const s = summariseSeason([row("LAL", 5000000), row("LAL", 5000000)], y);
+    check("the same salary twice under ONE team counts once (" + y + ")",
+      s.total === 5000000 && !s.teamAmbiguous, String(s.total));
+  }
+
+  /* THE TWENTY JOURNEYMEN. Two clubs at one formula wage, outside the
+   * importer's seasons: two real payments, and he was paid both. */
+  const camby = summariseSeason([row("TOR", 4177208), row("HOU", 4177208)], 2015);
+  check("two 10-days at one figure are SUMMED, not counted once",
+    camby.total === 8354416 && !camby.teamAmbiguous && camby.traded,
+    String(camby.total));
+
+  /* Inside the importer's seasons the same shape may be an unresolved
+   * phantom, and summing it would double a man's pay. Counted once. */
+  const unresolved = summariseSeason([row("LAL", 52627153), row("PHI", 52627153)], Y);
+  check("but inside 2026 that shape is still counted once",
+    unresolved.total === 52627153 && unresolved.teamAmbiguous,
+    String(unresolved.total));
+
+  const e = summariseSeason([], Y);
   check("an empty season totals zero rather than throwing", e.total === 0);
+  check("a missing year behaves like a non-importer season",
+    summariseSeason([row("TOR", 100), row("HOU", 100)]).total === 200);
 }
 
 console.log("\nthe floor it shares with the guard");
