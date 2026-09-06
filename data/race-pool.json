@@ -1,6 +1,6 @@
 {
- "built": "2026-09-04",
- "count": 215,
+ "built": "2026-09-06",
+ "count": 218,
  "cards": [
   {
    "id": "race-career-points",
@@ -422,6 +422,128 @@
    }
   },
   {
+   "id": "race-top10-career-year-points",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Kareem Abdul-Jabbar",
+     "Kobe Bryant",
+     "Michael Jordan",
+     "Wilt Chamberlain"
+    ],
+    "teams": [
+     "CLE",
+     "LAL",
+     "CHI",
+     "GSW",
+     "SAS",
+     "BOS"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "top10-career-year-points",
+    "title": "The top 10 all-time, by career points",
+    "subtitle": "HoopsHype's ten greatest, Year 1 to the end, cumulative pts",
+    "span": "Year 1-Year 23",
+    "group": "Career",
+    "unit": "pts",
+    "kind": "player",
+    "tier": 1,
+    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the career leaders.",
+    "steps": 23,
+    "leader": "LeBron James",
+    "file": "data/races/r/top10-career-year-points.json"
+   }
+  },
+  {
+   "id": "race-top10-career-year-rebounds",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "Wilt Chamberlain",
+     "Bill Russell",
+     "Kareem Abdul-Jabbar",
+     "Tim Duncan",
+     "Shaquille O'Neal"
+    ],
+    "teams": [
+     "GSW",
+     "BOS",
+     "LAL",
+     "SAS",
+     "CLE"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "top10-career-year-rebounds",
+    "title": "The top 10 all-time, by career rebounds",
+    "subtitle": "HoopsHype's ten greatest, Year 1 to the end, cumulative reb",
+    "span": "Year 1-Year 23",
+    "group": "Career",
+    "unit": "reb",
+    "kind": "player",
+    "tier": 1,
+    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the career leaders.",
+    "steps": 23,
+    "leader": "Wilt Chamberlain",
+    "file": "data/races/r/top10-career-year-rebounds.json"
+   }
+  },
+  {
+   "id": "race-top10-career-year-assists",
+   "type": "race",
+   "tab": [
+    "races"
+   ],
+   "tags": {
+    "content_type": "race",
+    "players": [
+     "LeBron James",
+     "Magic Johnson",
+     "Kobe Bryant",
+     "Larry Bird",
+     "Kareem Abdul-Jabbar"
+    ],
+    "teams": [
+     "CLE",
+     "LAL",
+     "BOS",
+     "CHI",
+     "GSW",
+     "SAS"
+    ],
+    "era": "all-time",
+    "category": "career"
+   },
+   "payload": {
+    "slug": "top10-career-year-assists",
+    "title": "The top 10 all-time, by career assists",
+    "subtitle": "HoopsHype's ten greatest, Year 1 to the end, cumulative ast",
+    "span": "Year 1-Year 23",
+    "group": "Career",
+    "unit": "ast",
+    "kind": "player",
+    "tier": 1,
+    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the career leaders.",
+    "steps": 23,
+    "leader": "LeBron James",
+    "file": "data/races/r/top10-career-year-assists.json"
+   }
+  },
+  {
    "id": "race-career-earnings",
    "type": "race",
    "tab": [
@@ -433,18 +555,18 @@
      "LeBron James",
      "Kevin Durant",
      "Stephen Curry",
-     "Paul George",
-     "Kawhi Leonard"
+     "James Harden",
+     "Paul George"
     ],
     "teams": [
      "CLE",
      "OKC",
      "GSW",
-     "IND",
-     "SAS",
      "HOU",
+     "IND",
      "NOP",
-     "MIL"
+     "SAS",
+     "CHI"
     ],
     "era": "all-time",
     "category": "career"
