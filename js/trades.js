@@ -29,10 +29,22 @@
    * and fell through to Cloudflare's own "Page not found", so every trade card
    * and the trends card quietly disappeared.
    *
-   * A custom domain is the more durable address anyway: workers.dev is a
-   * per-account toggle that can be turned off for reasons that have nothing to
-   * do with this feed. Worth remembering that the digest Worker below is still
-   * on workers.dev and carries the same risk. */
+   * WHAT ACTUALLY SWITCHED IT OFF, since this comment guessed twice before it
+   * knew: `workers_dev = false`, written in the wrangler.toml of the
+   * hoopsmatic-worker repo. That Worker moved to wrangler deploys on Sept 4
+   * 2026 and the first deploy applied the line. Nobody flipped a toggle and
+   * Cloudflare changed nothing.
+   *
+   * The setting is also correct. That Worker serves hoopsmatic.com; it has no
+   * use for a public workers.dev hostname. The bug was entirely on this side -
+   * this file was reading an address the deploy was about to retire.
+   *
+   * So: the digest Worker below, and the rumors API, and the CORS proxy, are
+   * NOT carrying the same risk, whatever an earlier version of this comment
+   * said. They are edited in the dashboard and never deployed with wrangler,
+   * so nothing is going to retire their subdomains. If one of them ever moves
+   * to wrangler, check its wrangler.toml for this line before the first deploy
+   * and give it a custom domain if it needs a public hostname. */
   var TRADE_LOG_URL = "https://hoopsmatic.com/api/trade-log";
   // The log holds ~446K rows. If the endpoint ever returns all of them that is
   // tens of MB over a phone connection, so ask for a slice. The param is
