@@ -63,5 +63,42 @@ ck("without minRows a two-man opening frame is still skipped",
 const e2 = buildRace({ slug:"e", group:"g", title:"e", unit:"u", kind:"player", minRows: 2 }, thin, ent);
 ck("with minRows:2 it is kept", e2 && e2.labels[0] === "1998", e2 && e2.labels[0]);
 
+/* allSteps: an award axis has holes a stat axis never has.
+ *
+ * All-NBA and rings arrive in bursts. If none of a fixed ten-man field won
+ * anything in career year 5, that year has no increment, and without a declared
+ * axis it would not exist at all - the chart would run Year 4 straight into
+ * Year 6 and quietly imply nothing happened in between by not being there. */
+{
+  const inc = [];
+  for (const y of [1, 2, 3, 4, 6, 7, 8]) {           // nothing at all in year 5
+    inc.push({ step: String(y).padStart(2, "0"), key: "A", value: 1 });
+    inc.push({ step: String(y).padStart(2, "0"), key: "B", value: 1 });
+  }
+  const all = [1,2,3,4,5,6,7,8].map(n => String(n).padStart(2, "0"));
+  const spec = {
+    slug: "aw", group: "g", title: "aw", unit: "u", kind: "player",
+    stepSort: (a, b) => Number(a) - Number(b), labelFor: s => "Year " + Number(s), minRows: 1
+  };
+
+  const without = buildRace(spec, inc, ent);
+  ck("without allSteps the empty year is simply absent",
+     without.labels.length === 7 && !without.labels.includes("Year 5"),
+     without.labels.join(","));
+
+  const with_ = buildRace({ ...spec, allSteps: all }, inc, ent);
+  ck("with allSteps the empty year gets a frame",
+     with_.labels.length === 8 && with_.labels[4] === "Year 5", with_.labels.join(","));
+  ck("and the running totals carry into it unchanged",
+     with_.f[4][0][1] === 4 && with_.f[3][0][1] === 4,
+     [with_.f[3][0][1], with_.f[4][0][1], with_.f[5][0][1]].join(" -> "));
+  ck("a declared step nobody has reached yet is still skipped at the front",
+     with_.labels[0] === "Year 1");
+
+  /* Declared steps must not resurrect a race that has no data. */
+  const empty = buildRace({ ...spec, allSteps: all }, [], ent);
+  ck("allSteps alone does not build a race out of nothing", empty === null);
+}
+
 console.log(fail ? "\n"+fail+" failure(s)" : "\nthe career-year axis sorts and labels correctly");
 process.exit(fail?1:0);

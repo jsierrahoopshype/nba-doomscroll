@@ -608,6 +608,83 @@ const HH_TOP10 = [
       tags: { category: ["career", "goat"] }
     }, increments, playerEntity));
   }
+
+  /* ---- the same ten, by career awards ----
+   *
+   * Awards behave differently from points on this axis. Points tick every
+   * season; an All-NBA team or a ring arrives in bursts, and a career year in
+   * which none of the ten won anything has no increment at all. Left alone the
+   * axis would run Year 20, Year 21, Year 23 and never say that Year 22 was
+   * empty, so the full career-year grid is declared and the flat years show as
+   * flat years.
+   *
+   * The tallies are printed. They are the check: Russell's eleven rings and
+   * Kareem's fifteen All-NBA teams are known numbers, and a matcher that reads
+   * the wrong AWARD string produces a race that renders beautifully and is
+   * wrong. A tally that looks off means the string in awards.json is not the
+   * string being matched. */
+
+  const maxCY = Math.max(...[...careerYear.values()].map(m => m.size));
+  const ALL_CY = Array.from({ length: maxCY }, (_, i) => String(i + 1).padStart(2, "0"));
+
+  const BY_CAREER_AWARD = [
+    { slug: "top10-career-year-allnba", what: "All-NBA selections", unit: "selections",
+      sub: "First, Second and Third Team, cumulative",
+      match: a => /^All-NBA (First|Second|Third) Team$/.test(a) },
+    { slug: "top10-career-year-allstar", what: "All-Star selections", unit: "selections",
+      sub: "Cumulative All-Star nods",
+      match: a => a === "All-Star" },
+    { slug: "top10-career-year-rings", what: "championships", unit: "rings",
+      sub: "Rings, credited to the season won",
+      match: a => a === "NBA Champion" }
+  ];
+
+  for (const c of BY_CAREER_AWARD) {
+    const increments = [];
+    const tally = new Map();
+    let offSeason = 0;
+    for (const a of awards) {
+      const player = a["PLAYER / COACH"];
+      const m = careerYear.get(player);
+      if (!m || !c.match(a.AWARD)) continue;
+      const cy = m.get(parseInt(a.YEAR, 10));
+      /* An award stamped with a season the player has no stat row for. Real
+       * cases exist (a title won in a season he did not appear in), and it is
+       * also what a year-stamp mismatch between the two files looks like, so
+       * it is counted rather than dropped in silence. */
+      if (!cy) { offSeason++; continue; }
+      increments.push({ step: String(cy).padStart(2, "0"), key: player, value: 1 });
+      tally.set(player, (tally.get(player) || 0) + 1);
+    }
+
+    if (!increments.length) {
+      console.log("  " + c.slug.padEnd(26) + "  NO ROWS MATCHED - the AWARD string in " +
+        "awards.json is not what this matcher expects. Race not built.");
+      continue;
+    }
+
+    console.log("    " + c.what + ":  " +
+      [...tally.entries()].sort((a, b) => b[1] - a[1])
+        .map(([n, v]) => n.split(" ").pop() + " " + v).join(", ") +
+      (offSeason ? "   (" + offSeason + " stamped to a season with no stat row)" : ""));
+
+    add(buildRace({
+      slug: c.slug, group: "Career",
+      title: "The top 10 all-time, by career " + c.what,
+      subtitle: "HoopsHype's ten greatest, Year 1 to the end. " + c.sub,
+      unit: c.unit, kind: "player", tier: 1,
+      stepSort: (a, b) => Number(a) - Number(b),
+      labelFor: s => "Year " + Number(s),
+      allSteps: ALL_CY,
+      /* One man alone on the chart in Year 1 is the story here, not a thin
+       * frame: somebody won something in his rookie season and nobody else
+       * had yet. */
+      minRows: 1,
+      note: "Year 1 is each man's first NBA season with a stat line on file. " +
+            "The field is HoopsHype's top ten of all time, not the all-time leaders.",
+      tags: { category: ["career", "goat", "awards"] }
+    }, increments, playerEntity));
+  }
 }
 
 /* ---- career earnings ---- */

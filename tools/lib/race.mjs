@@ -24,7 +24,15 @@ export function buildRace(spec, increments, entityFor) {
   /* Steps sort as strings, which is right for a 4-digit season and wrong for
    * anything else: career year 10 would land between 1 and 2. A spec that uses
    * a different axis brings its own comparator. */
-  const steps = [...perStep.keys()].sort(spec.stepSort || undefined);
+  const seen = new Set(perStep.keys());
+  /* A spec may declare the full axis. Without it the axis is only the steps
+   * something happened in, which is right for a stat that ticks every season
+   * and wrong for an award: if none of a fixed field won anything in career
+   * year 22, that year would simply not exist and the axis would read
+   * ... 20, 21, 23. Declared steps with no increment still get a frame, and
+   * the running totals carry into it unchanged. */
+  for (const s of spec.allSteps || []) seen.add(s);
+  const steps = [...seen].sort(spec.stepSort || undefined);
   if (steps.length < 6) return null;
 
   const total = new Map();
@@ -33,7 +41,7 @@ export function buildRace(spec, increments, entityFor) {
   const usedKeys = new Set();
 
   for (const step of steps) {
-    for (const [k, v] of perStep.get(step)) total.set(k, (total.get(k) || 0) + v);
+    for (const [k, v] of (perStep.get(step) || [])) total.set(k, (total.get(k) || 0) + v);
     const rows = [...total.entries()]
       .filter(([, v]) => v > 0)
       .sort((a, b) => b[1] - a[1])
