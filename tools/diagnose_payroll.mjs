@@ -24,6 +24,17 @@
  * So this prints what the builder actually saw, filter by filter, instead of
  * anyone guessing again. It reads; it writes nothing and builds nothing.
  *
+ * WHAT IT FOUND, Sept 6 2026
+ *
+ * Filter 1, and for a reason nobody had guessed. salaries.json ends at 2026
+ * with no 2027 season, and for 145 players who move for 2026-27 it appends a
+ * SECOND 2026 row naming the new team with the current salary copied in:
+ * LeBron is LA Lakers $52,627,153 and Philadelphia $52,627,153, when he is
+ * paid $3,876,529 in Philadelphia next season. Right team, wrong year, wrong
+ * money. The builder read those as one salary listed twice, could not say
+ * whose book he was on, and discarded the season - fifteen of twenty-eight
+ * Lakers, gone. It now strips those rows using the stats as the check.
+ *
  * Everything it prints is your own data on your own terminal. It prints counts
  * and one named player's row, not the roster's salaries.
  */
@@ -32,6 +43,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { resolveSource } from "./lib/find.mjs";
+import { stripPhantomTeamRows } from "./lib/salary.mjs";
 
 const argv = process.argv.slice(2);
 const arg = (name, dflt) => {
@@ -118,22 +130,43 @@ if (traded.length) {
 /* ---- stage 3: the stats join ---- */
 
 const hasStats = new Set();
+const playedFor = new Map();    // player -> Set of teams rsStats has him playing for
 for (const r of statRows) {
-  if (parseInt(r.YEAR, 10) === YEAR && r.PLAYER) hasStats.add(r.PLAYER);
+  if (parseInt(r.YEAR, 10) !== YEAR || !r.PLAYER) continue;
+  hasStats.add(r.PLAYER);
+  if (!playedFor.has(r.PLAYER)) playedFor.set(r.PLAYER, new Set());
+  playedFor.get(r.PLAYER).add(teamCode(r.TEAM));
 }
+
+/* The rule build_salary.mjs now applies, from the same module, so this cannot
+ * drift into describing a builder that behaves differently. */
+const cleanRows = p => stripPhantomTeamRows(byPlayer.get(p) || [], playedFor.get(p));
+const phantomFor = p => (byPlayer.get(p) || []).length - cleanRows(p).length;
+const withPhantom = [...playersInFile].filter(p => phantomFor(p) > 0);
+
+line("     of those, rows the stats expose as phantom   " + withPhantom.length +
+     "   (team not played for, salary copied from another row)");
+
 const survivors = [...playersInFile].filter(p => !ambiguous.includes(p));
 const noStats = survivors.filter(p => !hasStats.has(p));
 line("  3. dropped for having no rsStats row            " + noStats.length +
      "   (salary present, stat line absent)");
 
-const counted = survivors.filter(p => hasStats.has(p));
-const book = counted.reduce((n, p) => {
-  const rows = (byPlayer.get(p) || []).filter(r => r.team === TEAM);
-  return n + (rows[0] ? rows[0].amount : 0);
+const bookOf = (list, rowsFn) => list.reduce((n, p) => {
+  const rs = rowsFn(p).filter(r => r.team === TEAM);
+  return n + (rs[0] ? rs[0].amount : 0);
 }, 0);
+const before = survivors.filter(p => hasStats.has(p));
+/* After the strip, a player is counted when he has stats and at least one
+ * surviving row on this team - which is exactly the builder's test. */
+const after = [...playersInFile].filter(p =>
+  hasStats.has(p) && cleanRows(p).some(r => r.team === TEAM) &&
+  !(cleanRows(p).length > 1 && new Set(cleanRows(p).map(r => r.amount)).size === 1));
+
 line("  " + "-".repeat(64));
-line("  players the payroll card would count            " + counted.length);
-line("  the book it would divide by                     " + fmt(book));
+line("  BEFORE:  " + before.length + " players, book " +
+     fmt(bookOf(before, p => byPlayer.get(p) || [])));
+line("  AFTER :  " + after.length + " players, book " + fmt(bookOf(after, cleanRows)));
 
 /* ---- the named player ---- */
 
@@ -147,11 +180,18 @@ if (!his) {
        his.map(r => r.team + " " + fmt(r.amount)).join(", "));
   line("     rsStats row for " + YEAR + ": " + (hasStats.has(WHO) ? "yes" : "NO"));
   const amb = his.length > 1 && new Set(his.map(r => r.amount)).size === 1;
-  line("     flagged ambiguous: " + (amb ? "YES — excluded from every payroll book" : "no"));
+  line("     was flagged ambiguous: " + (amb ? "YES — used to be dropped entirely" : "no"));
+  const played = playedFor.get(WHO);
+  line("     rsStats says he played for: " +
+       (played && played.size ? [...played].join(", ") : "nothing on file"));
+  const clean = cleanRows(WHO);
+  line("     rows kept after the strip: " +
+       (clean.length ? clean.map(r => r.team + " " + fmt(r.amount)).join(", ") : "none"));
   line("     ends up in the " + TEAM + " book: " +
-       (his.some(r => r.team === TEAM) && !amb && hasStats.has(WHO) ? "yes" : "NO"));
+       (hasStats.has(WHO) && clean.some(r => r.team === TEAM) ? "yes" : "NO"));
 }
 line("");
-line("  Paste the block above. The three drop counts say which filter did it,");
-line("  and whether the fix is in nba-player-data or in build_salary.mjs.");
+line("  BEFORE is what shipped. AFTER is what the fixed builder produces.");
+line("  The phantom rows are a bug in nba-player-data and will recur next");
+line("  season; this only stops them reaching the cards.");
 line("");
