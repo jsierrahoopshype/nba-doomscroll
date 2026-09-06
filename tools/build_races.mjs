@@ -57,9 +57,6 @@ const OUT_R = path.join(OUT, "r");
 const HEADSHOT_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/";
 const LOGO_BASE = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/";
 
-const KEEP = 15;         // rows stored per step; the player shows 10 and lets
-                          // the rest animate in and out of the frame
-
 /* FIVE PATHS WAS FOUR TOO MANY.
  *
  * This builder asked for a player-data checkout, a headshots repo, a CSV, a
@@ -452,61 +449,6 @@ for (const [player, m] of gpByPlayerTeam) {
 
 /* ---------------- race assembly ---------------- */
 
-/* Builds one race from a flat list of {step, key, value} increments.
- * Values accumulate step over step. Steps are emitted in sorted order and any
- * step where nothing has happened yet is skipped, so a race never opens on an
- * empty chart. */
-function buildRace(spec, increments, entityFor) {
-  const perStep = new Map();       // step -> Map(key -> delta)
-  for (const inc of increments) {
-    if (!inc.step || !inc.key || !inc.value) continue;
-    let m = perStep.get(inc.step);
-    if (!m) { m = new Map(); perStep.set(inc.step, m); }
-    m.set(inc.key, (m.get(inc.key) || 0) + inc.value);
-  }
-  const steps = [...perStep.keys()].sort();
-  if (steps.length < 6) return null;
-
-  const total = new Map();
-  const labels = [];
-  const frames = [];
-  const usedKeys = new Set();
-
-  for (const step of steps) {
-    for (const [k, v] of perStep.get(step)) total.set(k, (total.get(k) || 0) + v);
-    const rows = [...total.entries()]
-      .filter(([, v]) => v > 0)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, KEEP);
-    if (rows.length < 3) continue;       // skip the thin opening seasons
-    labels.push(String(step));
-    frames.push(rows);
-    rows.forEach(([k]) => usedKeys.add(k));
-  }
-  if (labels.length < 6) return null;
-
-  // Only entities that ever made the top KEEP get shipped.
-  const keys = [...usedKeys];
-  const idx = new Map(keys.map((k, i) => [k, i]));
-  const entities = keys.map(entityFor);
-
-  return {
-    slug: spec.slug,
-    group: spec.group,
-    title: spec.title,
-    subtitle: spec.subtitle,
-    unit: spec.unit,
-    fmt: spec.fmt || "int",
-    kind: spec.kind,
-    tier: spec.tier || 2,
-    note: spec.note || "",
-    tags: spec.tags || {},
-    labels,
-    e: entities,
-    f: frames.map(rows => rows.map(([k, v]) => [idx.get(k), Math.round(v * (spec.fmt === "float1" ? 10 : 1))]))
-  };
-}
-
 const playerEntity = name => {
   const t = mainTeam.get(name) || null;
   const img = faceFor(name);
@@ -563,6 +505,108 @@ for (const c of CAREER) {
     unit: c.unit, kind: "player", tier: c.tier,
     tags: { category: ["career", "leaders"] }
   }, rs.map(r => ({ step: r.YEAR, key: r.PLAYER, value: num(r[c.col]) })), playerEntity));
+}
+
+/* ---- the HoopsHype top 10, raced by career year ----
+ *
+ * Every other race here runs on calendar time, which means Russell's peak and
+ * Jokic's never share a frame. This one puts them on the same axis: Year 1
+ * against Year 1, Year 12 against Year 12. Jordan's fifth season races
+ * Kareem's fifth.
+ *
+ * THE FIELD IS FIXED, and that is the point. A leaderboard race is won by
+ * whoever played longest; this one is HoopsHype's own top ten, so the question
+ * is not "who scored most" but "how did these ten get there, and when".
+ *
+ * WHAT YEAR 1 MEANS. The first season with a regular-season stat row. That is
+ * NBA time only: Julius Erving's ABA years would not count, and neither do
+ * Russell's Olympic or college years. Anyone whose seasons predate the stat
+ * file starts late and the note says so rather than the chart implying he
+ * scored nothing.
+ *
+ * NAMES ARE MATCHED EXACTLY and every miss is printed. A silently unmatched
+ * name is a player quietly missing from a ten-man race, which is the kind of
+ * thing that ships and stays wrong for months.
+ *
+ * Steals and blocks are deliberately absent: they were not recorded before
+ * 1973-74, so Russell and Chamberlain would sit at zero for their whole
+ * careers and the race would be about record-keeping. */
+
+const HH_TOP10 = [
+  "LeBron James", "Michael Jordan", "Kareem Abdul-Jabbar", "Magic Johnson",
+  "Bill Russell", "Wilt Chamberlain", "Larry Bird", "Kobe Bryant",
+  "Shaquille O'Neal", "Tim Duncan"
+];
+
+{
+  console.log("HoopsHype top 10, by career year…");
+  const want = new Set(HH_TOP10);
+
+  /* Seasons per player, deduped by YEAR: a man traded mid-season has a row per
+   * team and that is one season of his career, not two. */
+  const seasonsOf = new Map();
+  for (const r of rs) {
+    if (!want.has(r.PLAYER)) continue;
+    const y = parseInt(r.YEAR, 10);
+    if (!y) continue;
+    if (!seasonsOf.has(r.PLAYER)) seasonsOf.set(r.PLAYER, new Set());
+    seasonsOf.get(r.PLAYER).add(y);
+  }
+
+  const missing = HH_TOP10.filter(n => !seasonsOf.has(n));
+  if (missing.length) {
+    console.log("  NOT FOUND in rsStats.json, so absent from every career-year race:");
+    for (const n of missing) console.log("    " + n);
+    console.log("  Check the spelling against the file before trusting these races.");
+  }
+  for (const n of HH_TOP10) {
+    const ys = seasonsOf.get(n);
+    if (!ys) continue;
+    const sorted = [...ys].sort((a, b) => a - b);
+    console.log("    " + n.padEnd(22) + sorted.length + " seasons, " +
+      (sorted[0] - 1) + "-" + String(sorted[0]).slice(2) + " to " +
+      (sorted[sorted.length - 1] - 1) + "-" + String(sorted[sorted.length - 1]).slice(2));
+  }
+
+  // player -> season-ending year -> career year (1-based)
+  const careerYear = new Map();
+  for (const [player, years] of seasonsOf) {
+    const m = new Map();
+    [...years].sort((a, b) => a - b).forEach((y, i) => m.set(y, i + 1));
+    careerYear.set(player, m);
+  }
+
+  const BY_CAREER = [
+    { slug: "top10-career-year-points",   col: "PTS", what: "points",   unit: "pts" },
+    { slug: "top10-career-year-rebounds", col: "REB", what: "rebounds", unit: "reb" },
+    { slug: "top10-career-year-assists",  col: "AST", what: "assists",  unit: "ast" }
+  ];
+
+  for (const c of BY_CAREER) {
+    const increments = [];
+    for (const r of rs) {
+      const m = careerYear.get(r.PLAYER);
+      if (!m) continue;
+      const cy = m.get(parseInt(r.YEAR, 10));
+      if (!cy) continue;
+      // Zero-padded so the axis reads 01..24 and sorts numerically anyway.
+      increments.push({ step: String(cy).padStart(2, "0"), key: r.PLAYER, value: num(r[c.col]) });
+    }
+    add(buildRace({
+      slug: c.slug, group: "Career",
+      title: "The top 10 all-time, by career " + c.what,
+      subtitle: "HoopsHype's ten greatest, Year 1 to the end, cumulative " + c.unit,
+      unit: c.unit, kind: "player", tier: 1,
+      stepSort: (a, b) => Number(a) - Number(b),
+      labelFor: s => "Year " + Number(s),
+      /* A fixed ten-man field: two men in Year 1 is the race starting, not a
+       * thin frame worth skipping. */
+      minRows: 2,
+      note: "Year 1 is each man's first NBA season with a stat line on file. " +
+            "The field is HoopsHype's top ten of all time, not the career leaders.",
+      tags: { category: ["career", "goat"] }
+    }, increments, playerEntity));
+  }
 }
 
 /* ---- career earnings ---- */
