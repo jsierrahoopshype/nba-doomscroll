@@ -26,8 +26,11 @@
  * matters - what the rule refuses, and what it leaves alone.
  */
 
-import { stripPhantomTeamRows, summariseSeason, MIN_PAYROLL_OF_CAP }
+import { stripPhantomTeamRows, summariseSeason, MIN_PAYROLL_OF_CAP, IMPORTER_YEARS }
   from "./lib/salary.mjs";
+
+/* Every existing case is about the season the importer writes. */
+const Y = 2026;
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -42,7 +45,7 @@ console.log("\nstripping the phantom row");
 {
   // The real case, to the dollar.
   const rows = [row("LAL", 52627153), row("PHI", 52627153)];
-  const out = stripPhantomTeamRows(rows, new Set(["LAL"]));
+  const out = stripPhantomTeamRows(rows, new Set(["LAL"]), Y);
   check("LeBron: the team he did not play for goes",
     out.length === 1 && out[0].team === "LAL", teams(out));
 
@@ -55,7 +58,7 @@ console.log("\nstripping the phantom row");
 {
   // The case the first version of this fix got wrong: traded AND moving.
   const rows = [row("BOS", 20000000), row("MIA", 15000000), row("PHX", 20000000)];
-  const out = stripPhantomTeamRows(rows, new Set(["BOS", "MIA"]));
+  const out = stripPhantomTeamRows(rows, new Set(["BOS", "MIA"]), Y);
   check("traded mid-season AND signed elsewhere: only the copy goes",
     out.length === 2 && teams(out) === "BOS,MIA", teams(out));
 
@@ -70,7 +73,7 @@ console.log("\nstripping the phantom row");
 
 {
   const rows = [row("ATL", 5000000), row("", 5000000)];
-  const out = stripPhantomTeamRows(rows, new Set(["ATL"]));
+  const out = stripPhantomTeamRows(rows, new Set(["ATL"]), Y);
   check("the blank-team row in the data is stripped like any other",
     out.length === 1 && out[0].team === "ATL", teams(out));
 }
@@ -79,7 +82,7 @@ console.log("\nleaving alone what it should");
 
 {
   const rows = [row("BOS", 20000000), row("MIA", 15000000)];
-  const out = stripPhantomTeamRows(rows, new Set(["BOS", "MIA"]));
+  const out = stripPhantomTeamRows(rows, new Set(["BOS", "MIA"]), Y);
   check("a plain mid-season trade is untouched", out.length === 2, teams(out));
 }
 
@@ -87,7 +90,7 @@ console.log("\nleaving alone what it should");
   // The protection that matters: a real second contract pays a different
   // number. Only an exact match is treated as a copy.
   const rows = [row("LAL", 52627153), row("PHI", 3876529)];
-  const out = stripPhantomTeamRows(rows, new Set(["LAL"]));
+  const out = stripPhantomTeamRows(rows, new Set(["LAL"]), Y);
   check("a DIFFERENT amount is never stripped, even for a team he never played for",
     out.length === 2, teams(out) + "  (this is the real LeBron pair, correctly stamped)");
 }
@@ -95,15 +98,15 @@ console.log("\nleaving alone what it should");
 {
   const rows = [row("LAL", 52627153), row("PHI", 52627153)];
   check("no stats on file: nothing is known, nothing is stripped",
-    stripPhantomTeamRows(rows, null).length === 2);
+    stripPhantomTeamRows(rows, null, Y).length === 2);
   check("an empty stats set is the same as none",
-    stripPhantomTeamRows(rows, new Set()).length === 2);
+    stripPhantomTeamRows(rows, new Set(), Y).length === 2);
 }
 
 {
   // Both teams unplayed and equal would strip everything. Refuse instead.
   const rows = [row("PHI", 5000000), row("BKN", 5000000)];
-  const out = stripPhantomTeamRows(rows, new Set(["MIA"]));
+  const out = stripPhantomTeamRows(rows, new Set(["MIA"]), Y);
   check("it never strips a season down to nothing", out.length === 2, teams(out));
 }
 
@@ -113,17 +116,47 @@ console.log("\nleaving alone what it should");
   check("an empty list does not throw",
     stripPhantomTeamRows([], new Set(["LAL"])).length === 0);
   check("undefined rows do not throw",
-    stripPhantomTeamRows(undefined, undefined).length === 0);
+    stripPhantomTeamRows(undefined, undefined, Y).length === 0);
 }
 
 {
   // History has no phantom rows, and must not acquire any.
   const rows = [row("CHI", 33140000)];
   check("a 1997-98 single-team season is unchanged",
-    stripPhantomTeamRows(rows, new Set(["CHI"])).length === 1);
+    stripPhantomTeamRows(rows, new Set(["CHI"]), 1998).length === 1);
   const split = [row("ORL", 10000000), row("PHX", 6000000)];
   check("a 1990s mid-season trade is unchanged",
-    stripPhantomTeamRows(split, new Set(["ORL", "PHX"])).length === 2);
+    stripPhantomTeamRows(split, new Set(["ORL", "PHX"]), 1998).length === 2);
+}
+
+console.log("\nseasons the importer never wrote");
+
+{
+  /* THE CASE THAT WAS SHIPPED WRONG. Matching on "same salary, different
+   * teams" across all of history removed these, and each one is real money.
+   * The 10-day minimum is a fixed formula, so two clubs pay the same figure to
+   * the dollar - the exact signature this rule used to read as a copy. */
+  const camby = [row("TOR", 4177208), row("HOU", 4177208)];
+  check("Marcus Camby 2015: two 10-days at one figure, both kept",
+    stripPhantomTeamRows(camby, new Set(["TOR"]), 2015).length === 2,
+    teams(stripPhantomTeamRows(camby, new Set(["TOR"]), 2015)));
+
+  const cheatham = [row("UTA", 85578), row("MIA", 85578), row("NOP", 85578)];
+  check("Zylan Cheatham 2022: three clubs at one figure, all kept",
+    stripPhantomTeamRows(cheatham, new Set(["UTA"]), 2022).length === 3,
+    teams(stripPhantomTeamRows(cheatham, new Set(["UTA"]), 2022)));
+
+  check("the identical shape IS stripped inside the importer's season",
+    stripPhantomTeamRows([row("LAL", 52627153), row("PHI", 52627153)],
+      new Set(["LAL"]), 2026).length === 1,
+    "which is the whole point: the year is what distinguishes them");
+
+  check("a missing year strips nothing",
+    stripPhantomTeamRows([row("LAL", 5), row("PHI", 5)], new Set(["LAL"])).length === 2);
+  check("a non-numeric year strips nothing",
+    stripPhantomTeamRows([row("LAL", 5), row("PHI", 5)], new Set(["LAL"]), "soon").length === 2);
+  check("IMPORTER_YEARS is what update-salaries.py writes",
+    IMPORTER_YEARS.has(2026) && !IMPORTER_YEARS.has(2025), [...IMPORTER_YEARS].join(","));
 }
 
 console.log("\nthe season summary");

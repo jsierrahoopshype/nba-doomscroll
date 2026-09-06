@@ -102,7 +102,7 @@ let affectedSeasons = 0;
 for (const [k, rows] of raw) {
   const player = k.slice(0, k.lastIndexOf("|"));
   const naive = rows.reduce((n, r) => n + r.amount, 0);
-  const clean = summariseSeason(stripPhantomTeamRows(rows, statTeams.get(k))).total;
+  const clean = summariseSeason(stripPhantomTeamRows(rows, statTeams.get(k), parseInt(k.slice(k.lastIndexOf("|") + 1), 10))).total;
   if (naive !== clean) affectedSeasons++;
   naiveCareer.set(player, (naiveCareer.get(player) || 0) + naive);
   cleanCareer.set(player, (cleanCareer.get(player) || 0) + clean);

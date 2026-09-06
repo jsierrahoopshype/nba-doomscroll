@@ -140,7 +140,7 @@ for (const r of statRows) {
 
 /* The rule build_salary.mjs now applies, from the same module, so this cannot
  * drift into describing a builder that behaves differently. */
-const cleanRows = p => stripPhantomTeamRows(byPlayer.get(p) || [], playedFor.get(p));
+const cleanRows = p => stripPhantomTeamRows(byPlayer.get(p) || [], playedFor.get(p), YEAR);
 const phantomFor = p => (byPlayer.get(p) || []).length - cleanRows(p).length;
 const withPhantom = [...playersInFile].filter(p => phantomFor(p) > 0);
 
