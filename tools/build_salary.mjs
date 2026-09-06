@@ -202,7 +202,7 @@ for (const [key, rows] of rawRows) {
     phantomRows += rows.length - cleaned.length;
     phantomSeasons++;
   }
-  const s = summariseSeason(cleaned);
+  const s = summariseSeason(cleaned, year);
   if (s.teamAmbiguous) dupSeasons++;
   pay.set(key, { player, year, ...s });
 }

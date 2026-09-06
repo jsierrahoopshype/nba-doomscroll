@@ -97,12 +97,13 @@ line("  " + "-".repeat(66));
  * "Naive" means adding up every row, which is what a career-earnings figure
  * built straight off this file would do. */
 
+const yearOf = k => parseInt(k.slice(k.lastIndexOf("|") + 1), 10);
 const naiveCareer = new Map(), cleanCareer = new Map();
 let affectedSeasons = 0;
 for (const [k, rows] of raw) {
   const player = k.slice(0, k.lastIndexOf("|"));
   const naive = rows.reduce((n, r) => n + r.amount, 0);
-  const clean = summariseSeason(stripPhantomTeamRows(rows, statTeams.get(k), parseInt(k.slice(k.lastIndexOf("|") + 1), 10))).total;
+  const clean = summariseSeason(stripPhantomTeamRows(rows, statTeams.get(k), yearOf(k)), yearOf(k)).total;
   if (naive !== clean) affectedSeasons++;
   naiveCareer.set(player, (naiveCareer.get(player) || 0) + naive);
   cleanCareer.set(player, (cleanCareer.get(player) || 0) + clean);
