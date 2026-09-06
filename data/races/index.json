@@ -478,6 +478,116 @@
    }
   },
   {
+   "slug": "top10-career-year-allnba",
+   "group": "Career",
+   "title": "The top 10 all-time, by career All-NBA selections",
+   "subtitle": "HoopsHype's ten greatest, Year 1 to the end. First, Second and Third Team, cumulative",
+   "unit": "selections",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders.",
+   "steps": 23,
+   "span": "Year 1-Year 23",
+   "leader": "LeBron James",
+   "file": "data/races/r/top10-career-year-allnba.json",
+   "tags": {
+    "category": [
+     "career",
+     "goat",
+     "awards"
+    ],
+    "players": [
+     "LeBron James",
+     "Tim Duncan",
+     "Kareem Abdul-Jabbar",
+     "Kobe Bryant",
+     "Shaquille O'Neal"
+    ],
+    "teams": [
+     "CLE",
+     "SAS",
+     "LAL",
+     "CHI",
+     "BOS",
+     "GSW"
+    ]
+   }
+  },
+  {
+   "slug": "top10-career-year-allstar",
+   "group": "Career",
+   "title": "The top 10 all-time, by career All-Star selections",
+   "subtitle": "HoopsHype's ten greatest, Year 1 to the end. Cumulative All-Star nods",
+   "unit": "selections",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders.",
+   "steps": 23,
+   "span": "Year 1-Year 23",
+   "leader": "LeBron James",
+   "file": "data/races/r/top10-career-year-allstar.json",
+   "tags": {
+    "category": [
+     "career",
+     "goat",
+     "awards"
+    ],
+    "players": [
+     "LeBron James",
+     "Kareem Abdul-Jabbar",
+     "Kobe Bryant",
+     "Shaquille O'Neal",
+     "Tim Duncan"
+    ],
+    "teams": [
+     "CLE",
+     "LAL",
+     "SAS",
+     "CHI",
+     "GSW",
+     "BOS"
+    ]
+   }
+  },
+  {
+   "slug": "top10-career-year-rings",
+   "group": "Career",
+   "title": "The top 10 all-time, by career championships",
+   "subtitle": "HoopsHype's ten greatest, Year 1 to the end. Rings, credited to the season won",
+   "unit": "rings",
+   "fmt": "int",
+   "kind": "player",
+   "tier": 1,
+   "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders.",
+   "steps": 23,
+   "span": "Year 1-Year 23",
+   "leader": "Bill Russell",
+   "file": "data/races/r/top10-career-year-rings.json",
+   "tags": {
+    "category": [
+     "career",
+     "goat",
+     "awards"
+    ],
+    "players": [
+     "Bill Russell",
+     "Kareem Abdul-Jabbar",
+     "Michael Jordan",
+     "Magic Johnson",
+     "Tim Duncan"
+    ],
+    "teams": [
+     "BOS",
+     "LAL",
+     "CHI",
+     "SAS",
+     "CLE"
+    ]
+   }
+  },
+  {
    "slug": "career-earnings",
    "group": "Career",
    "title": "Most career earnings",
