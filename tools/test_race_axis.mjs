@@ -17,7 +17,7 @@
  * three repos on start-up and cannot be imported without them.
  */
 
-import { buildRace } from "./lib/race.mjs";
+import { buildRace, careerYearOf } from "./lib/race.mjs";
 const ent = n => ({ n });
 let fail = 0;
 const ck = (name, ok, d) => { console.log((ok?"  ok   ":"  FAIL ")+name+(d?"   "+d:"")); if(!ok) fail++; };
@@ -98,6 +98,47 @@ ck("with minRows:2 it is kept", e2 && e2.labels[0] === "1998", e2 && e2.labels[0
   /* Declared steps must not resurrect a race that has no data. */
   const empty = buildRace({ ...spec, allSteps: all }, [], ent);
   ck("allSteps alone does not build a race out of nothing", empty === null);
+}
+
+/* careerYearOf: placing an award on a career axis.
+ *
+ * Magic Johnson is the whole reason this function exists. Real numbers below -
+ * his seasons are 1979-80 to 1990-91, then the 1995-96 comeback, and the
+ * February 1992 All-Star Game sits in the gap. */
+{
+  const MAGIC = [1980,1981,1982,1983,1984,1985,1986,1987,1988,1989,1990,1991,1996];
+
+  const y91 = careerYearOf(MAGIC, 1991);
+  ck("a season he played maps to its own career year",
+     y91.careerYear === 12 && y91.exact, JSON.stringify(y91));
+
+  const y92 = careerYearOf(MAGIC, 1992);
+  ck("the 1992 All-Star, a season he did not play, lands on Year 13",
+     y92.careerYear === 13 && !y92.exact, JSON.stringify(y92));
+
+  ck("it is NOT backdated onto the season he played in 1990-91",
+     careerYearOf(MAGIC, 1992).careerYear !== 12);
+
+  /* The accepted cost: Year 13 means 1991-92 here and 1995-96 in the points
+   * race, because that one counts only seasons played. Asserted rather than
+   * left as a surprise. */
+  const y96 = careerYearOf(MAGIC, 1996);
+  ck("the comeback season is ALSO Year 13, which is the known collision",
+     y96.careerYear === 13 && y96.exact,
+     "1992 -> 13 (carried), 1996 -> 13 (played)");
+
+  ck("1993, 1994 and 1995 would stack on Year 13 too",
+     [1993,1994,1995].every(y => careerYearOf(MAGIC, y).careerYear === 13));
+
+  ck("an award before his first season has nowhere to go",
+     careerYearOf(MAGIC, 1979) === null);
+  ck("no seasons on file returns null", careerYearOf([], 1992) === null);
+  ck("a missing year returns null", careerYearOf(MAGIC, 0) === null);
+
+  /* A man with no gap must be unaffected: every award year is exact. */
+  const DUNCAN = Array.from({length:19},(_,i)=>1998+i);
+  ck("an unbroken career maps every season exactly",
+     DUNCAN.every((y,i) => { const r = careerYearOf(DUNCAN, y); return r.careerYear === i+1 && r.exact; }));
 }
 
 console.log(fail ? "\n"+fail+" failure(s)" : "\nthe career-year axis sorts and labels correctly");
