@@ -578,7 +578,7 @@
     "unit": "selections",
     "kind": "player",
     "tier": 1,
-    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders.",
+    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders. An award won in a season he did not play is credited to the year he won it: Magic Johnson's 1992 All-Star selection, voted in after he retired, lands on his Year 13.",
     "steps": 23,
     "leader": "LeBron James",
     "file": "data/races/r/top10-career-year-allnba.json"
@@ -619,7 +619,7 @@
     "unit": "selections",
     "kind": "player",
     "tier": 1,
-    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders.",
+    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders. An award won in a season he did not play is credited to the year he won it: Magic Johnson's 1992 All-Star selection, voted in after he retired, lands on his Year 13.",
     "steps": 23,
     "leader": "LeBron James",
     "file": "data/races/r/top10-career-year-allstar.json"
@@ -659,7 +659,7 @@
     "unit": "rings",
     "kind": "player",
     "tier": 1,
-    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders.",
+    "note": "Year 1 is each man's first NBA season with a stat line on file. The field is HoopsHype's top ten of all time, not the all-time leaders. An award won in a season he did not play is credited to the year he won it: Magic Johnson's 1992 All-Star selection, voted in after he retired, lands on his Year 13.",
     "steps": 23,
     "leader": "Bill Russell",
     "file": "data/races/r/top10-career-year-rings.json"
