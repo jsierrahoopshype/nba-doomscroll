@@ -138,6 +138,13 @@ a:hover{ text-decoration:underline }
   text-align:center; padding:3rem 1rem; color:var(--text-secondary);
   font-family:'JetBrains Mono',monospace; font-size:.85rem;
 }
+/* A divider inside a feed that keeps going, not a full stop. Quieter and far
+   shorter than .feed-msg, which owns three rems of padding because it is the
+   only thing on screen when it shows. */
+.feed-note{
+  padding:1.1rem 1rem .9rem; font-size:.7rem; opacity:.75;
+  border-top:1px solid var(--border);
+}
 .card{
   background:var(--surface); border:1px solid var(--border); border-radius:12px;
   padding:.8rem .9rem; transition:.15s; position:relative;
