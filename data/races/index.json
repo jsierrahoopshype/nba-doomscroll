@@ -1,5 +1,5 @@
 {
- "built": "2026-09-06",
+ "built": "2026-09-07",
  "races": [
   {
    "slug": "career-points",
@@ -816,9 +816,9 @@
    "kind": "team",
    "tier": 1,
    "note": "",
-   "steps": 77,
-   "span": "1947-2023",
-   "leader": "Los Angeles Lakers",
+   "steps": 80,
+   "span": "1947-2026",
+   "leader": "Boston Celtics",
    "file": "data/races/r/franchise-wins.json",
    "tags": {
     "category": [
@@ -827,8 +827,8 @@
     ],
     "players": [],
     "teams": [
-     "LAL",
      "BOS",
+     "LAL",
      "PHI",
      "NYK",
      "GSW",
@@ -848,8 +848,8 @@
    "kind": "team",
    "tier": 2,
    "note": "",
-   "steps": 79,
-   "span": "1947-2025",
+   "steps": 80,
+   "span": "1947-2026",
    "leader": "Los Angeles Lakers",
    "file": "data/races/r/franchise-playoff-wins.json",
    "tags": {
@@ -863,10 +863,10 @@
      "BOS",
      "PHI",
      "SAS",
-     "GSW",
      "NYK",
+     "GSW",
      "DET",
-     "CHI"
+     "OKC"
     ]
    }
   },
@@ -880,8 +880,8 @@
    "kind": "team",
    "tier": 1,
    "note": "Champion taken as the winner of the last playoff game each season played.",
-   "steps": 77,
-   "span": "1949-2025",
+   "steps": 78,
+   "span": "1949-2026",
    "leader": "Boston Celtics",
    "file": "data/races/r/franchise-titles.json",
    "tags": {
@@ -897,8 +897,8 @@
      "CHI",
      "SAS",
      "PHI",
-     "DET",
-     "HOU"
+     "NYK",
+     "DET"
     ]
    }
   },

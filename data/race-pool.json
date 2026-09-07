@@ -1,5 +1,5 @@
 {
- "built": "2026-09-06",
+ "built": "2026-09-07",
  "count": 221,
  "cards": [
   {
@@ -924,8 +924,8 @@
     "content_type": "race",
     "players": [],
     "teams": [
-     "LAL",
      "BOS",
+     "LAL",
      "PHI",
      "NYK",
      "GSW",
@@ -940,14 +940,14 @@
     "slug": "franchise-wins",
     "title": "All-time franchise wins",
     "subtitle": "Regular season and playoffs, cumulative",
-    "span": "1947-2023",
+    "span": "1947-2026",
     "group": "Franchises",
     "unit": "wins",
     "kind": "team",
     "tier": 1,
     "note": "",
-    "steps": 77,
-    "leader": "Los Angeles Lakers",
+    "steps": 80,
+    "leader": "Boston Celtics",
     "file": "data/races/r/franchise-wins.json"
    }
   },
@@ -965,10 +965,10 @@
      "BOS",
      "PHI",
      "SAS",
-     "GSW",
      "NYK",
+     "GSW",
      "DET",
-     "CHI"
+     "OKC"
     ],
     "era": "all-time",
     "category": "franchise"
@@ -977,13 +977,13 @@
     "slug": "franchise-playoff-wins",
     "title": "All-time franchise playoff wins",
     "subtitle": "Postseason games won, cumulative",
-    "span": "1947-2025",
+    "span": "1947-2026",
     "group": "Franchises",
     "unit": "wins",
     "kind": "team",
     "tier": 2,
     "note": "",
-    "steps": 79,
+    "steps": 80,
     "leader": "Los Angeles Lakers",
     "file": "data/races/r/franchise-playoff-wins.json"
    }
@@ -1004,8 +1004,8 @@
      "CHI",
      "SAS",
      "PHI",
-     "DET",
-     "HOU"
+     "NYK",
+     "DET"
     ],
     "era": "all-time",
     "category": "franchise"
@@ -1014,13 +1014,13 @@
     "slug": "franchise-titles",
     "title": "The championship count",
     "subtitle": "NBA titles, cumulative by season",
-    "span": "1949-2025",
+    "span": "1949-2026",
     "group": "Franchises",
     "unit": "titles",
     "kind": "team",
     "tier": 1,
     "note": "Champion taken as the winner of the last playoff game each season played.",
-    "steps": 77,
+    "steps": 78,
     "leader": "Boston Celtics",
     "file": "data/races/r/franchise-titles.json"
    }
