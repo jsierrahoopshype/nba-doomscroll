@@ -192,6 +192,55 @@ export function scheduleSpan(file) {
 }
 
 /**
+ * Which of the rejected games files is still worth reading for playoffs?
+ *
+ * WHY THE FIRST VERSION OF THIS BROKE
+ *
+ * The rule was "keep any candidate whose history reaches FURTHER than the
+ * winner's". That was a proxy for the real question - does it hold playoff
+ * games the winner lacks - and it held only while the schedule stopped in June
+ * 2023 and the playoff export ran to May 2025.
+ *
+ * Then the schedule was topped up to June 2026 and the proxy inverted. The
+ * playoffs-only file no longer reached further, so it was dropped, and with it
+ * the 636 early playoff games it alone carried: franchise-titles fell from 77
+ * steps to 68 and lost a champion, franchise-playoff-wins from 79 to 70. The
+ * run that caused it looked completely healthy - one line of output quietly
+ * absent.
+ *
+ * So the rule now asks the question directly. A PLAYOFFS-ONLY export exists to
+ * be a deep playoff history; that is the whole reason it is on the machine.
+ * Reading it can only add, because mergePlayoffs is a union de-duplicated on
+ * date plus both team ids - so the cost of reading one that turns out to hold
+ * nothing new is zero, and the cost of skipping one that does is silent.
+ *
+ * Reaching further still wins when both apply: that candidate has the newest
+ * history, which is the scarcer thing.
+ *
+ * @param {{file:string, full:boolean|null, span:{rows:number,to:string|null}}[]} ranked
+ *   candidates in the builder's own order, [0] being the chosen schedule
+ * @returns {object|null} the candidate to merge, with `why` for the log
+ */
+export function pickPlayoffTopUp(ranked) {
+  if (!Array.isArray(ranked) || ranked.length < 2) return null;
+  const to = c => (c && c.span && c.span.to) || "";
+  const rest = ranked.slice(1);
+
+  const further = rest.filter(c => to(c) > to(ranked[0]))
+    .sort((a, b) => String(to(b)).localeCompare(String(to(a))));
+  if (further.length) return Object.assign({}, further[0], { why: "reaches further" });
+
+  /* full === false is "known to be playoffs only". null is "could not tell",
+   * and a file nothing is known about is not merged on a guess. */
+  const playoffOnly = rest.filter(c => c.full === false)
+    .sort((a, b) => ((b.span && b.span.rows) || 0) - ((a.span && a.span.rows) || 0));
+  if (playoffOnly.length) {
+    return Object.assign({}, playoffOnly[0], { why: "playoff history the schedule may not carry" });
+  }
+  return null;
+}
+
+/**
  * Playoff games from a primary schedule, topped up from a playoff-history file.
  *
  * WHY TWO FILES
