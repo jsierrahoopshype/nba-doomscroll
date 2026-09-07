@@ -206,6 +206,72 @@ function importedNames(code) {
   return out;
 }
 
+/* Every name a file BINDS, wherever it does so. Deliberately generous about
+ * scope - a name declared anywhere counts everywhere - and deliberately NARROW
+ * about position. An early version was generous about both, sweeping every
+ * `(...)` and `{...}` for identifiers, which bound `extra` out of
+ * `console.log(`${extra[0]}`)` and passed the very orphan it was written to
+ * catch. Generous about scope, strict about position, is the combination that
+ * works.
+ *
+ * Used by BOTH checks. It started life inside the second one, and while the
+ * first had its own narrower version it reported `score` as missing from
+ * build_teammates.mjs, where every occurrence is `a.score` or an object key.
+ * One definition, one behaviour. */
+function boundNames(code) {
+  const bound = new Set();
+  let m;
+
+  /* function f / class C / const x / let y / var z */
+  const declRe = /(?:^|[^.\w$])(?:function\s*\*?\s*|class\s+|const\s+|let\s+|var\s+)([A-Za-z_$][\w$]*)/g;
+  while ((m = declRe.exec(code))) bound.add(m[1]);
+
+  /* One declaration, several names:  let cross = 0, guard = 0;
+   * declRe catches only the first. Take anything sitting where a declared name
+   * sits - immediately before an = or a comma. */
+  const listRe = /(?:^|[^.\w$])(?:const|let|var)\s+([^;\n]*)/g;
+  while ((m = listRe.exec(code))) {
+    let d;
+    const nameRe = /([A-Za-z_$][\w$]*)\s*(?==[^=]|,|$)/g;
+    while ((d = nameRe.exec(m[1]))) bound.add(d[1]);
+  }
+
+  /* Parameter lists, and nothing else that wears parentheses. */
+  const paramRes = [
+    /\)?\s*\(([^()]*)\)\s*=>/g,                                  // (a, b) =>
+    /function\s*\*?\s*[A-Za-z_$][\w$]*\s*\(([^()]*)\)/g,          // function f(a, b)
+    /function\s*\*?\s*\(([^()]*)\)/g,                             // function (a, b)
+    /catch\s*\(([^()]*)\)/g                                       // catch (e)
+  ];
+  for (const re of paramRes) {
+    while ((m = re.exec(code))) {
+      for (const nm of m[1].match(/[A-Za-z_$][\w$]*/g) || []) bound.add(nm);
+    }
+  }
+  /* A single arrow parameter needs no parentheses, and this codebase is full
+   * of `s => s.trim()`. */
+  const arrowRe = /([A-Za-z_$][\w$]*)\s*=>/g;
+  while ((m = arrowRe.exec(code))) bound.add(m[1]);
+
+  /* Destructuring, in the two places it binds:  const { a, b } = x
+   * and  const [head, ...rest] = x  (and the for-of forms of both). */
+  const destrRes = [
+    /(?:const|let|var|of|in)\s*\{([^{}]*)\}/g,
+    /(?:const|let|var|of|in)\s*\[([^\[\]]*)\]/g
+  ];
+  for (const re of destrRes) {
+    while ((m = re.exec(code))) {
+      for (const nm of m[1].match(/[A-Za-z_$][\w$]*/g) || []) bound.add(nm);
+    }
+  }
+
+  /* An object key is not a reference to anything. */
+  const keyRe = /([A-Za-z_$][\w$]*)\s*:/g;
+  while ((m = keyRe.exec(code))) bound.add(m[1]);
+
+  return bound;
+}
+
 /* ---- what lib/ offers ---- */
 
 const exportsByName = new Map();          // name -> lib file that exports it
@@ -234,21 +300,10 @@ for (const f of callers) {
 
   const imported = importedNames(code);
 
-  /* Names this file defines for itself, at any depth. Deliberately generous:
-   * a false "it's local" only costs us a miss, a false "it's missing" costs a
-   * failing test on working code. */
-  const local = new Set();
-  const declRe = /(?:^|[^.\w$])(?:function\s*\*?\s*|class\s+|const\s+|let\s+|var\s+)([A-Za-z_$][\w$]*)/g;
-  let dm;
-  while ((dm = declRe.exec(code))) local.add(dm[1]);
-  /* const { a, b } = ... and function params named after a lib export. */
-  const destrRe = /(?:const|let|var)\s*\{([^}]*)\}\s*=/g;
-  while ((dm = destrRe.exec(code))) {
-    for (const part of dm[1].split(",")) {
-      const nm = part.trim().split(/[:=]/).pop().trim();
-      if (/^[A-Za-z_$][\w$]*$/.test(nm)) local.add(nm);
-    }
-  }
+  /* The same binding analysis the second check uses. It had its own, narrower
+   * version, which did not know an object key from a reference and so reported
+   * `score` as missing from a file where every occurrence is `a.score`. */
+  const local = boundNames(code);
 
   const missing = [];
   for (const [name, from] of exportsByName) {
@@ -307,66 +362,13 @@ let undef = 0;
 for (const f of callers) {
   const code = stripNonCode(fs.readFileSync(path.join(HERE, f), "utf8"));
 
-  /* Everything this file BINDS a name to. Deliberately generous about scope -
-   * a name declared anywhere counts everywhere - and deliberately NARROW about
-   * position. The first version was generous about both, sweeping every
-   * `(...)` and every `{...}` for identifiers, which bound `extra` from inside
-   * `console.log(`${extra[0]}`)` and so passed the very orphan it was written
-   * to catch. Binding positions only. */
-  const bound = new Set();
-  let m;
-
-  /* function f / class C / const x / let y / var z */
-  const declRe = /(?:^|[^.\w$])(?:function\s*\*?\s*|class\s+|const\s+|let\s+|var\s+)([A-Za-z_$][\w$]*)/g;
-  while ((m = declRe.exec(code))) bound.add(m[1]);
-
-  /* One declaration, several names:  let cross = 0, guard = 0;
-   * declRe catches only the first. Take anything sitting where a declared name
-   * sits - immediately before an = or a comma. */
-  const listRe = /(?:^|[^.\w$])(?:const|let|var)\s+([^;\n]*)/g;
-  while ((m = listRe.exec(code))) {
-    let d;
-    const nameRe = /([A-Za-z_$][\w$]*)\s*(?==[^=]|,|$)/g;
-    while ((d = nameRe.exec(m[1]))) bound.add(d[1]);
-  }
-
-  /* Parameter lists, and nothing else that wears parentheses. */
-  const paramRes = [
-    /\)?\s*\(([^()]*)\)\s*=>/g,                                  // (a, b) =>
-    /function\s*\*?\s*[A-Za-z_$][\w$]*\s*\(([^()]*)\)/g,          // function f(a, b)
-    /function\s*\*?\s*\(([^()]*)\)/g,                             // function (a, b)
-    /catch\s*\(([^()]*)\)/g                                       // catch (e)
-  ];
-  for (const re of paramRes) {
-    while ((m = re.exec(code))) {
-      for (const nm of m[1].match(/[A-Za-z_$][\w$]*/g) || []) bound.add(nm);
-    }
-  }
-  /* A single arrow parameter needs no parentheses, and this codebase is full
-   * of `s => s.trim()`. */
-  const arrowRe = /([A-Za-z_$][\w$]*)\s*=>/g;
-  while ((m = arrowRe.exec(code))) bound.add(m[1]);
-
-  /* Destructuring, in the two places it binds:  const { a, b } = x
-   * and  const [head, ...rest] = x  (and the for-of forms of both). */
-  const destrRes = [
-    /(?:const|let|var|of|in)\s*\{([^{}]*)\}/g,
-    /(?:const|let|var|of|in)\s*\[([^\[\]]*)\]/g
-  ];
-  for (const re of destrRes) {
-    while ((m = re.exec(code))) {
-      for (const nm of m[1].match(/[A-Za-z_$][\w$]*/g) || []) bound.add(nm);
-    }
-  }
-
-  /* An object key is not a reference to anything. */
-  const keyRe = /([A-Za-z_$][\w$]*)\s*:/g;
-  while ((m = keyRe.exec(code))) bound.add(m[1]);
+  const bound = boundNames(code);
 
   const imported = importedNames(code);
 
   const missing = new Set();
   const useRe = /(?:^|[^.\w$?])([A-Za-z_$][\w$]*)/g;
+  let m;
   while ((m = useRe.exec(code))) {
     const nm = m[1];
     if (bound.has(nm) || imported.has(nm) || GLOBALS.has(nm)) continue;

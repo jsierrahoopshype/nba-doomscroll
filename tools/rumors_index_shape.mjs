@@ -166,7 +166,10 @@ if (argv.includes("--parts")) {
     line("");
     line("  PART SIZES  (" + names.length + " parts, HEAD where possible)");
     let total = 0, unknown = 0;
-    for (let i = 0; i < names.length; i++) {
+    /* Parts are numbered from 1. The first version of this counted from 0,
+     * got a 404 on part/0 and never asked for the last one - so it measured
+     * six of seven and reported the total as if that were all of them. */
+    for (let i = 1; i <= names.length; i++) {
       const url = base + "/part/" + i;
       let bytes = null, how = "";
       try {
