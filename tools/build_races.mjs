@@ -47,7 +47,7 @@ import { fileURLToPath } from "url";
 import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents } from "./lib/faces.mjs";
 import { raceFaceTile, decodePng, resize, encodePng } from "./lib/png.mjs";
 import { resolveSource, findFiles, findFolders, findCsvWithColumns, cleanPath } from "./lib/find.mjs";
-import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan, mergePlayoffs } from "./lib/games.mjs";
+import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan, mergePlayoffs, pickPlayoffTopUp } from "./lib/games.mjs";
 import { buildRace, careerYearOf } from "./lib/race.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -159,19 +159,12 @@ if (FIND) {
           `${c.span.rows.toLocaleString()} rows, ${c.span.from || "?"} to ${c.span.to || "?"}`));
         if (ranked.length > 1) console.log("    (full schedule first, then most rows. --games pins one.)");
 
-        /* A REJECTED CANDIDATE CAN STILL BE WORTH READING.
-         *
-         * The playoffs-only file loses on coverage and is right to lose - but
-         * it runs to May 2025 while the chosen schedule stops in June 2023, so
-         * discarding it costs two championships. Any candidate whose history
-         * reaches further than the winner's is kept as a playoff top-up. */
-        const chosenTo = ranked[0].span.to || "";
-        const extra = ranked.slice(1)
-          .filter(c => (c.span.to || "") > chosenTo)
-          .sort((a, b) => String(b.span.to).localeCompare(String(a.span.to)));
-        if (!PLAYOFF_CSV && extra.length) {
-          PLAYOFF_CSV = extra[0].f;
-          console.log(`    playoff top-up: ${PLAYOFF_CSV}`);
+        /* A REJECTED CANDIDATE CAN STILL BE WORTH READING - see
+         * pickPlayoffTopUp, which is where the rule lives and is tested. */
+        const pick = pickPlayoffTopUp(ranked.map(c => ({ file: c.f, full: c.full, span: c.span })));
+        if (!PLAYOFF_CSV && pick) {
+          PLAYOFF_CSV = pick.file;
+          console.log(`    playoff top-up: ${PLAYOFF_CSV}   (${pick.why})`);
           console.log(`           reaches ${extra[0].span.to}, past the chosen schedule's ${chosenTo || "?"}`);
         }
       }

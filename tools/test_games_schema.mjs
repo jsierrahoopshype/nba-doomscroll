@@ -14,7 +14,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import {
-  GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan, mergePlayoffs
+  GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan, mergePlayoffs, pickPlayoffTopUp
 } from "./lib/games.mjs";
 
 let pass = 0, fail = 0;
@@ -193,6 +193,54 @@ ok("two different games on one date both survive", sameDay.rows.length === 2);
 
 ok("no second file means the primary's playoffs, unchanged",
   mergePlayoffs(primary, null).rows.length === 1);
+
+/* ---- which rejected candidate is still worth reading ----
+ *
+ * THE REGRESSION THIS EXISTS TO PREVENT, which shipped once.
+ *
+ * The rule was "keep any candidate reaching FURTHER than the winner". That was
+ * a proxy for "holds playoff games the winner lacks", and it worked only while
+ * the schedule stopped in 2023 and the playoff export ran to 2025. The moment
+ * the schedule was topped up to 2026 the proxy inverted: the playoffs-only file
+ * was dropped, taking 636 early playoff games with it. franchise-titles fell
+ * from 77 steps to 68 and lost a champion. The build printed one less line and
+ * otherwise looked perfect.
+ */
+const sched2023 = { file: "game.csv", full: true, span: { rows: 65698, to: "2023-06-12" } };
+const sched2026 = { file: "game_through_2025_26.csv", full: true, span: { rows: 69647, to: "2026-06-13" } };
+const poOnly    = { file: "Games_Playoffs_Since1946.csv", full: false, span: { rows: 4398, to: "2025-05-02" } };
+
+/* The world as it was: the 2023 schedule won, the playoff export reached
+ * further. My first fixture here put a fuller schedule third in a list whose
+ * [0] is by definition the winner, which is not a list the builder can ever
+ * produce - a fixture describing an impossible input proves nothing. */
+const before = pickPlayoffTopUp([sched2023, poOnly]);
+ok("a candidate reaching further is still chosen",
+  before && before.file === "Games_Playoffs_Since1946.csv", before && before.file);
+
+const after = pickPlayoffTopUp([sched2026, sched2023, poOnly]);
+ok("THE REGRESSION: a playoffs-only file is kept even when it reaches less far",
+  after && after.file === "Games_Playoffs_Since1946.csv", after && after.file);
+
+ok("and the reason is reported, so the log says which rule fired",
+  after && after.why && after.why !== before.why, [before && before.why, after && after.why].join(" | "));
+
+const newest = { file: "playoffs_2027.csv", full: false, span: { rows: 100, to: "2027-06-01" } };
+const both = pickPlayoffTopUp([sched2026, poOnly, newest]);
+ok("reaching further wins when both rules apply", both && both.file === "playoffs_2027.csv",
+  both && both.file);
+
+const twoPo = pickPlayoffTopUp([sched2026, { file: "thin.csv", full: false, span: { rows: 10, to: "2020-01-01" } }, poOnly]);
+ok("between two playoffs-only files the fuller one wins",
+  twoPo && twoPo.file === "Games_Playoffs_Since1946.csv", twoPo && twoPo.file);
+
+/* full === null is "could not tell". A file nothing is known about is not
+ * merged into the championship count on a guess. */
+const unknown = pickPlayoffTopUp([sched2026, { file: "mystery.csv", full: null, span: { rows: 900, to: "2024-01-01" } }]);
+ok("a file whose type could not be read is NOT merged", unknown === null, String(unknown));
+
+ok("one candidate means no top-up", pickPlayoffTopUp([sched2026]) === null);
+ok("no candidates does not throw", pickPlayoffTopUp([]) === null && pickPlayoffTopUp() === null);
 
 fs.rmSync(dir, { recursive: true, force: true });
 console.log(`\n${pass} passed, ${fail} failed`);
