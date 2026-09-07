@@ -22,16 +22,27 @@
  *
  * WHAT THIS CHECKS
  *
- * Not a linter. One question only, which is the question that shape of bug
- * always answers wrongly: does a tools/*.mjs file USE a name that a lib module
- * EXPORTS, without importing it and without defining it itself?
+ * Two questions, both about names nothing defines. Neither needs the builders
+ * to run, which matters: they read three source repos on start-up and cannot
+ * be imported by a test at all.
  *
- * That is exactly what extracting a function into lib/ can break, and it is
- * checkable without running anything or resolving the source repos.
+ *   1. Does a file USE a name some lib module EXPORTS, without importing it?
+ *      That is what extracting a function into lib/ breaks.
  *
- * A name defined locally is fine (a file may have its own `money`). A name
- * imported is fine. A name that is neither, and that some lib exports, is the
- * bug - the extraction happened and the import did not land.
+ *   2. Does a file use a name NOTHING in it declares? That is what a scripted
+ *      edit breaks - the replacement removes the lines that declared something
+ *      and leaves a line below still using it:
+ *
+ *          ReferenceError: extra is not defined
+ *
+ * The second is a crude no-undef, not a scope analyser. It treats the file as
+ * one flat namespace, so a name declared anywhere counts everywhere, and it is
+ * narrow about what counts as a binding position - declarations, parameter
+ * lists, destructuring, object keys. An earlier version was generous about
+ * both and swept every `(...)` and `{...}` for names, which bound `extra` out
+ * of `console.log(`${extra[0]}`)` and passed the exact orphan it exists to
+ * catch. Generous about scope, strict about position, is the combination that
+ * works.
  */
 
 import fs from "fs";
@@ -163,6 +174,38 @@ function selfTest() {
   return bad;
 }
 
+/* Names a file brings in, from anywhere. Default and namespace imports count:
+ * `import race from "..."` binds `race`.
+ *
+ * NOTE: stripNonCode has blanked every string literal, so by the time this runs
+ * the module specifier is whitespace - there is no "./lib/race.mjs" left to
+ * match on. Two earlier versions of this tried to and matched no import at all,
+ * which reported all 31 files as broken and would have gone on doing so. The
+ * clause is what matters anyway: everything between `import` and `from`,
+ * semicolon-free. */
+function importedNames(code) {
+  const out = new Set();
+  const impRe = /import\s+([^;]*?)\s+from\b/g;
+  let im;
+  while ((im = impRe.exec(code))) {
+    const clause = im[1];
+    const braces = clause.match(/\{([\s\S]*?)\}/);
+    if (braces) {
+      for (const part of braces[1].split(",")) {
+        const nm = part.trim().split(/\s+as\s+/).pop().trim();
+        if (nm) out.add(nm);
+      }
+    }
+    const bare = clause.replace(/\{[\s\S]*?\}/g, "").replace(/,/g, " ").trim();
+    for (const nm of bare.split(/\s+/)) {
+      if (nm && nm !== "*" && nm !== "as") out.add(nm.replace(/^\*\s*as\s*/, ""));
+    }
+    const ns = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
+    if (ns) out.add(ns[1]);
+  }
+  return out;
+}
+
 /* ---- what lib/ offers ---- */
 
 const exportsByName = new Map();          // name -> lib file that exports it
@@ -189,33 +232,7 @@ for (const f of callers) {
   const src = fs.readFileSync(path.join(HERE, f), "utf8");
   const code = stripNonCode(src);
 
-  /* Names this file brings in, from anywhere. Default and namespace imports
-   * count too - `import race from "..."` binds `race`. */
-  const imported = new Set();
-  /* NOTE: stripNonCode has blanked every string literal, so by the time this
-   * runs the module specifier is whitespace - there is no "./lib/race.mjs" left
-   * to match on. Two earlier versions of this line tried to and matched no
-   * import at all, which reported all 31 files as broken and would have
-   * reported them as broken forever. The clause is what matters anyway, and it
-   * is everything between `import` and `from`, semicolon-free. */
-  const impRe = /import\s+([^;]*?)\s+from\b/g;
-  let im;
-  while ((im = impRe.exec(code))) {
-    const clause = im[1];
-    const braces = clause.match(/\{([\s\S]*?)\}/);
-    if (braces) {
-      for (const part of braces[1].split(",")) {
-        const nm = part.trim().split(/\s+as\s+/).pop().trim();
-        if (nm) imported.add(nm);
-      }
-    }
-    const bare = clause.replace(/\{[\s\S]*?\}/g, "").replace(/,/g, " ").trim();
-    for (const nm of bare.split(/\s+/)) {
-      if (nm && nm !== "*" && nm !== "as") imported.add(nm.replace(/^\*\s*as\s*/, ""));
-    }
-    const ns = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
-    if (ns) imported.add(ns[1]);
-  }
+  const imported = importedNames(code);
 
   /* Names this file defines for itself, at any depth. Deliberately generous:
    * a false "it's local" only costs us a miss, a false "it's missing" costs a
@@ -250,10 +267,124 @@ for (const f of callers) {
   }
 }
 
+
+/* ---- names used that nothing in the file defines ----
+ *
+ * The check above catches one shape: a helper moved into lib/ whose import did
+ * not land. It does not catch the other shape, which has now happened twice.
+ *
+ * Replacing a block of code with a scripted edit removes the lines that DECLARE
+ * things, and any line below that still USES them survives as an orphan:
+ *
+ *     ReferenceError: extra is not defined
+ *
+ * node --check passes it, because that parses syntax and never resolves a name.
+ * The tests pass, because a builder cannot be imported by one.
+ *
+ * This is a crude no-undef. It is not a scope analyser - it does not know inner
+ * from outer, and it treats the file as one flat namespace, which is exactly
+ * why it has no false positives worth the name: a variable declared ANYWHERE in
+ * the file is accepted everywhere in it. What it catches is the case where the
+ * declaration is not in the file at all any more.
+ */
+
+const GLOBALS = new Set(`
+console process Math JSON Object Array String Number Boolean Date Map Set
+WeakMap WeakSet Promise RegExp Error TypeError RangeError SyntaxError Buffer
+fetch URL URLSearchParams AbortController AbortSignal Response Request Headers
+setTimeout clearTimeout setInterval clearInterval queueMicrotask setImmediate
+structuredClone TextEncoder TextDecoder globalThis Symbol Reflect Proxy Intl
+BigInt isNaN isFinite parseInt parseFloat encodeURIComponent decodeURIComponent
+encodeURI decodeURI performance require module exports __dirname __filename
+Infinity NaN undefined null true false this arguments
+Function eval escape unescape btoa atob crypto navigator
+if else for while do switch case default break continue return function const
+let var new typeof instanceof in of try catch finally throw class extends super
+import export from as await async yield delete void static get set delete
+`.trim().split(/\s+/));
+
+let undef = 0;
+for (const f of callers) {
+  const code = stripNonCode(fs.readFileSync(path.join(HERE, f), "utf8"));
+
+  /* Everything this file BINDS a name to. Deliberately generous about scope -
+   * a name declared anywhere counts everywhere - and deliberately NARROW about
+   * position. The first version was generous about both, sweeping every
+   * `(...)` and every `{...}` for identifiers, which bound `extra` from inside
+   * `console.log(`${extra[0]}`)` and so passed the very orphan it was written
+   * to catch. Binding positions only. */
+  const bound = new Set();
+  let m;
+
+  /* function f / class C / const x / let y / var z */
+  const declRe = /(?:^|[^.\w$])(?:function\s*\*?\s*|class\s+|const\s+|let\s+|var\s+)([A-Za-z_$][\w$]*)/g;
+  while ((m = declRe.exec(code))) bound.add(m[1]);
+
+  /* One declaration, several names:  let cross = 0, guard = 0;
+   * declRe catches only the first. Take anything sitting where a declared name
+   * sits - immediately before an = or a comma. */
+  const listRe = /(?:^|[^.\w$])(?:const|let|var)\s+([^;\n]*)/g;
+  while ((m = listRe.exec(code))) {
+    let d;
+    const nameRe = /([A-Za-z_$][\w$]*)\s*(?==[^=]|,|$)/g;
+    while ((d = nameRe.exec(m[1]))) bound.add(d[1]);
+  }
+
+  /* Parameter lists, and nothing else that wears parentheses. */
+  const paramRes = [
+    /\)?\s*\(([^()]*)\)\s*=>/g,                                  // (a, b) =>
+    /function\s*\*?\s*[A-Za-z_$][\w$]*\s*\(([^()]*)\)/g,          // function f(a, b)
+    /function\s*\*?\s*\(([^()]*)\)/g,                             // function (a, b)
+    /catch\s*\(([^()]*)\)/g                                       // catch (e)
+  ];
+  for (const re of paramRes) {
+    while ((m = re.exec(code))) {
+      for (const nm of m[1].match(/[A-Za-z_$][\w$]*/g) || []) bound.add(nm);
+    }
+  }
+  /* A single arrow parameter needs no parentheses, and this codebase is full
+   * of `s => s.trim()`. */
+  const arrowRe = /([A-Za-z_$][\w$]*)\s*=>/g;
+  while ((m = arrowRe.exec(code))) bound.add(m[1]);
+
+  /* Destructuring, in the two places it binds:  const { a, b } = x
+   * and  const [head, ...rest] = x  (and the for-of forms of both). */
+  const destrRes = [
+    /(?:const|let|var|of|in)\s*\{([^{}]*)\}/g,
+    /(?:const|let|var|of|in)\s*\[([^\[\]]*)\]/g
+  ];
+  for (const re of destrRes) {
+    while ((m = re.exec(code))) {
+      for (const nm of m[1].match(/[A-Za-z_$][\w$]*/g) || []) bound.add(nm);
+    }
+  }
+
+  /* An object key is not a reference to anything. */
+  const keyRe = /([A-Za-z_$][\w$]*)\s*:/g;
+  while ((m = keyRe.exec(code))) bound.add(m[1]);
+
+  const imported = importedNames(code);
+
+  const missing = new Set();
+  const useRe = /(?:^|[^.\w$?])([A-Za-z_$][\w$]*)/g;
+  while ((m = useRe.exec(code))) {
+    const nm = m[1];
+    if (bound.has(nm) || imported.has(nm) || GLOBALS.has(nm)) continue;
+    if (exportsByName.has(nm)) continue;   // already reported above
+    missing.add(nm);
+  }
+  if (missing.size) {
+    undef += missing.size;
+    line("  FAIL  " + f);
+    for (const nm of missing) line("          uses " + nm + " - nothing in the file declares it");
+  }
+}
+failures += undef;
+
 line("  " + callers.length + " files in tools/ checked");
 line("");
 line(failures
-  ? "  " + failures + " missing import(s). node --check will not tell you this."
-  : "  every lib name a builder calls, it imports.");
+  ? "  " + failures + " name(s) nothing defines. node --check will not tell you this."
+  : "  every name a builder uses, it imports or declares.");
 line("");
 process.exit(failures ? 1 : 0);

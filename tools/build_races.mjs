@@ -165,7 +165,8 @@ if (FIND) {
         if (!PLAYOFF_CSV && pick) {
           PLAYOFF_CSV = pick.file;
           console.log(`    playoff top-up: ${PLAYOFF_CSV}   (${pick.why})`);
-          console.log(`           reaches ${extra[0].span.to}, past the chosen schedule's ${chosenTo || "?"}`);
+          console.log(`           ${pick.span.rows.toLocaleString()} rows, ` +
+            `${pick.span.from || "?"} to ${pick.span.to || "?"}`);
         }
       }
     }
