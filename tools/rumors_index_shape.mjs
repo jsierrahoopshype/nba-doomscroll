@@ -38,6 +38,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+const argv = process.argv.slice(2);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const links = JSON.parse(fs.readFileSync(path.join(HERE, "..", "data", "links.json"), "utf8"));
 
@@ -115,7 +116,10 @@ for (const [k, v] of Object.entries(json)) line("    " + k.padEnd(20) + safe(v))
 
 /* The parts list is the point of the exercise, so it gets counted properly -
  * still without printing anything a part contains. */
-const partsKey = Object.keys(json).find(k => /parts?$/i.test(k) && Array.isArray(json[k]));
+/* Declared here, not inside the block below, because the --parts section
+ * further down reads it too. */
+const partsKey =
+  Object.keys(json).find(k => /(parts?|files)$/i.test(k) && Array.isArray(json[k]));
 if (partsKey) {
   const parts = json[partsKey];
   line("");
@@ -137,6 +141,78 @@ if (partsKey) {
       "   max " + a.max.toLocaleString("en-US") +
       "   avg " + Math.round(a.sum / a.n).toLocaleString("en-US"));
   }
+}
+
+/* ---- how big is each part? ----
+ *
+ *     node tools/rumors_index_shape.mjs --parts
+ *
+ * The index names seven files and does not say how large they are, and size is
+ * the number that decides the design: whether a cron can build an on-this-day
+ * set in one invocation or has to walk the parts across several.
+ *
+ * HEAD first, because it costs nothing. If the Worker will not answer a HEAD,
+ * or answers without a length, the body is streamed and its BYTES COUNTED AND
+ * DISCARDED - never decoded, never parsed, never held. Nothing that arrives
+ * here reaches the screen or memory as text.
+ */
+if (argv.includes("--parts")) {
+  const names = Array.isArray(json[partsKey]) ? json[partsKey] : (json.files || []);
+  if (!names.length) {
+    line("");
+    line("  --parts: the index names no files, so there is nothing to measure.");
+  } else {
+    const base = link.url.replace(/\/index\/?$/, "");
+    line("");
+    line("  PART SIZES  (" + names.length + " parts, HEAD where possible)");
+    let total = 0, unknown = 0;
+    for (let i = 0; i < names.length; i++) {
+      const url = base + "/part/" + i;
+      let bytes = null, how = "";
+      try {
+        const h = await fetch(url, { method: "HEAD", headers: link.headers || {} });
+        const len = h.headers.get("content-length");
+        if (h.ok && len) { bytes = parseInt(len, 10); how = "HEAD"; }
+      } catch (e) { /* fall through to the stream */ }
+
+      if (bytes === null) {
+        try {
+          const r = await fetch(url, { headers: link.headers || {} });
+          if (!r.ok) { line("    part/" + i + "   HTTP " + r.status); unknown++; continue; }
+          const len = r.headers.get("content-length");
+          if (len) { bytes = parseInt(len, 10); how = "GET header"; }
+          else {
+            /* Counted and thrown away, one chunk at a time. The bytes are
+             * never turned into text. */
+            let n = 0;
+            const reader = r.body.getReader();
+            for (;;) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              n += value.length;
+            }
+            bytes = n; how = "streamed and discarded";
+          }
+        } catch (e) {
+          line("    part/" + i + "   unreachable: " + e.message);
+          unknown++;
+          continue;
+        }
+      }
+      total += bytes;
+      line("    part/" + i + "   " + (bytes / 1048576).toFixed(1).padStart(7) + " MB   (" + how + ")");
+    }
+    line("    " + "-".repeat(46));
+    line("    total     " + (total / 1048576).toFixed(1).padStart(7) + " MB" +
+      (unknown ? "   (" + unknown + " could not be measured)" : ""));
+    line("    A Cloudflare Worker gets 128 MB of memory, so a part it cannot");
+    line("    hold has to be streamed rather than JSON.parse'd whole.");
+  }
+} else {
+  line("");
+  line("  Add --parts to measure each file's size. It sends HEAD requests, and");
+  line("  where that is refused it counts the bytes of the body and throws them");
+  line("  away without decoding them.");
 }
 
 line("");
