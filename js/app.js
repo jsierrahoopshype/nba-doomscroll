@@ -65,7 +65,8 @@
    * comparisons, his quiz cards, his races, his salary cards — and confining
    * that to whichever tab you happened to be on would be a much weaker feature
    * than the one people expect from tapping a name. */
-  var state = { tab: "foryou", exhausted: false, loading: false, raceGroup: null, entity: null };
+  var state = { tab: "foryou", exhausted: false, loading: false, raceGroup: null,
+               entity: null, phase: "own" };
 
   var feedEl = document.getElementById("feed");
   var tabsEl = document.getElementById("tabs");
@@ -670,33 +671,115 @@
     return isNaN(t) ? 0 : t;
   }
 
-  function loadMore() {
-    if (state.loading || state.exhausted) return;
-    state.loading = true;
-    var pool = poolForTab(state.tab, true);
-    // Any tab holding more than one card type gets the type-balanced draw.
+  /* ---------------- how far the feed goes ----------------
+   *
+   * "You have seen everything here for now." was an honest end to a section and
+   * the wrong answer to the question this app exists to answer. A doomscroll
+   * feed that stops is a feed that is over.
+   *
+   * It stopped because poolForTab excludes what is already on screen and
+   * nothing ever looked past the current tab. Three phases now, walked forward
+   * and never back:
+   *
+   *   own     the section the reader chose
+   *   spill   everything else, once that section is used up, under a line
+   *           saying so - a Races reader who has seen all 221 races gets the
+   *           rest of the app rather than a full stop
+   *   loop    everything again, once the whole app is used up
+   *
+   * A card can only come back in loop, and by then the reader has been through
+   * every card there is. Even then it is spaced out: recentlyShown() demotes
+   * whatever is in the last twelve on screen, and the profile's own freshness
+   * rule cuts a card seen in the past twenty minutes to 8% of its weight.
+   *
+   * AN ENTITY FILTER NEVER SPILLS. Somebody who tapped "LeBron James" asked for
+   * LeBron cards, and answering with the rest of the feed is not answering. That
+   * mode keeps the end note it has always had.
+   */
+
+  function drawFrom(pool, avoid, newestFirst) {
+    if (!pool.length) return [];
+    // Any pool holding more than one card type gets the type-balanced draw.
     // Vault is the reason: its ~8 on-this-day cards for the current date would
     // otherwise be buried under 120 salary and 54 ballot-oddity cards, and
     // "on this day" is the whole point of having them.
     // Cap the media-heavy card type: a run of autoplaying clips stacked in one
     // batch is both visually noisy and the one thing here that costs real data.
-    /* What the reader has just been shown, handed to the sampler so the next
-     * batch does not repeat it. Twelve cards is roughly a screen and a half on
-     * a phone: long enough that a repeat would be noticed, short enough that a
-     * favourite player is still allowed to come back. */
-    var avoid = recentlyShown();
-    var batch = hasMixedTypes(pool)
-      // Buzz gets a reserved 40% of every mixed batch — Jorge's call, and the
+    return hasMixedTypes(pool)
+      // Buzz gets a reserved 40% of every mixed batch - Jorge's call, and the
       // type-balanced draw cannot produce it on its own: it damps thin pools,
       // and ~50 live items is a thin pool against thousands of archive cards.
       ? E.sampleMixed(pool, BATCH, { cap: { race: 1, mates: 1, compare: 1, lean: 1 }, share: { buzz: BUZZ_SHARE }, avoid: avoid })
       // The Buzz tab reads newest-first, because it is the only tab where the
       // order carries information. Everywhere else the pool is an archive and
-      // the shuffle is the point. The mixed batches above are untouched: this
-      // governs the news tab on its own, not Buzz's share of the For You feed.
-      // Guarded on the pool actually being single-type, because an entity
-      // filter draws across every section regardless of which tab is open.
-      : (state.tab === "buzz" ? E.recent(pool, BATCH, buzzTime) : E.sample(pool, BATCH, { avoid: avoid }));
+      // the shuffle is the point. Only ever true while drawing Buzz's own
+      // section: a spilled batch is the whole app and has no chronology.
+      : (newestFirst ? E.recent(pool, BATCH, buzzTime) : E.sample(pool, BATCH, { avoid: avoid }));
+  }
+
+  function sectionLabel(key) {
+    for (var i = 0; i < TABS.length; i++) if (TABS[i].key === key) return TABS[i].label;
+    return "this section";
+  }
+
+  function feedNote(text) {
+    var el = document.createElement("div");
+    el.className = "feed-msg feed-note";
+    el.textContent = text;
+    feedEl.appendChild(el);
+  }
+
+  /* Move to the next phase. Returns false when there is nowhere left to go,
+   * which is the only remaining way the feed can end. */
+  function advancePhase() {
+    if (state.entity) return false;
+    if (state.phase === "own") {
+      state.phase = "spill";
+      /* For You already draws from everything, so there is nothing to spill
+       * into. Announcing the rest of the feed and then immediately announcing
+       * that the feed is over would be two notes back to back, the first of
+       * them false. Fall straight through to the loop instead. */
+      if (allCards.some(function (c) { return !rendered[c.id]; })) {
+        feedNote(state.tab === "trades"
+          ? "That is every trade that cleared the balance filter. Build one in the Trade Machine and it shows up here. Below is the rest of the feed."
+          : "That is everything in " + sectionLabel(state.tab) + ". Below is the rest of the feed.");
+        return true;
+      }
+    }
+    /* spill -> loop, and loop -> round again. Clearing `rendered` is what makes
+     * the pool non-empty; the cards stay in the DOM, so recentlyShown() still
+     * reads the real tail of the feed and spaces out what comes back. */
+    var firstLap = state.phase !== "loop";
+    state.phase = "loop";
+    rendered = {};
+    if (firstLap) feedNote("You have seen everything. Going round again.");
+    return true;
+  }
+
+  function loadMore() {
+    if (state.loading || state.exhausted) return;
+    state.loading = true;
+    /* An empty feed is starting over, whatever phase the last one ended in.
+     * Deriving it here rather than resetting a flag at each of the eight places
+     * that clear the feed: one of those would have been missed. */
+    if (!feedEl.querySelector(".card")) state.phase = "own";
+
+    var batch = [];
+    /* own -> spill -> loop is three tries. The bound is what stops an app with
+     * no cards at all from spinning here. */
+    for (var attempt = 0; attempt < 3 && !batch.length; attempt++) {
+      var own = state.phase === "own";
+      var pool = own
+        ? poolForTab(state.tab, true)
+        : allCards.filter(function (c) { return !rendered[c.id]; });
+      /* What the reader has just been shown, handed to the sampler so the next
+       * batch does not repeat it. Twelve cards is roughly a screen and a half on
+       * a phone: long enough that a repeat would be noticed, short enough that a
+       * favourite player is still allowed to come back. */
+      batch = drawFrom(pool, recentlyShown(), own && state.tab === "buzz");
+      if (!batch.length && !advancePhase()) break;
+    }
+
     if (!batch.length) {
       state.exhausted = true;
       state.loading = false;
@@ -721,10 +804,12 @@
           feedEl.innerHTML = '<div class="feed-msg">Nothing here yet.</div>';
         }
       } else if (!feedEl.querySelector(".feed-end")) {
+        /* Only reachable behind an entity filter now, which is the one place
+         * the feed is still allowed to end. */
         var end = document.createElement("div");
         end.className = "feed-msg feed-end";
-        end.textContent = state.tab === "trades"
-          ? "That is every trade that cleared the balance filter. Build one in the Trade Machine and it shows up here."
+        end.textContent = state.entity
+          ? "That is every card about " + entityLabel(state.entity) + "."
           : "You have seen everything here for now.";
         feedEl.appendChild(end);
       }
