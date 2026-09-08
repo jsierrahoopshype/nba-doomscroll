@@ -895,6 +895,12 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
 .ob-pick.on{ background:var(--accent); border-color:var(--accent); color:#fff }
 
 .modal-actions,.panel-danger{ display:flex; gap:.5rem; margin-top:1rem }
+/* Five destinations, wrapping rather than scrolling, with the two that actually
+   post to a network first and full width on a phone. The old sheet had two rows
+   of two and no social at all. */
+.share-actions{ display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem }
+.share-actions .btn{ flex:1 1 calc(50% - .25rem) }
+@media(max-width:420px){ .share-actions .btn{ flex:1 1 100% } }
 .btn{
   flex:1; text-align:center; cursor:pointer; font-family:'JetBrains Mono',monospace;
   font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em;
