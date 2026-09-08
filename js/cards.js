@@ -425,44 +425,89 @@
       '<p class="race-note">' + esc(p.note) + '</p>';
   }
 
+  /* WHICH PART OF THE ENTRY THE LINK GOES ON.
+   *
+   * HoopsHype's rumors page links the LEAD of an entry - the first stretch of
+   * it, ending on a sentence boundary - and lets the rest of the quotation run
+   * on in plain type. Two links per entry: that lead, and the outlet in italics
+   * underneath. The reader can see at a glance where the excerpt stops and the
+   * full quote continues.
+   *
+   * The archive gives us two fields, `text` and `quote`, and one is a prefix of
+   * the other whenever the entry was long enough to be cut. So rather than
+   * assume which way round that is, this looks: if either starts with the
+   * other, the shorter one is the lead and the remainder runs on after it.
+   *
+   * When neither contains the other there is no lead to find, and the function
+   * says so rather than picking a span. An arbitrary underline through the
+   * middle of a sentence would be worse than the fallback, which is the outlet
+   * link on its own.
+   *
+   * @returns {{lead: string, rest: string}|null}
+   */
+  function rumorLead(text, quote) {
+    var t = String(text == null ? "" : text).trim();
+    var q = String(quote == null ? "" : quote).trim();
+    if (!t || !q || t === q) return null;
+    /* A truncated excerpt carries an ellipsis the full quotation does not, and
+     * that one character is enough to make the prefix test miss. */
+    var tt = t.replace(/\s*(\.\.\.|…)\s*$/, "");
+    var qq = q.replace(/\s*(\.\.\.|…)\s*$/, "");
+    if (tt && q.indexOf(tt) === 0 && q.length > tt.length) return { lead: tt, rest: q.slice(tt.length) };
+    if (qq && t.indexOf(qq) === 0 && t.length > qq.length) return { lead: qq, rest: t.slice(qq.length) };
+    return null;
+  }
+
   function renderRumor(c) {
     var p = c.payload;
     var head = p.on_this_day
       ? '<div class="rumor-otd mono">' + esc(p.years_ago) + ' year' + (p.years_ago === 1 ? "" : "s") + ' ago today</div>'
       : "";
-    var quote = p.quote ? '<blockquote class="rumor-quote">&ldquo;' + esc(p.quote) + '&rdquo;</blockquote>' : "";
-    /* THE SOURCE IS THE LINK. THE RUMOR IS NOT.
-     *
-     * This used to wrap the whole excerpt in an <a>, so every card arrived as a
-     * paragraph of underlined text. HoopsHype's own rumors page does the
-     * opposite: the rumor reads as a sentence and the attribution beneath it is
-     * what leads out to whoever reported it. A body of link text at this size
-     * reads as a list of links rather than as a sentence, which is exactly what
-     * the tab looked like.
-     *
-     * So the excerpt goes back to being a <p>, and the outlet in the line below
-     * carries the href. The card's own tap-through still goes to the HoopsHype
-     * rumors page, so the two destinations stay different and both stay useful:
-     * this one is where it came from, that one is more of the same. */
+
+    /* The outlet, italic and underlined at the foot of the entry, is the second
+     * of the two links HoopsHype puts on a rumor. It is also the only one when
+     * no lead can be found, which is why it is built before anything else. */
     var src = p.source_url
       ? '<a class="rumor-src" href="' + escAttr(p.source_url) + '" target="_blank" ' +
         'rel="noopener" title="Read the original report">' + esc(p.outlet) + '</a>'
       : esc(p.outlet);
-    var body = '<p class="rumor-text">' + esc(p.text) + '</p>' + quote +
-      '<div class="card-sub rumor-meta">' + src +
-        ' · <span class="mono">' + esc(p.archive_date) + '</span></div>';
+    var meta = '<div class="card-sub rumor-meta">' + src +
+      ' · <span class="mono">' + esc(p.archive_date) + '</span></div>';
 
-    /* A face only when one actually resolved. js/rumors.js matches the entry's
-     * player tags against data/faces/index.json and leaves these undefined when
-     * nothing matched - a rumor about a front office or a draft class names
-     * nobody the tile set has, and an initials circle for "no player" would be
-     * a worse card than no column at all. */
+    var parts = p.source_url ? rumorLead(p.text, p.quote) : null;
+    var body;
+    if (parts) {
+      /* THE LEAD IS THE LINK, AND THE REST IS NOT.
+       *
+       * This used to wrap the whole excerpt in an anchor, so every card arrived
+       * as a solid paragraph of underlined text - a rumor that read as a list
+       * of links rather than as a sentence. The two fields are the same passage
+       * at two lengths, so printing both would print the lead twice; the
+       * remainder runs on inside the same <p> instead, and the separate quote
+       * block is not emitted at all. */
+      body = '<p class="rumor-text has-lead">' +
+        '<a class="rumor-lead" href="' + escAttr(p.source_url) + '" target="_blank" ' +
+        'rel="noopener" title="Read the original report">' + esc(parts.lead) + '</a>' +
+        esc(parts.rest) + '</p>' + meta;
+    } else {
+      var quote = p.quote
+        ? '<blockquote class="rumor-quote">&ldquo;' + esc(p.quote) + '&rdquo;</blockquote>'
+        : "";
+      body = '<p class="rumor-text">' + esc(p.text) + '</p>' + quote + meta;
+    }
+
+    /* A face only when one actually resolved, and on the RIGHT, which is where
+     * the rumors page puts it. js/rumors.js matches the entry's player tags
+     * against data/faces/index.json and leaves these null when nothing matched
+     * - a rumor about a front office or a draft class names nobody the tile set
+     * has, and an initials circle for "no player" would be a worse card than no
+     * column at all. */
     if (!p.face) return head + body;
     return head + '<div class="rumor-row">' +
+        '<div class="rumor-body">' + body + '</div>' +
         '<div class="rumor-who">' + face(p.face, p.player, "face rumor-face") +
           (p.player ? '<span class="rumor-who-name">' + ent(p.player, "player") + '</span>' : "") +
         '</div>' +
-        '<div class="rumor-body">' + body + '</div>' +
       '</div>';
   }
 
@@ -1127,6 +1172,9 @@
       '</footer></article>';
   }
 
+  /* rumorLead is exported so tools/rumor_field_shape.mjs can ask the SHIPPED
+   * function how often it finds a lead in the live archive, rather than a copy
+   * of it that might answer differently. */
   root.DoomCards = {
-    ent: ent, render: render, esc: esc, TEAM_NAME: TEAM_NAME };
+    ent: ent, render: render, esc: esc, TEAM_NAME: TEAM_NAME, rumorLead: rumorLead };
 })(window);
