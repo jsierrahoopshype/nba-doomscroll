@@ -431,24 +431,39 @@
       ? '<div class="rumor-otd mono">' + esc(p.years_ago) + ' year' + (p.years_ago === 1 ? "" : "s") + ' ago today</div>'
       : "";
     var quote = p.quote ? '<blockquote class="rumor-quote">&ldquo;' + esc(p.quote) + '&rdquo;</blockquote>' : "";
-    /* THE RUMOR ITSELF IS THE LINK.
+    /* THE SOURCE IS THE LINK. THE RUMOR IS NOT.
      *
-     * Every rumor comes from somewhere - a beat writer, a podcast, a broadcast
-     * - and that somewhere is the reason to believe it. Burying the source
-     * behind a "Read on HoopsHype" button at the bottom of the card makes the
-     * text look like it came from nowhere.
+     * This used to wrap the whole excerpt in an <a>, so every card arrived as a
+     * paragraph of underlined text. HoopsHype's own rumors page does the
+     * opposite: the rumor reads as a sentence and the attribution beneath it is
+     * what leads out to whoever reported it. A body of link text at this size
+     * reads as a list of links rather than as a sentence, which is exactly what
+     * the tab looked like.
      *
-     * Underlined the same way entities are, so it reads as a thing that leads
-     * somewhere without shouting. The card's own tap-through now goes to the
-     * HoopsHype rumors page, so the two destinations are different and both
-     * are useful: this one is where the quote came from, that one is more of
-     * the same. */
-    var text = p.source_url
-      ? '<a class="rumor-text rumor-src" href="' + escAttr(p.source_url) +
-        '" target="_blank" rel="noopener">' + esc(p.text) + '</a>'
-      : '<p class="rumor-text">' + esc(p.text) + '</p>';
-    return head + text + quote +
-      '<div class="card-sub">' + esc(p.outlet) + ' · <span class="mono">' + esc(p.archive_date) + '</span></div>';
+     * So the excerpt goes back to being a <p>, and the outlet in the line below
+     * carries the href. The card's own tap-through still goes to the HoopsHype
+     * rumors page, so the two destinations stay different and both stay useful:
+     * this one is where it came from, that one is more of the same. */
+    var src = p.source_url
+      ? '<a class="rumor-src" href="' + escAttr(p.source_url) + '" target="_blank" ' +
+        'rel="noopener" title="Read the original report">' + esc(p.outlet) + '</a>'
+      : esc(p.outlet);
+    var body = '<p class="rumor-text">' + esc(p.text) + '</p>' + quote +
+      '<div class="card-sub rumor-meta">' + src +
+        ' · <span class="mono">' + esc(p.archive_date) + '</span></div>';
+
+    /* A face only when one actually resolved. js/rumors.js matches the entry's
+     * player tags against data/faces/index.json and leaves these undefined when
+     * nothing matched - a rumor about a front office or a draft class names
+     * nobody the tile set has, and an initials circle for "no player" would be
+     * a worse card than no column at all. */
+    if (!p.face) return head + body;
+    return head + '<div class="rumor-row">' +
+        '<div class="rumor-who">' + face(p.face, p.player, "face rumor-face") +
+          (p.player ? '<span class="rumor-who-name">' + ent(p.player, "player") + '</span>' : "") +
+        '</div>' +
+        '<div class="rumor-body">' + body + '</div>' +
+      '</div>';
   }
 
   /* Head to head: the VS scoreline being built rather than declared. The canvas

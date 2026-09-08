@@ -43,6 +43,68 @@
 
   var blocklist = null;
 
+  /* Faces for the tagged players.
+   *
+   * data/faces/index.json is the same 1,231-tile index js/trades.js already
+   * reads, baked by tools/build_data.mjs. Reading it here rather than asking
+   * trades.js for it keeps the two tabs independent - the Rumors tab must not
+   * start depending on the Trades tab having been opened - and the browser
+   * caches the 44 KB either way.
+   *
+   * Best effort by design: a rumor about a front office, a draft class or a
+   * player the tile set never had resolves to nothing, and the card renders
+   * without a face rather than with a grey outline of nobody. */
+  var FACES_URL = "data/faces/index.json";
+  var faceIndex = null;   // exact name -> filename
+  var faceFolded = null;  // normalised name -> filename
+
+  /* Tags come from the archive and the tile index carries plain ASCII names, so
+   * "Nikola Jokic" spelled with its accent has to land on the same tile. Accents
+   * and punctuation go, which is the same fold tools/lib/faces.mjs applies on
+   * the build side - the two ends agree on what counts as the same name.
+   *
+   * THE GENERATIONAL SUFFIX STAYS. Stripping "Jr", "Sr" and "II" looks like it
+   * would help and does the opposite: 15 names in the index carry one, and
+   * folding it away collapses two of them onto their fathers - the index holds
+   * both halves of the Gerald Henderson and Gary Payton pairs, and whichever
+   * was read first would answer for both. Keeping the suffix leaves the fold
+   * collision-free across all 1,231 names, and "Jr." with a period still folds
+   * to the same key as one written without it. */
+  function fold(name) {
+    var s = String(name || "");
+    if (s.normalize) s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  }
+
+  function loadFaces() {
+    if (faceIndex) return Promise.resolve();
+    return fetch(FACES_URL)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        faceIndex = (j && j.faces) || {};
+        faceFolded = {};
+        Object.keys(faceIndex).forEach(function (n) {
+          var k = fold(n);
+          if (k && !faceFolded[k]) faceFolded[k] = faceIndex[n];
+        });
+      })
+      .catch(function () { faceIndex = {}; faceFolded = {}; });
+  }
+
+  /* The first tagged player who has a tile. Rumors are often tagged with four
+   * names; the card has room for one, and the first tag is the one HoopsHype's
+   * own entry leads with. */
+  function faceFor(tags) {
+    if (!Array.isArray(tags) || !faceIndex) return null;
+    for (var i = 0; i < tags.length; i++) {
+      var n = String(tags[i] || "").trim();
+      if (!n) continue;
+      var f = faceIndex[n] || faceFolded[fold(n)];
+      if (f) return { name: n, url: "data/faces/" + f };
+    }
+    return null;
+  }
+
   /* How many of the hundred reach the feed. The whole set would swamp a tab
    * that also carries archive cards, and the engine spaces them out anyway. */
   var MAX_CARDS = 25;
@@ -90,6 +152,7 @@
   function toCard(entry, idx, onThisDay) {
     var year = parseInt(String(entry.archive_date).slice(0, 4), 10);
     var thisYear = new Date().getFullYear();
+    var who = faceFor(entry.tags);
     return {
       id: "rumor-" + (onThisDay ? "otd-" : "rnd-") + idx + "-" +
           String(entry.archive_date || "").replace(/\D/g, ""),
@@ -110,7 +173,11 @@
         text: entry.text,
         quote: entry.quote || null,
         on_this_day: !!onThisDay,
-        years_ago: onThisDay && year ? Math.max(0, thisYear - year) : 0
+        years_ago: onThisDay && year ? Math.max(0, thisYear - year) : 0,
+        /* Both undefined when no tag resolved. cards.js reads p.face as the
+         * whole test for whether the card gets a face column at all. */
+        player: who ? who.name : null,
+        face: who ? who.url : null
       }
     };
   }
@@ -174,7 +241,11 @@
    * own, so a broken on-this-day leaves the tab exactly as it was before this
    * existed rather than emptying it. */
   function load() {
-    return loadBlocklist().then(function (bl) {
+    /* The face index is fetched alongside the blocklist, not after it, and its
+     * failure is already swallowed inside loadFaces - a missing tile set costs
+     * the cards their headshots, never their content. */
+    return Promise.all([loadBlocklist(), loadFaces()]).then(function (got) {
+      var bl = got[0];
       var day = todayMd();
 
       var recent = fetchJson(LATEST_URL).then(function (rows) {
