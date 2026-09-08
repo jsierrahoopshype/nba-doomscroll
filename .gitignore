@@ -24,3 +24,4 @@ tools/face-compare.png
 # CONTENT. It exists to be handed to wrangler kv bulk put and then left
 # alone; regenerate it rather than commit it.
 rumors-onthisday-kv.json
+.wrangler/
