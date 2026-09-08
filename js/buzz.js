@@ -228,20 +228,32 @@
   /* Content Stream tags entities by name match, and the match is loose enough
    * to be wrong in public: a post about Jamal CRAWFORD came through tagged
    * Jamal Murray, and the card printed the wrong man's name under a quote he
-   * never said. So a player tag has to earn its place — the surname has to
-   * appear in the text. A player mentioned only by first name loses a chip;
-   * that is a much smaller failure than naming the wrong player.
+   * never said.
    *
-   * Teams are left alone: their names are multi-word and specific, and the
-   * same class of collision does not happen with them. */
-  function verifyPlayers(names, text) {
-    var hay = " " + fold(text).toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
-    return names.filter(function (n) {
-      var parts = fold(n).toLowerCase().replace(/[^a-z0-9 ]+/g, "").split(/\s+/)
-        .filter(function (w) { return w && !/^(jr|sr|ii|iii|iv)$/.test(w); });
-      var surname = parts[parts.length - 1];
-      return surname && hay.indexOf(" " + surname + " ") >= 0;
-    });
+   * THE GUARD THIS REPLACES WAS "the surname appears in the text", which is not
+   * enough. In the 607-player roster this ships with, 59 surnames belong to two
+   * or more players: it passed Klay Thompson for a story about Amen, both Gary
+   * Paytons, and any of five Browns for a story about one of them. The rule now
+   * lives in js/player-resolver.js and is the same one the Node builders use,
+   * loaded rather than copied so the two cannot drift.
+   *
+   * Teams are left alone: their names are multi-word and specific, and the same
+   * class of collision does not happen with them. */
+  var resolverIndex = null;
+  function verifyPlayers(names, text, map) {
+    if (!root.PlayerResolve) return names;   // script missing: no worse than before
+    if (!resolverIndex) {
+      /* Built from the WHOLE roster, not from this card's tags. Ambiguity is a
+       * property of the league: "Thompson" is shared whether or not the feed
+       * tagged more than one of them. */
+      resolverIndex = root.PlayerResolve.buildIndex(Object.values((map && map.players) || {}));
+    }
+    var out = root.PlayerResolve.resolve(text, names, resolverIndex);
+    if (out.rejected.length && root.console && console.debug) {
+      console.debug("[doomscroll] buzz dropped " + out.rejected.length + " player tag(s): " +
+        out.rejected.map(function (r) { return r.name + " (" + r.why + ")"; }).join("; "));
+    }
+    return out.players;
   }
 
   // "Dončić" and "Doncic" have to compare equal: the two feeds disagree.
@@ -269,7 +281,7 @@
     var src = cfg.sources[item.source] || { label: item.source, excerpt: false, cta: "Open" };
     var text = [item.title, item.body_excerpt].filter(Boolean).join(" ");
     var players = verifyPlayers(
-      (item.players || []).map(function (s) { return map.players[s]; }).filter(Boolean), text);
+      (item.players || []).map(function (s) { return map.players[s]; }).filter(Boolean), text, map);
     var teams = (item.teams || []).map(function (s) { return map.teams[s]; }).filter(Boolean);
     var excerpt = null;
     if (src.excerpt && item.body_excerpt) {
