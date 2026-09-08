@@ -97,11 +97,22 @@
       }
     },
     {
+      "id": "rumors-onthisday",
+      "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/on-this-day?date=01-01",
+      "used_by": "js/rumors.js ON_THIS_DAY_URL - up to 12 of the 25 cards in the Rumors tab",
+      "kind": "json",
+      "note": "Reads otd:MM-DD from RUMORS_KV: up to 30 archive excerpts for one calendar day across every year. Built offline by tools/build_rumors_onthisday.mjs and uploaded once with `wrangler kv bulk put` - the R2 part files are 60-72MB each and a Worker cannot read one whole, so this cannot be computed at request time. PROBED ON A FIXED DATE, 01-01, not on today: a probe of today would pass on a day that happens to be full and say nothing about the rest of the year. A missing bucket answers 200 with an empty array, deliberately - that is 'nothing for today', not a fault - so a probe that only checks the status code would miss an empty KV entirely. Watch the byte count: a healthy day is 15-25KB and 2 bytes means the key is gone. THE CLIENT SENDS ITS OWN LOCAL DATE via ?date=, because the Worker's default is the UTC day and a reader west of UTC would be shown a day they have not reached yet.",
+      "headers": {
+        "Origin": "https://jsierrahoopshype.github.io",
+        "Referer": "https://jsierrahoopshype.github.io/hoopshype-rumors/hoopshype_rumors_tool.html"
+      }
+    },
+    {
       "id": "rumors-latest",
       "url": "https://hoopshype-rumors-api.thejorgesierra.workers.dev/api/rumors/latest",
       "used_by": "js/rumors.js LATEST_URL — every card in the Rumors tab",
       "kind": "json",
-      "note": "The Rumors tab reads this and nothing else. Answers array[100] of the most recent entries carrying date, archive_date, text, quote, outlet and source_url - which is exactly what the cards render, so no Worker change was needed after all. If this ever stops being an array the tab renders nothing rather than guessing at a new shape. Part files are not probed: parts 1..N-1 never change and the newest is large, and a health check has no business downloading tens of megabytes.",
+      "note": "One of the TWO sources the Rumors tab reads; see rumors-onthisday for the other. Answers array[100] of the most recent entries carrying date, archive_date, text, quote, outlet and source_url - exactly what the cards render. If this ever stops being an array the tab renders nothing rather than guessing at a new shape. Part files are not probed: parts 1..N-1 never change and the newest is large, and a health check has no business downloading tens of megabytes.",
       "headers": {
         "Origin": "https://jsierrahoopshype.github.io",
         "Referer": "https://jsierrahoopshype.github.io/hoopshype-rumors/hoopshype_rumors_tool.html"

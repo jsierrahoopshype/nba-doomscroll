@@ -38,6 +38,7 @@
 
   var API = "https://hoopshype-rumors-api.thejorgesierra.workers.dev";
   var LATEST_URL = API + "/api/rumors/latest";
+  var ON_THIS_DAY_URL = API + "/api/rumors/on-this-day";
   var BLOCKLIST_URL = "data/rumor-blocklist.json";
 
   var blocklist = null;
@@ -45,6 +46,12 @@
   /* How many of the hundred reach the feed. The whole set would swamp a tab
    * that also carries archive cards, and the engine spaces them out anyway. */
   var MAX_CARDS = 25;
+
+  /* How many of those 25 come from the archive rather than the last hundred.
+   * Roughly half: recent rumors are why someone opens the tab, and the ones
+   * from ten years ago are why they keep scrolling. Either source can come
+   * back empty and the other fills the gap. */
+  var OTD_CARDS = 12;
 
   function loadBlocklist() {
     if (blocklist) return Promise.resolve(blocklist);
@@ -108,11 +115,17 @@
     };
   }
 
-  /* UNUSED while on-this-day is deferred, and kept on purpose: it is four
-   * lines and it encodes a decision worth not making twice. Local date, not
-   * UTC - a reader west of UTC asking for "today" should get their today, and
-   * the endpoint that will eventually want this accepts a day either side.
-   * Delete it if on-this-day is abandoned rather than deferred. */
+  /* LOCAL date, not UTC, and the endpoint is asked for it explicitly.
+   *
+   * The Worker defaults to the UTC day when no date is given, which is wrong
+   * for a reader west of UTC: at 8pm in Los Angeles it is already tomorrow in
+   * UTC, and they would be shown a day they have not reached. Sending the
+   * browser's own month and day costs one query parameter and makes "on this
+   * day" mean the reader's day.
+   *
+   * This function was written months ago and left unused while the feature was
+   * deferred, with a note saying it encoded a decision worth not making twice.
+   * That turned out to be right. */
   function todayMd() {
     var d = new Date();
     return ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
@@ -125,43 +138,77 @@
     });
   }
 
+  /* One source, filtered and shuffled. Used for both endpoints, which answer
+   * with the same shape: a bare array of entries. */
+  function usableFrom(rows, bl, label) {
+    if (!Array.isArray(rows)) {
+      /* Anything but an array means the Worker changed shape, and rendering
+       * nothing is better than rendering whatever a changed payload happens
+       * to contain. */
+      console.warn("[doomscroll] rumors " + label + ": expected an array, got " +
+        (rows && typeof rows === "object" ? Object.keys(rows).join(",") : typeof rows));
+      return [];
+    }
+    var usable = rows.filter(function (e) {
+      return e && e.source_url && e.text && !isBlocked(e, bl);
+    });
+    /* SHUFFLED, because both endpoints return the same entries to everyone
+     * until the archive updates - and the on-this-day bucket does not change
+     * at all for a whole day. Without this the tab is identical on every
+     * visit, which is the opposite of what a feed is for. Fisher-Yates over a
+     * copy: the caller's array is not ours. */
+    var pool = usable.slice();
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    return pool;
+  }
+
   /* Returns rumor cards, or an empty array if the archive is not reachable.
-   * Never throws: the Rumors tab keeps its sample cards on any failure. */
+   * Never throws: the Rumors tab keeps its sample cards on any failure.
+   *
+   * TWO SOURCES, INDEPENDENTLY FALLIBLE. /latest is the last hundred entries;
+   * /on-this-day is up to thirty from this calendar day across every year of
+   * the archive. They are fetched separately and each failure is caught on its
+   * own, so a broken on-this-day leaves the tab exactly as it was before this
+   * existed rather than emptying it. */
   function load() {
     return loadBlocklist().then(function (bl) {
-      return fetchJson(LATEST_URL).then(function (rows) {
-        /* The endpoint answers with a bare array. Anything else means the
-         * Worker changed shape, and rendering nothing is better than
-         * rendering whatever a changed payload happens to contain. */
-        if (!Array.isArray(rows)) {
-          console.warn("[doomscroll] rumors: expected an array, got " +
-            (rows && typeof rows === "object" ? Object.keys(rows).join(",") : typeof rows));
-          return [];
-        }
-        var usable = rows.filter(function (e) {
-          return e && e.source_url && e.text && !isBlocked(e, bl);
+      var day = todayMd();
+
+      var recent = fetchJson(LATEST_URL).then(function (rows) {
+        return usableFrom(rows, bl, "latest");
+      }).catch(function (e) {
+        console.warn("[doomscroll] recent rumors unavailable:", e.message);
+        return [];
+      });
+
+      var archive = fetchJson(ON_THIS_DAY_URL + "?date=" + day).then(function (rows) {
+        return usableFrom(rows, bl, "on-this-day");
+      }).catch(function (e) {
+        console.warn("[doomscroll] on-this-day unavailable:", e.message);
+        return [];
+      });
+
+      return Promise.all([recent, archive]).then(function (both) {
+        var recentPool = both[0], archivePool = both[1];
+
+        var fromArchive = archivePool.slice(0, OTD_CARDS).map(function (e, i) {
+          return toCard(e, "otd" + i, true);
         });
-
-        /* SHUFFLED, because the endpoint returns the same hundred entries to
-         * everyone until the archive updates. Without this the tab is
-         * identical on every visit, which is the opposite of what a feed is
-         * for. Fisher-Yates over a copy: the caller's array is not ours. */
-        var pool = usable.slice();
-        for (var i = pool.length - 1; i > 0; i--) {
-          var j = Math.floor(Math.random() * (i + 1));
-          var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
-        }
-
-        var cards = pool.slice(0, MAX_CARDS).map(function (e, i) {
+        /* Whatever the archive did not fill comes from the recent set, so a
+         * thin day still returns a full tab. */
+        var want = MAX_CARDS - fromArchive.length;
+        var fromRecent = recentPool.slice(0, want).map(function (e, i) {
           return toCard(e, i, false);
         });
-        console.info("[doomscroll] rumors: " + cards.length + " cards from " +
-          rows.length + " recent entries (" + (rows.length - usable.length) +
-          " blocked or incomplete)");
+
+        var cards = fromRecent.concat(fromArchive);
+        console.info("[doomscroll] rumors: " + cards.length + " cards - " +
+          fromRecent.length + " recent, " + fromArchive.length +
+          " from " + day + " across the archive");
         return cards;
-      }).catch(function (e) {
-        console.warn("[doomscroll] live rumors unavailable:", e.message);
-        return [];
       });
     }).catch(function (e) {
       console.warn("[doomscroll] live rumors skipped:", e.message);
