@@ -235,14 +235,32 @@ a:hover{ text-decoration:underline }
   font-size:1.05rem; font-weight:650; line-height:1.38; letter-spacing:-.005em;
   margin:0 0 .15rem;
 }
-/* ONLY THE OUTLET IS THE LINK.
-   This rule used to be display:block and sat on the excerpt itself, which put
-   a dotted underline under the entire paragraph and made every card read as a
-   wall of link text. It now dresses the attribution in the meta line, which is
-   the part HoopsHype's own rumors page links. Colour stays inherited so the
-   line still reads as metadata rather than as a call to action. */
+/* An entry that runs on past its lead is a paragraph, not a headline. At 1.05rem
+   and 650 weight a full quotation reads as shouting, so the type steps down when
+   the two halves are printed together. */
+.rumor-text.has-lead{
+  font-size:.95rem; font-weight:450; line-height:1.5; letter-spacing:0;
+  color:var(--text);
+}
+
+/* THE LEAD IS THE LINK. THE REST OF THE QUOTE IS NOT.
+   This is the one thing the rumors page does that the feed was not: the first
+   stretch of the entry is underlined and coloured, and the quotation carries on
+   after it in plain type. It used to be the whole excerpt inside one anchor,
+   which made every card a wall of underline. */
+a.rumor-lead{
+  color:var(--accent); text-decoration:underline;
+  text-decoration-color:var(--accent); text-underline-offset:3px;
+  text-decoration-thickness:from-font; transition:.15s;
+}
+a.rumor-lead:hover{ text-decoration-thickness:2px }
+a.rumor-lead:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:3px }
+
+/* The outlet at the foot of the entry, italic and underlined the way the rumors
+   page prints it. Colour stays inherited so the line still reads as metadata
+   rather than as a second call to action competing with the lead. */
 a.rumor-src{
-  color:inherit; font-weight:600; text-decoration:underline;
+  color:inherit; font-style:italic; text-decoration:underline;
   text-decoration-style:dotted; text-decoration-color:var(--border);
   text-underline-offset:3px; transition:.15s;
 }
@@ -250,11 +268,11 @@ a.rumor-src:hover{ text-decoration-style:solid; text-decoration-color:var(--acce
 a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; border-radius:3px }
 .rumor-meta{ margin-top:.5rem }
 
-/* The tagged player, beside the rumor rather than above it: the excerpt is the
-   card, and a face on its own line would push it below the fold on a phone.
-   The column is only emitted when a tile actually resolved, so nothing here
-   ever has to style an empty slot. */
-.rumor-row{ display:flex; gap:.6rem; align-items:flex-start }
+/* The tagged player sits to the RIGHT of the entry, which is where the rumors
+   page puts it, and beside rather than above it - a face on its own line would
+   push the text below the fold on a phone. The column is only emitted when a
+   tile actually resolved, so nothing here ever has to style an empty slot. */
+.rumor-row{ display:flex; gap:.7rem; align-items:flex-start }
 .rumor-body{ flex:1 1 auto; min-width:0 }
 .rumor-who{
   flex:0 0 3.1rem; display:flex; flex-direction:column;
