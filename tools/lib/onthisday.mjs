@@ -95,6 +95,55 @@ export function pickForDay(list, perDay, perYear) {
   return out;
 }
 
+/* HOW MUCH OF AN ENTRY A BUCKET KEEPS.
+ *
+ * The first build cut both fields to 280 characters, which was a guess made
+ * before anyone had measured the fields. Measured (tools/rumor_field_shape.mjs,
+ * Sept 2026, structure only): `text` is the passage, median 442 characters and
+ * up to 1,579; `quote` is the shorter excerpt inside it that the card renders
+ * as the link, median 149 and up to 456.
+ *
+ * So 280 cut more than half of every entry in the archive, and worse, it cut
+ * the linked span off the ones where it sits late in the passage. The card then
+ * cannot find the excerpt inside the passage and falls back to linking only the
+ * outlet - correct, but not what the rumors page does.
+ *
+ * 1,600 is above the longest passage seen, so in practice nothing is truncated
+ * at all and this is a safety valve rather than an editorial decision. It costs
+ * about 5 MB across all 366 buckets.
+ */
+export const TEXT_CAP = 1600;
+export const QUOTE_CAP = 1000;
+
+/** Cut an entry down for storage WITHOUT cutting the linked span off it.
+ *
+ * When the passage is longer than the cap, the cut is pushed out to wherever
+ * the excerpt ends rather than landing at a fixed offset. A card that loses its
+ * last sentence is a smaller loss than a card that loses its link.
+ *
+ * The excerpt is located with a plain indexOf, not the normalising search the
+ * renderer uses. That search lives in js/cards.js and copying it here would put
+ * two versions of one rule in the repo, which is worse than the failure it
+ * would prevent: if typography stops the two fields matching, this falls back
+ * to the plain cap, and at 1,600 against a 442-character median that means the
+ * passage is kept whole anyway.
+ */
+export function trim(text, quote, caps) {
+  const c = caps || {};
+  const textCap = c.text > 0 ? c.text : TEXT_CAP;
+  const quoteCap = c.quote > 0 ? c.quote : QUOTE_CAP;
+  const full = String(text == null ? "" : text);
+  const q = quote ? String(quote).slice(0, quoteCap) : null;
+  if (full.length <= textCap) return { text: full, quote: q };
+
+  let end = textCap;
+  if (q) {
+    const at = full.indexOf(q);
+    if (at >= 0) end = Math.max(end, at + q.length);
+  }
+  return { text: full.slice(0, end), quote: q };
+}
+
 /** What actually gets stored. The scoring field is working state, not content,
  * and shipping it would put a number nobody can interpret into every card. */
 export function forStorage(e) {

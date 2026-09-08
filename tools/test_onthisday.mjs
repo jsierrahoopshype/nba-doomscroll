@@ -11,7 +11,7 @@
  * lib/onthisday.mjs and this is what checks them.
  */
 
-import { isBlocked, score, pickForDay, forStorage } from "./lib/onthisday.mjs";
+import { isBlocked, score, pickForDay, forStorage, trim, TEXT_CAP, QUOTE_CAP } from "./lib/onthisday.mjs";
 
 let fail = 0;
 const ck = (name, ok, d) => {
@@ -118,6 +118,72 @@ console.log("\nspreading a day across the years");
   const year = [e(2020, { url: "plain" }), e(2020, { url: "quoted", quote: "q" })];
   const got = pickForDay(year, 1, 3);
   ck("the quoted entry takes the single slot", got[0].url === "quoted", got[0].url);
+}
+
+console.log("\nhow much of an entry survives the cut");
+
+/* THE BUG THIS PINS DOWN. The first build cut both fields at a flat 280
+ * characters. `text` is the passage and `quote` is the excerpt inside it that
+ * the card underlines and links, so a cut landing before the end of that
+ * excerpt leaves a bucket the card cannot draw a link on - and it fails
+ * silently, falling back to linking the outlet. Roughly a third of the buckets
+ * were built that way. */
+{
+  /* The excerpt sits PAST the cap, which is the case that used to break. */
+  const before = "A".repeat(TEXT_CAP + 100);
+  const excerpt = "THE INVENTED EXCERPT";
+  const passage = before + excerpt + "B".repeat(200);
+
+  ck("a blind cut at the cap would have lost the excerpt",
+     passage.slice(0, TEXT_CAP).indexOf(excerpt) < 0);
+  ck("and the old flat 280 would have lost it too",
+     passage.slice(0, 280).indexOf(excerpt) < 0);
+
+  const cut = trim(passage, excerpt);
+  ck("trim keeps the excerpt inside the passage",
+     cut.text.indexOf(excerpt) >= 0, "cut to " + cut.text.length + " chars");
+  ck("the cut lands right at the end of it, not further",
+     cut.text.length === before.length + excerpt.length,
+     cut.text.length + " vs " + (before.length + excerpt.length));
+  ck("what came after the excerpt is dropped, which is the cheap loss",
+     cut.text.indexOf("B") < 0);
+  ck("the excerpt itself comes back whole", cut.quote === excerpt);
+}
+
+{
+  /* The common case, by a distance: the passage is well under the cap and
+   * nothing is cut at all. Median passage in the archive is 442 characters. */
+  const whole = "An invented passage of ordinary length.";
+  const cut = trim(whole, "invented passage");
+  ck("a short passage is not touched", cut.text === whole);
+  ck("nor its excerpt", cut.quote === "invented passage");
+}
+
+{
+  const long = "C".repeat(TEXT_CAP + 500);
+  ck("with no excerpt at all the cap is just a cap",
+     trim(long, null).text.length === TEXT_CAP);
+  ck("and the quote stays null, not empty string", trim(long, null).quote === null);
+}
+
+{
+  /* An excerpt the passage does not contain - typography the two fields
+   * disagree on. There is nothing to protect, so the plain cap applies. */
+  const long = "D".repeat(TEXT_CAP + 500);
+  ck("an excerpt that is not in the passage does not extend the cut",
+     trim(long, "not in there").text.length === TEXT_CAP);
+}
+
+{
+  const huge = "E".repeat(QUOTE_CAP + 200);
+  ck("a runaway excerpt is capped too",
+     trim("x", huge).quote.length === QUOTE_CAP, String(trim("x", huge).quote.length));
+}
+
+{
+  ck("null text does not throw", trim(null, null).text === "");
+  ck("the caps are the measured ones, not the old flat 280",
+     TEXT_CAP > 280 && QUOTE_CAP > 280, TEXT_CAP + "/" + QUOTE_CAP);
 }
 
 console.log("\nwhat gets stored");
