@@ -18,3 +18,9 @@ data/link-baseline.json
 # it would churn in a diff every time a tile is rebuilt.
 tools/face-sheet.html
 tools/face-compare.png
+
+# Written by tools/build_rumors_onthisday.mjs: 366 KV buckets of archive
+# excerpts, about 7.5 MB. THIS REPO IS PUBLIC AND THAT FILE IS ARCHIVE
+# CONTENT. It exists to be handed to wrangler kv bulk put and then left
+# alone; regenerate it rather than commit it.
+rumors-onthisday-kv.json
