@@ -36,6 +36,15 @@
  * REFUSES TO RUN rather than publishing an unfiltered year - failing closed is
  * the same choice the client makes.
  *
+ * HOW MUCH OF AN ENTRY IS KEPT
+ *
+ * The card renders the passage with the excerpt inside it underlined and
+ * linked, the way hoopshype.com/rumors does. That only works if the bucket
+ * still holds both, so the caps live in lib/onthisday.mjs and a cut is never
+ * allowed to land before the end of the excerpt. The first build used a flat
+ * 280 characters on both fields and cost roughly a third of the cards their
+ * link; see the comment on TEXT_CAP for the measurements that replaced it.
+ *
  * HOW 30 GET CHOSEN FROM ~1,800
  *
  * Spread first, quality second. At most three from any one year, so a day is
@@ -47,7 +56,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { isBlocked, score, pickForDay, forStorage } from "./lib/onthisday.mjs";
+import { isBlocked, score, pickForDay, forStorage, trim, TEXT_CAP, QUOTE_CAP } from "./lib/onthisday.mjs";
 
 const argv = process.argv.slice(2);
 const flag = name => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : null; };
@@ -122,6 +131,8 @@ if (idx.error) {
 const numFiles = idx.json.num_files || (idx.json.files || []).length;
 line("  " + numFiles + " parts, " + (idx.json.total_rumors || 0).toLocaleString("en-US") + " rumors");
 line("  keeping " + PER_DAY + " per day, at most " + PER_YEAR + " from any one year");
+line("  passages up to " + TEXT_CAP + " chars, excerpts up to " + QUOTE_CAP +
+     " - a cut never lands before the end of the linked excerpt");
 line("");
 
 /* ---------------- scan ---------------- */
@@ -151,11 +162,15 @@ for (let i = 1; i <= numFiles; i++) {
 
     const day = m[2] + "-" + m[3];
     if (!byDay.has(day)) byDay.set(day, []);
+    /* Cut by lib/onthisday.mjs, which knows not to cut the linked span off the
+     * end of a passage. The first build cut both fields at a flat 280 and cost
+     * a third of the cards their link. */
+    const cut = trim(e.text, e.quote);
     byDay.get(day).push({
       year: parseInt(m[1], 10),
       date: d.slice(0, 10),
-      text: String(e.text).slice(0, 280),
-      quote: e.quote ? String(e.quote).slice(0, 280) : null,
+      text: cut.text,
+      quote: cut.quote,
       outlet: e.outlet || "HoopsHype",
       url: e.source_url,
       tags: Array.isArray(e.tags) ? e.tags.slice(0, 4) : []
