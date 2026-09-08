@@ -4,11 +4,11 @@
  *
  * THE BUG THIS PINS DOWN. renderRumor used to wrap the whole excerpt in an
  * anchor, so every card in the Rumors tab arrived as a paragraph of underlined
- * link text. HoopsHype's own rumors page links the LEAD of an entry and lets
- * the rest of the quotation run on in plain type, with the outlet underneath as
- * a second link. That is the shape these tests hold in place - a card that
- * links too much still renders, still works, and still looks deliberate, which
- * is exactly why it needs a test rather than an eye.
+ * link text. HoopsHype's own rumors page links ONE SPAN of an entry - often
+ * starting partway in, with plain text on both sides - and puts the outlet
+ * underneath as a second link. That is the shape these tests hold in place. A
+ * card that links too much still renders, still works, and still looks
+ * deliberate, which is exactly why it needs a test rather than an eye.
  *
  * EVERY FIXTURE BELOW IS INVENTED. Not a paraphrase of a real rumor, not a
  * shortened one - made up, including the outlet and the URL. The archive
@@ -69,59 +69,100 @@ function split(html) {
   return { inside: inside.join(" | "), outside };
 }
 
-console.log("\nwhat is a link and what is a sentence");
+console.log("\nwhich part of the entry is the link");
 
-/* The archive stores the same passage at two lengths. LEAD is what the entry
- * opens with, REST is what a reader only sees on the rumors page. Both invented. */
-const LEAD = "Invented placeholder sentence standing in for the lead of an entry.";
-const REST = " And an invented continuation that the excerpt was cut short of.";
+/* The archive stores the excerpt and the passage it sits inside. All invented. */
+const BEFORE = "An invented opening clause, then ";
+const SPAN   = "the invented stretch that carries the link";
+const AFTER  = ", and an invented continuation after it.";
+const WHOLE  = BEFORE + SPAN + AFTER;
 
 {
-  const html = render(card({ text: LEAD, quote: LEAD + REST }));
+  /* THE ONE THAT MATTERS: the span starts PARTWAY IN, not at the beginning. */
+  const html = render(card({ text: SPAN, quote: WHOLE }));
   const { inside, outside } = split(html);
 
-  /* THE ONE THAT MATTERS, BOTH WAYS ROUND. */
-  ck("the lead IS inside an anchor", inside.indexOf(LEAD) >= 0);
-  ck("the remainder is NOT", inside.indexOf(REST.trim()) < 0);
-  ck("the remainder is still on the card", outside.indexOf(REST.trim()) >= 0);
-  ck("the lead is not printed twice",
-     (html.split(LEAD).length - 1) === 1, (html.split(LEAD).length - 1) + " occurrences");
-  ck("no separate quote block, which would repeat the lead",
+  ck("the span IS inside an anchor", inside.indexOf(SPAN) >= 0);
+  ck("what comes before it is NOT", inside.indexOf(BEFORE.trim()) < 0);
+  ck("what comes after it is NOT", inside.indexOf(AFTER.trim()) < 0);
+  ck("both sides are still on the card",
+     outside.indexOf(BEFORE.trim()) >= 0 && outside.indexOf(AFTER.trim()) >= 0);
+  ck("the span is not printed twice",
+     (html.split(SPAN).length - 1) === 1, (html.split(SPAN).length - 1) + " occurrences");
+  ck("no separate quote block, which would repeat the passage",
      html.indexOf("rumor-quote") < 0);
-  ck("the lead anchor points at the report", /class="rumor-lead"[^>]*href="https:\/\/example\.invalid\/report\/1"/.test(html));
+  ck("the span anchor points at the report",
+     /class="rumor-link"[^>]*href="https:\/\/example\.invalid\/report\/1"/.test(html));
 
-  /* The outlet is the second link, the way the rumors page prints it. */
   ck("the outlet IS inside an anchor too", inside.indexOf(OUTLET) >= 0);
-  ck("three anchors: lead, outlet, tap-through",
+  ck("three anchors: span, outlet, tap-through",
      (html.match(/<a\b/g) || []).length === 3, (html.match(/<a\b/g) || []).length + " found");
   ck("the tap-through still goes to the rumors page, not the source",
      html.indexOf('href="https://hoopshype.com/rumors/"') >= 0);
 }
 
 {
-  /* The other direction: whichever field is shorter is the lead. The renderer
-   * must not care which of the two the archive happens to put it in. */
-  const html = render(card({ text: LEAD + REST, quote: LEAD }));
+  /* Whichever field is shorter is the excerpt. The renderer must not care which
+   * of the two the archive happens to put it in. */
+  const html = render(card({ text: WHOLE, quote: SPAN }));
   const { inside } = split(html);
-  ck("it works when the SHORT one is `quote` instead", inside.indexOf(LEAD) >= 0);
-  ck("and the remainder is still plain", inside.indexOf(REST.trim()) < 0);
+  ck("it works when the SHORT one is `quote` instead", inside.indexOf(SPAN) >= 0);
+  ck("and the surrounding text is still plain", inside.indexOf(AFTER.trim()) < 0);
 }
 
 {
-  /* A truncated excerpt carries an ellipsis the full quotation does not. One
-   * character, and without handling it the prefix test misses every long entry. */
-  const html = render(card({ text: LEAD + "...", quote: LEAD + REST }));
+  /* A span at the very start still works - that is just offset zero. */
+  const html = render(card({ text: SPAN, quote: SPAN + AFTER }));
+  const { inside } = split(html);
+  ck("a span at offset zero is not a special case", inside.indexOf(SPAN) >= 0);
+  ck("and nothing after it is linked", inside.indexOf(AFTER.trim()) < 0);
+}
+
+{
+  /* A truncated excerpt carries an ellipsis the full passage does not. One
+   * character, and without handling it the match misses every long entry. */
+  const html = render(card({ text: SPAN + "...", quote: WHOLE }));
   ck("an ellipsis on the excerpt does not break the match",
-     html.indexOf("rumor-lead") >= 0);
-  ck("and the ellipsis itself is not printed inside the link",
+     html.indexOf("rumor-link") >= 0);
+  ck("and the ellipsis itself is not inside the link",
      split(html).inside.indexOf("...") < 0);
 }
 
-console.log("\nwhen there is no lead to find");
+console.log("\ntypography the two fields do not agree on");
+
+/* The fields are scraped separately, so one can carry curly quotes where the
+ * other has straight ones. A plain indexOf misses, and the miss is invisible -
+ * the card just quietly falls back to linking the outlet. */
+{
+  const straight = 'he said "an invented thing" out loud';
+  const curly    = 'Before it, he said “an invented thing” out loud, and after it.';
+  const html = render(card({ text: straight, quote: curly }));
+  const { inside } = split(html);
+  ck("curly quotes match straight ones", html.indexOf("rumor-link") >= 0);
+  ck("and the ORIGINAL typography is what renders, not a flattened copy",
+     html.indexOf("“an invented thing”") >= 0);
+  ck("the matched span is the linked one", inside.indexOf("an invented thing") >= 0);
+}
 
 {
-  /* Neither field contains the other. Linking an arbitrary span would be worse
-   * than linking nothing, so the card falls back to the outlet alone. */
+  const tight = "an invented phrase with one space";
+  const loose = "Before.  an invented  phrase with one space  After.";
+  ck("a run of whitespace on one side still matches",
+     render(card({ text: tight, quote: loose })).indexOf("rumor-link") >= 0);
+}
+
+{
+  const hyphen = "a well-known invented phrase";
+  const dash   = "Before it, a well–known invented phrase, after it.";
+  ck("an en dash matches a hyphen",
+     render(card({ text: hyphen, quote: dash })).indexOf("rumor-link") >= 0);
+}
+
+console.log("\nwhen there is no span to find");
+
+{
+  /* Neither field contains the other. Linking an arbitrary stretch would be
+   * worse than linking nothing, so the card falls back to the outlet alone. */
   const html = render(card({ text: TEXT, quote: "An unrelated invented quotation." }));
   const { inside, outside } = split(html);
   ck("the excerpt is NOT inside an anchor", inside.indexOf(TEXT) < 0);
@@ -135,16 +176,16 @@ console.log("\nwhen there is no lead to find");
 {
   const html = render(card());   // no quote at all
   const { inside, outside } = split(html);
-  ck("one field alone cannot make a lead", html.indexOf("rumor-lead") < 0);
+  ck("one field alone cannot make a span", html.indexOf("rumor-link") < 0);
   ck("and the excerpt stays plain", inside.indexOf(TEXT) < 0 && outside.indexOf(TEXT) >= 0);
 }
 
 {
-  const html = render(card({ source_url: null, text: LEAD, quote: LEAD + REST }));
+  const html = render(card({ source_url: null, text: SPAN, quote: WHOLE }));
   ck("no source_url means no link anywhere in the body",
-     html.indexOf("rumor-src") < 0 && html.indexOf("rumor-lead") < 0);
+     html.indexOf("rumor-src") < 0 && html.indexOf("rumor-link") < 0);
   ck("the outlet is printed anyway", html.indexOf(OUTLET) >= 0);
-  ck("and the excerpt survives", html.indexOf(LEAD) >= 0);
+  ck("and the passage survives", html.indexOf(SPAN) >= 0);
 }
 
 console.log("\nthe face column");
@@ -167,7 +208,7 @@ console.log("\nescaping");
 
 {
   const nasty = '</a><script>alert(1)</script>';
-  const html = render(card({ text: nasty, quote: nasty + " and more",
+  const html = render(card({ text: nasty, quote: "before " + nasty + " and more",
                              outlet: nasty, player: nasty, face: "data/faces/x.png" }));
   ck("no raw script tag survives anywhere", html.indexOf("<script") < 0);
   /* A closing anchor smuggled through the lead would end the link early and
@@ -187,5 +228,5 @@ console.log("\non this day");
      render(card({ on_this_day: true, years_ago: 1 })).indexOf("1 year ago today") >= 0);
 }
 
-console.log(fail ? "\n" + fail + " failure(s)" : "\nthe lead is the link; the rest of the quote is a sentence");
+console.log(fail ? "\n" + fail + " failure(s)" : "\none span is the link; the entry around it is a sentence");
 process.exit(fail ? 1 : 0);
