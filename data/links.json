@@ -230,6 +230,22 @@
       "kind": "preconnect",
       "probe": false,
       "note": "No stable URL: the stylesheet names hashed paths that change with every font release. Registered so the coverage check knows about it; checking it would mean asserting something invented."
+    },
+    {
+      "id": "share-x",
+      "url": "https://x.com/intent/post?text=Example&url=https%3A%2F%2Fhoopsmatic.com",
+      "used_by": "js/share-text.js composeUrl - the Post on X button in the share sheet",
+      "kind": "page",
+      "note": "A compose intent, not a share widget: nothing from x.com is loaded into the page, so no third-party script and no tracking pixel. Opened in a new tab with noopener. The link rides in its own `url` parameter, which X appends itself - putting it in `text` as well prints it twice.",
+      "probe": false
+    },
+    {
+      "id": "share-bluesky",
+      "url": "https://bsky.app/intent/compose?text=Example%20https%3A%2F%2Fhoopsmatic.com",
+      "used_by": "js/share-text.js composeUrl - the Post on Bluesky button in the share sheet",
+      "kind": "page",
+      "note": "Bluesky's compose intent takes ONE text field, so the link has to ride inside it rather than as a separate parameter. Same as X otherwise: nothing loaded from bsky.app, opened with noopener.",
+      "probe": false
     }
   ],
   "probe_false_note": "An entry with probe:false is registered for coverage but never fetched. Used where there is no stable URL to check - a preconnect host that serves font binaries at hashed paths has nothing a test could meaningfully assert about.",

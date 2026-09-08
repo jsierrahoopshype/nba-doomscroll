@@ -1232,15 +1232,55 @@
     return u.toString();
   }
 
-  /* Share offers both things the brief asks for: the card's own URL, and a
-   * branded PNG. On phones that support sharing files, one tap hands both to
-   * the native sheet; everywhere else the image downloads and the link copies.
-   */
+  /* Can this browser put an actual FILE in the native share sheet?
+   * Feature-detected against a real one-byte file: Safari and Chrome both
+   * advertise navigator.share while refusing files, and the difference is the
+   * whole point of the fast path. */
+  function canShareFiles() {
+    try {
+      if (!navigator.canShare || !navigator.share || typeof File !== "function") return false;
+      return navigator.canShare({ files: [new File(["x"], "t.png", { type: "image/png" })] });
+    } catch (e) { return false; }
+  }
+
+  function shareBlob(card, blob, url) {
+    return navigator.share({
+      files: [new File([blob], ShareImage.filename(card), { type: "image/png" })],
+      text: ShareText.text(card),
+      url: url
+    });
+  }
+
+  /* ONE TAP ON A PHONE, TWO ON A DESKTOP.
+   *
+   * This used to open a modal whose own Share button then rendered the image
+   * and called the native sheet - three taps to do the thing people came for,
+   * and no way at all to reach a social network, which is the only destination
+   * that matters for a feed. So: where the browser can share a file, the card's
+   * Share button now goes straight there and the modal never opens. Everywhere
+   * else the modal opens with X and Bluesky in it.
+   *
+   * The modal is still the fallback for every failure, including a browser that
+   * claims it can share files and then throws. */
   function shareCard(card) {
     var url = cardUrl(card);
+    if (!canShareFiles()) return openShareSheet(card, url);
+
+    toast("Rendering the card…");
+    ShareImage.render(card).then(function (blob) {
+      return shareBlob(card, blob, url);
+    }).catch(function (e) {
+      if (e && e.name === "AbortError") return;   // they backed out; not a failure
+      openShareSheet(card, url);
+    });
+  }
+
+  function openShareSheet(card, url) {
     var sheet = document.getElementById("shareSheet");
     sheet.dataset.cardId = card.id;
-    sheet.querySelector(".share-url").textContent = url;
+    sheet.querySelector(".share-url").textContent = url || cardUrl(card);
+    /* Only offered when there is a native sheet AND the fast path did not
+     * already use it - otherwise it is a second button doing the same job. */
     var nativeBtn = sheet.querySelector('[data-share="native"]');
     nativeBtn.hidden = !navigator.share;
     sheet.hidden = false;
@@ -1268,19 +1308,18 @@
     if (kind === "link") {
       copyText(url);
       closeShare();
+    } else if (kind === "x" || kind === "bsky") {
+      /* Opened before any await, so it is still inside the click and no popup
+       * blocker eats it. noopener because the composer must not get a handle
+       * on this window. */
+      window.open(ShareText.composeUrl(kind, card, url), "_blank", "noopener,noreferrer");
+      closeShare();
     } else if (kind === "image" || kind === "native") {
       btn.disabled = true;
       var was = btn.textContent;
       btn.textContent = "Rendering…";
       ShareImage.render(card).then(function (blob) {
-        if (kind === "native" && navigator.canShare &&
-            navigator.canShare({ files: [new File([blob], "card.png", { type: "image/png" })] })) {
-          return navigator.share({
-            files: [new File([blob], ShareImage.filename(card), { type: "image/png" })],
-            text: "NBA Doomscroll — HoopsMatic",
-            url: url
-          });
-        }
+        if (kind === "native" && canShareFiles()) return shareBlob(card, blob, url);
         if (kind === "native") return navigator.share({ title: "NBA Doomscroll — HoopsMatic", url: url });
         var a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
