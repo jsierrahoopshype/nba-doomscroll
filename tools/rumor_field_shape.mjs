@@ -5,16 +5,16 @@
  * WHY THIS EXISTS
  *
  * The Rumors tab now prints a rumor the way hoopshype.com/rumors prints one:
- * the lead of the entry is the link, and the rest of the quotation runs on
- * after it in plain type. Finding that lead means knowing which of the two
- * fields is the shorter one - whether `quote` starts with `text`, or `text`
- * starts with `quote`, or neither.
+ * one SPAN of the entry carries the link - often starting partway in, with
+ * plain text on both sides - and the passage runs on around it. Finding that
+ * span means locating the shorter of the two fields inside the longer one.
  *
- * js/cards.js does not assume. rumorLead() tests both directions and returns
- * null when neither holds, in which case the card falls back to linking only
- * the outlet. That fallback is correct but invisible: a card with no lead looks
- * exactly like a card whose lead was not found. So this counts how often the
- * shipped function actually finds one.
+ * js/cards.js does not assume which field is which, or that the span starts at
+ * the beginning. rumorSpan() returns null when the shorter field is not in the
+ * longer one at all, in which case the card falls back to linking only the
+ * outlet. That fallback is correct but INVISIBLE: a card with no span looks
+ * exactly like a card whose span was not found. So this counts how often the
+ * shipped function actually finds one, and where in the passage it lands.
  *
  * WHAT IT PRINTS, AND WHAT IT REFUSES TO
  *
@@ -41,7 +41,7 @@ const line = s => console.log(s);
  * against a bare window the same way tools/test_yt_video.mjs runs yt-video.js. */
 const win = {};
 new Function("window", fs.readFileSync(path.join(ROOT, "js/cards.js"), "utf8"))(win);
-const rumorLead = win.DoomCards.rumorLead;
+const rumorSpan = win.DoomCards.rumorSpan;
 
 /* ---------------- the endpoint, from the one place that knows it ---------- */
 
@@ -104,8 +104,9 @@ const stat = (ns) => {
 const norm = s => String(s == null ? "" : s).trim();
 const tLen = [], qLen = [];
 let n = 0, noText = 0, noQuote = 0, identical = 0;
-let qStartsWithT = 0, tStartsWithQ = 0, qHoldsTLater = 0, tHoldsQLater = 0, disjoint = 0;
-let endsEllipsis = 0, leads = 0, leadLen = [], restLen = [];
+let contains = 0, disjoint = 0;
+let endsEllipsis = 0, spans = 0, spanLen = [], beforeLen = [], afterLen = [];
+let atStart = 0, inMiddle = 0, atEnd = 0;
 
 for (const e of rows) {
   if (!e) continue;
@@ -118,19 +119,26 @@ for (const e of rows) {
   qLen.push(q.length);
 
   if (t === q) identical++;
-  else if (q.indexOf(t) === 0) qStartsWithT++;
-  else if (t.indexOf(q) === 0) tStartsWithQ++;
-  else if (q.indexOf(t) > 0) qHoldsTLater++;
-  else if (t.indexOf(q) > 0) tHoldsQLater++;
+  else if (q.indexOf(t) >= 0 || t.indexOf(q) >= 0) contains++;
   else disjoint++;
 
-  const got = rumorLead(e.text, e.quote);
-  if (got) { leads++; leadLen.push(got.lead.length); restLen.push(got.rest.trim().length); }
+  /* The shipped function, which also tolerates the typography the two fields
+   * disagree on - so it can find spans a plain indexOf above misses. */
+  const got = rumorSpan(e.text, e.quote);
+  if (got) {
+    spans++;
+    spanLen.push(got.link.length);
+    beforeLen.push(got.before.length);
+    afterLen.push(got.after.length);
+    if (!got.before.trim()) atStart++;
+    else if (!got.after.trim()) atEnd++;
+    else inMiddle++;
+  }
 }
 
 line("  entries     " + n);
 line("  no text     " + noText);
-line("  no quote    " + noQuote + "  (these can never have a lead - one field only)");
+line("  no quote    " + noQuote + "  (these can never have a span - one field only)");
 line("");
 line("  TEXT LENGTH   " + stat(tLen));
 line("  QUOTE LENGTH  " + stat(qLen));
@@ -138,23 +146,28 @@ line("  text ending in an ellipsis: " + endsEllipsis);
 line("");
 line("  HOW THE TWO FIELDS RELATE   (of the " + qLen.length + " entries carrying both)");
 line("    identical                     " + identical);
-line("    quote starts with text        " + qStartsWithT + "   <- text is the lead");
-line("    text starts with quote        " + tStartsWithQ + "   <- quote is the lead");
-line("    quote holds text, not at 0    " + qHoldsTLater);
-line("    text holds quote, not at 0    " + tHoldsQLater);
-line("    neither contains the other    " + disjoint);
+line("    one holds the other verbatim  " + contains);
+line("    neither holds the other       " + disjoint + "   (some of these the");
+line("                                  normalising match below still recovers)");
 line("");
 line("  WHAT THE SHIPPED FUNCTION FINDS");
-line("    entries that get a linked lead   " + leads + " of " + n +
-     "   (" + Math.round((leads / Math.max(1, n)) * 100) + "%)");
-line("    lead length                      " + stat(leadLen));
-line("    remainder length                 " + stat(restLen));
+line("    entries that get a linked span   " + spans + " of " + n +
+     "   (" + Math.round((spans / Math.max(1, n)) * 100) + "%)");
+line("    span length                      " + stat(spanLen));
+line("    text before the span             " + stat(beforeLen));
+line("    text after the span              " + stat(afterLen));
 line("");
-if (!leads) {
-  line("  NO LEAD WAS FOUND ANYWHERE. Every card will fall back to linking only");
-  line("  the outlet, which is correct but is not what the rumors page does. The");
-  line("  two fields are not two lengths of one passage, so the split has to come");
-  line("  from somewhere else - most likely a field the Worker is not sending.");
+line("  WHERE THE SPAN SITS");
+line("    at the start                     " + atStart);
+line("    partway in, text on both sides   " + inMiddle);
+line("    running to the end               " + atEnd);
+line("");
+if (!spans) {
+  line("  NO SPAN WAS FOUND ANYWHERE. Every card falls back to linking only the");
+  line("  outlet, which is correct but is not what the rumors page does. The two");
+  line("  fields are not one passage and an excerpt of it, so the split has to");
+  line("  come from somewhere else - most likely a field the Worker is not");
+  line("  sending at all.");
   line("");
 }
 line("  Counts and character lengths only. No rumor text, quote, outlet or URL");

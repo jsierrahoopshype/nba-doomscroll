@@ -427,35 +427,78 @@
 
   /* WHICH PART OF THE ENTRY THE LINK GOES ON.
    *
-   * HoopsHype's rumors page links the LEAD of an entry - the first stretch of
-   * it, ending on a sentence boundary - and lets the rest of the quotation run
-   * on in plain type. Two links per entry: that lead, and the outlet in italics
-   * underneath. The reader can see at a glance where the excerpt stops and the
-   * full quote continues.
+   * The rumors page links a SPAN of the entry - not a prefix. Sometimes it is
+   * the opening sentences; often it starts partway in, with plain text on both
+   * sides of it. Whatever the span is, the rest of the passage runs on around
+   * it, and the outlet underneath is a second link.
    *
-   * The archive gives us two fields, `text` and `quote`, and one is a prefix of
-   * the other whenever the entry was long enough to be cut. So rather than
-   * assume which way round that is, this looks: if either starts with the
-   * other, the shorter one is the lead and the remainder runs on after it.
+   * The archive gives two fields, `text` and `quote`, and one is the excerpt
+   * that carries the link while the other is the passage it sits inside. This
+   * does not assume which is which, and does not assume the excerpt starts at
+   * the beginning: it takes the shorter field, finds it anywhere in the longer
+   * one, and hands back the three pieces.
    *
-   * When neither contains the other there is no lead to find, and the function
-   * says so rather than picking a span. An arbitrary underline through the
-   * middle of a sentence would be worse than the fallback, which is the outlet
-   * link on its own.
+   * MATCHING SURVIVES TYPOGRAPHY. The two fields are scraped separately, so one
+   * can carry curly quotes where the other has straight ones, an en dash for a
+   * hyphen, a non-breaking space, or a run of whitespace the other collapsed.
+   * Any of those makes a plain indexOf miss, and a miss here is invisible - the
+   * card just quietly falls back to linking the outlet alone. So the search
+   * runs over a normalised copy that keeps a character-for-character map back
+   * to the original, and the ORIGINAL text is what gets rendered. The reader
+   * sees the punctuation the reporter wrote, not a flattened version of it.
    *
-   * @returns {{lead: string, rest: string}|null}
+   * When the shorter field is not in the longer one at all, this returns null
+   * rather than picking a span. An arbitrary underline through the middle of a
+   * sentence would be worse than the fallback.
+   *
+   * @returns {{before: string, link: string, after: string}|null}
    */
-  function rumorLead(text, quote) {
-    var t = String(text == null ? "" : text).trim();
-    var q = String(quote == null ? "" : quote).trim();
-    if (!t || !q || t === q) return null;
-    /* A truncated excerpt carries an ellipsis the full quotation does not, and
-     * that one character is enough to make the prefix test miss. */
-    var tt = t.replace(/\s*(\.\.\.|…)\s*$/, "");
-    var qq = q.replace(/\s*(\.\.\.|…)\s*$/, "");
-    if (tt && q.indexOf(tt) === 0 && q.length > tt.length) return { lead: tt, rest: q.slice(tt.length) };
-    if (qq && t.indexOf(qq) === 0 && t.length > qq.length) return { lead: qq, rest: t.slice(qq.length) };
-    return null;
+
+  /* A normalised copy plus map[i] = the index in `s` that normalised character
+   * came from. One normalised character per original character, never more, so
+   * the map stays exact - which is why "…" is left alone rather than expanded
+   * to three dots. */
+  function normMap(s) {
+    var out = "", map = [], prevSpace = false;
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charAt(i);
+      if ("‘’ʼ´`".indexOf(c) >= 0) c = "'";
+      else if ("“”«»".indexOf(c) >= 0) c = '"';
+      else if ("–—−".indexOf(c) >= 0) c = "-";
+      else if (/\s| /.test(c)) c = " ";
+      if (c === " ") {
+        if (prevSpace) continue;   // a run of whitespace counts once
+        prevSpace = true;
+      } else prevSpace = false;
+      out += c;
+      map.push(i);
+    }
+    return { text: out, map: map };
+  }
+
+  function rumorSpan(text, quote) {
+    var a = String(text == null ? "" : text).trim();
+    var b = String(quote == null ? "" : quote).trim();
+    if (!a || !b || a === b) return null;
+
+    var long = a.length >= b.length ? a : b;
+    var short = a.length >= b.length ? b : a;
+    /* A truncated excerpt carries an ellipsis the full passage does not, and
+     * that one character is enough to make the match miss. */
+    short = short.replace(/\s*(\.\.\.|…)\s*$/, "").trim();
+    if (!short || short.length === long.length) return null;
+
+    var nl = normMap(long), ns = normMap(short);
+    var k = nl.text.indexOf(ns.text);
+    if (k < 0 || !ns.text) return null;
+
+    var from = nl.map[k];
+    var to = nl.map[k + ns.text.length - 1] + 1;
+    return {
+      before: long.slice(0, from),
+      link: long.slice(from, to),
+      after: long.slice(to)
+    };
   }
 
   function renderRumor(c) {
@@ -465,8 +508,8 @@
       : "";
 
     /* The outlet, italic and underlined at the foot of the entry, is the second
-     * of the two links HoopsHype puts on a rumor. It is also the only one when
-     * no lead can be found, which is why it is built before anything else. */
+     * of the two links the rumors page puts on a rumor. It is also the only one
+     * when no span can be found, which is why it is built before anything else. */
     var src = p.source_url
       ? '<a class="rumor-src" href="' + escAttr(p.source_url) + '" target="_blank" ' +
         'rel="noopener" title="Read the original report">' + esc(p.outlet) + '</a>'
@@ -474,21 +517,21 @@
     var meta = '<div class="card-sub rumor-meta">' + src +
       ' · <span class="mono">' + esc(p.archive_date) + '</span></div>';
 
-    var parts = p.source_url ? rumorLead(p.text, p.quote) : null;
+    var parts = p.source_url ? rumorSpan(p.text, p.quote) : null;
     var body;
     if (parts) {
-      /* THE LEAD IS THE LINK, AND THE REST IS NOT.
+      /* THE SPAN IS THE LINK, AND WHAT SURROUNDS IT IS NOT.
        *
        * This used to wrap the whole excerpt in an anchor, so every card arrived
-       * as a solid paragraph of underlined text - a rumor that read as a list
-       * of links rather than as a sentence. The two fields are the same passage
-       * at two lengths, so printing both would print the lead twice; the
-       * remainder runs on inside the same <p> instead, and the separate quote
-       * block is not emitted at all. */
-      body = '<p class="rumor-text has-lead">' +
-        '<a class="rumor-lead" href="' + escAttr(p.source_url) + '" target="_blank" ' +
-        'rel="noopener" title="Read the original report">' + esc(parts.lead) + '</a>' +
-        esc(parts.rest) + '</p>' + meta;
+       * as a solid paragraph of underline - a rumor that read as a list of
+       * links rather than as a sentence. The two fields are the same passage at
+       * two lengths, so printing both would print the excerpt twice; the
+       * surrounding text runs on inside the same <p> instead, and the separate
+       * quote block is not emitted at all. */
+      body = '<p class="rumor-text has-span">' + esc(parts.before) +
+        '<a class="rumor-link" href="' + escAttr(p.source_url) + '" target="_blank" ' +
+        'rel="noopener" title="Read the original report">' + esc(parts.link) + '</a>' +
+        esc(parts.after) + '</p>' + meta;
     } else {
       var quote = p.quote
         ? '<blockquote class="rumor-quote">&ldquo;' + esc(p.quote) + '&rdquo;</blockquote>'
@@ -1172,9 +1215,9 @@
       '</footer></article>';
   }
 
-  /* rumorLead is exported so tools/rumor_field_shape.mjs can ask the SHIPPED
-   * function how often it finds a lead in the live archive, rather than a copy
+  /* rumorSpan is exported so tools/rumor_field_shape.mjs can ask the SHIPPED
+   * function how often it finds a span in the live archive, rather than a copy
    * of it that might answer differently. */
   root.DoomCards = {
-    ent: ent, render: render, esc: esc, TEAM_NAME: TEAM_NAME, rumorLead: rumorLead };
+    ent: ent, render: render, esc: esc, TEAM_NAME: TEAM_NAME, rumorSpan: rumorSpan };
 })(window);
