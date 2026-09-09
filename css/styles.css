@@ -132,6 +132,15 @@ a:hover{ text-decoration:underline }
 }
 .summary strong{ color:var(--text); font-weight:600 }
 
+/* You against the feed. Quiet by design and hidden entirely until there is a
+   score: a running tally is a reward for playing, not a scoreboard staring at
+   someone who has not. */
+.score-line{
+  font-family:'JetBrains Mono',monospace; font-size:.66rem; font-weight:600;
+  letter-spacing:.04em; text-transform:uppercase;
+  color:var(--t-vault); margin:-.3rem 0 .55rem;
+}
+
 /* -------- feed cards -------- */
 .feed{ display:grid; gap:.6rem; grid-template-columns:minmax(0,1fr) }
 .feed-msg{

@@ -579,6 +579,7 @@
   };
 
   function renderSummary() {
+    renderScore();
     var el = document.getElementById("summary");
     if (!el) return;
     var n = poolForTab(state.tab).length;
@@ -593,6 +594,36 @@
     el.innerHTML = "<strong>" + n.toLocaleString("en-US") + "</strong> cards · " +
       esc(TAB_BLURB[state.tab] || "") +
       (sample ? " · <strong>" + sample + "</strong> sample" : "");
+  }
+
+  /* ---------------- you against the feed ----------------
+   *
+   * Quiz, trivia and ballot cards already know whether the reader got it right
+   * and used to throw that away the moment the card scrolled past. The tally
+   * lives in js/scoreboard.js; this is the two lines that feed it and the one
+   * that prints it.
+   *
+   * Called AFTER E.quizAnswered on purpose. The engine's personalisation is the
+   * product and the score is a garnish, so a scoreboard that throws - a full
+   * quota, a browser blocking site data - must not cost a reader their
+   * algorithm update or their reveal. Hence the try, and hence the ordering. */
+  function scoreAnswer(card, correct) {
+    if (!root.Scoreboard) return;
+    try {
+      root.Scoreboard.record(card.id, card.type, correct);
+      renderScore();
+    } catch (e) { /* never break a card over a tally */ }
+  }
+
+  /* Silent until there is something to say. "0-0 today" printed over a feed
+   * nobody has played reads as an accusation rather than information. */
+  function renderScore() {
+    var el = document.getElementById("scoreLine");
+    if (!el || !root.Scoreboard) return;
+    var line = "";
+    try { line = root.Scoreboard.line(); } catch (e) { line = ""; }
+    el.textContent = line;
+    el.hidden = !line;
   }
 
   function hasMixedTypes(pool) {
@@ -1199,6 +1230,7 @@
       correct: correct,
       hints: hintBox ? Number(hintBox.dataset.shown || 0) : 0
     });
+    scoreAnswer(card, correct);
   }
 
   function answerTrivia(cardEl, btn, card) {
@@ -1220,6 +1252,7 @@
       correct: correct,
       hints: hintBox ? Number(hintBox.dataset.shown || 0) : 0
     });
+    scoreAnswer(card, correct);
   }
 
   /* ---------------- share ---------------- */
@@ -1543,7 +1576,10 @@
       }
     } else if (kind === "delete") {
       if (confirm("Delete ALL local data? Likes, saves, weights — everything. This cannot be undone.")) {
-        E.deleteAll(); panel.hidden = true; document.body.classList.remove("modal-open");
+        E.deleteAll();
+        // "everything" has to mean everything, including the scoreboard.
+        if (root.Scoreboard) root.Scoreboard.reset();
+        panel.hidden = true; document.body.classList.remove("modal-open");
         window.location.search = ""; // full clean reload
       }
     } else if (kind === "export") {
