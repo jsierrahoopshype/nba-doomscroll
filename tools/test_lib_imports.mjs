@@ -253,6 +253,27 @@ function boundNames(code) {
   const arrowRe = /([A-Za-z_$][\w$]*)\s*=>/g;
   while ((m = arrowRe.exec(code))) bound.add(m[1]);
 
+  /* ES6 SHORTHAND METHODS:  { getItem(k) { … } }  and the same inside a class.
+   *
+   * Neither the name nor its parameters wear the word `function`, so every
+   * regex above walks straight past them and the no-undef check then reports
+   * the method and all of its arguments as undeclared. It did exactly that to
+   * a fixture object in test_scoreboard.mjs, which is how this gap was found -
+   * five names, none of them a real bug.
+   *
+   * Deliberately anchored to the start of a line plus optional indentation.
+   * A looser pattern would match any `name(args) {` and quietly bind the
+   * parameters of ordinary CALLS, which is most of a file - that would blunt
+   * the whole check rather than fix a corner of it. */
+  const methodRe = /^[ \t]*(?:static\s+|async\s+|\*\s*|get\s+|set\s+)*([A-Za-z_$][\w$]*)\s*\(([^()]*)\)\s*\{/gm;
+  while ((m = methodRe.exec(code))) {
+    /* Control-flow keywords wear the same shape. Binding `if` is harmless but
+     * binding the contents of its condition is not. */
+    if (/^(if|for|while|switch|catch|return|function|class|do|else)$/.test(m[1])) continue;
+    bound.add(m[1]);
+    for (const nm of m[2].match(/[A-Za-z_$][\w$]*/g) || []) bound.add(nm);
+  }
+
   /* Destructuring, in the two places it binds:  const { a, b } = x
    * and  const [head, ...rest] = x  (and the for-of forms of both). */
   const destrRes = [
