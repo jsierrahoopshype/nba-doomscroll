@@ -62,6 +62,18 @@ if (!link) {
   process.exit(1);
 }
 
+/* Sept 2026: the bulk endpoints (/index, /part/N) now require the API key on
+ * top of the Origin/Referer pair. The key must never sit in data/links.json -
+ * that file is committed and this repo is public - so it arrives through the
+ * HH_API_KEY environment variable, the same one hoopshype_wrapped.py uses. */
+if (!process.env.HH_API_KEY) {
+  console.error("\n  HH_API_KEY is not set, and the archive's bulk endpoints require it.");
+  console.error('  One-time fix, in CMD:   setx HH_API_KEY "the-password"');
+  console.error("  Then close this window, open a NEW one, and run this again.\n");
+  process.exit(1);
+}
+link.headers = { ...(link.headers || {}), "X-API-Key": process.env.HH_API_KEY };
+
 /* A value is printable only if it cannot be prose. Numbers and booleans always;
  * strings only when short AND free of spaces, which a sentence never is. */
 const SAFE_TOKEN = /^[A-Za-z0-9_:.\-+/]{1,40}$/;
@@ -101,7 +113,7 @@ if (!res.ok) {
   line("  body        " + text.slice(0, 300));
   line("");
   line("  Not authorised means the Origin/Referer pair in links.json no longer");
-  line("  matches the Worker's allowlist. Check the Worker, not this script.");
+  line("  matches the Worker's allowlist, or HH_API_KEY is wrong.");
   line("");
   process.exit(1);
 }

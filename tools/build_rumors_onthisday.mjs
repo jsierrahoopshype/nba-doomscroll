@@ -89,6 +89,18 @@ if (!link) {
   process.exit(1);
 }
 
+/* Sept 2026: the bulk endpoints (/index, /part/N) now require the API key on
+ * top of the Origin/Referer pair. The key must never sit in data/links.json -
+ * that file is committed and this repo is public - so it arrives through the
+ * HH_API_KEY environment variable, the same one hoopshype_wrapped.py uses. */
+if (!process.env.HH_API_KEY) {
+  console.error("\n  HH_API_KEY is not set, and the archive's bulk endpoints require it.");
+  console.error('  One-time fix, in CMD:   setx HH_API_KEY "the-password"');
+  console.error("  Then close this window, open a NEW one, and run this again.\n");
+  process.exit(1);
+}
+link.headers = { ...(link.headers || {}), "X-API-Key": process.env.HH_API_KEY };
+
 /* ---------------- the blocklist, or nothing ---------------- */
 
 let blocklist;
@@ -124,7 +136,7 @@ const idx = await getJson(base + "/index");
 if (idx.error) {
   line("  index: " + idx.error);
   line("  If this says Unauthorized, the Origin/Referer pair in data/links.json");
-  line("  no longer matches the Worker's allowlist.");
+  line("  no longer matches the Worker's allowlist, or HH_API_KEY is wrong.");
   line("");
   process.exit(1);
 }
