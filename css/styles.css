@@ -1095,3 +1095,36 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
    and the panel is very dark, so the rounded corner has to clip the canvas. */
 .ln-wrap canvas{ border-radius:10px }
 
+/* -------- the Daily Five -------- */
+/* The question inside is a real card element, so app.js's closest(".card")
+   resolves to it and every existing answer handler works untouched. That means
+   it arrives wearing the card frame, which has to come back off - a card inside
+   a card reads as a mistake. */
+.daily-inner{
+  border:0; background:none; border-radius:0; padding:0; margin:0;
+  transition:none;
+}
+.daily-inner:hover{ border-color:transparent }
+
+.dq-head{ display:flex; align-items:center; justify-content:space-between;
+          gap:.6rem; flex-wrap:wrap; margin-bottom:.55rem }
+.dq-title{ font-size:.82rem; font-weight:600; color:var(--text-secondary) }
+.dq-pips{ display:flex; gap:.22rem }
+.dq-pip{
+  width:.7rem; height:.7rem; border-radius:3px;
+  background:var(--surface-hover); border:1px solid var(--border);
+}
+.dq-pip.hit{ background:var(--green); border-color:var(--green) }
+.dq-pip.miss{ background:var(--red); border-color:var(--red) }
+.dq-pip.now{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-dim) }
+.dq-step{ font-size:.6rem; color:var(--text-secondary); text-transform:uppercase;
+          letter-spacing:.06em; margin-bottom:.4rem }
+.dq-next{ margin-top:.7rem }
+
+/* The grid is the thing people copy, so it is the thing they can see. */
+.dq-grid{ font-size:2rem; line-height:1.2; letter-spacing:.12em; margin:.5rem 0 .35rem }
+.dq-score{ font-size:.95rem; color:var(--text-secondary) }
+.dq-score strong{ color:var(--text); font-size:1.15rem; font-weight:700 }
+.dq-actions{ display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.8rem }
+.dq-actions .btn{ flex:1 1 8rem }
+.dq-note{ font-size:.75rem; color:var(--text-secondary); margin-top:.6rem }
