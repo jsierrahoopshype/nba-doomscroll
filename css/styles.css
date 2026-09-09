@@ -1128,3 +1128,13 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
 .dq-actions{ display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.8rem }
 .dq-actions .btn{ flex:1 1 8rem }
 .dq-note{ font-size:.75rem; color:var(--text-secondary); margin-top:.6rem }
+
+/* -------- game cards -------- */
+/* A challenge, not a nav link. The hook carries the card, so it gets the size
+   a headline gets; the name above it is a label, not the point. */
+.game-name{
+  font-size:.6rem; color:var(--t-quiz); text-transform:uppercase;
+  letter-spacing:.07em; font-weight:600; margin-bottom:.3rem;
+}
+.game-hook{ font-size:1.02rem; font-weight:600; line-height:1.4; letter-spacing:-.005em }
+.game-note{ font-size:.8rem; color:var(--text-secondary); margin-top:.4rem; line-height:1.45 }

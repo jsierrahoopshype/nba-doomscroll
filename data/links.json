@@ -246,6 +246,27 @@
       "kind": "page",
       "note": "Bluesky's compose intent takes ONE text field, so the link has to ride inside it rather than as a separate parameter. Same as X otherwise: nothing loaded from bsky.app, opened with noopener.",
       "probe": false
+    },
+    {
+      "id": "game-739-daily",
+      "url": "https://hoopsmatic.com/73-9-game/daily",
+      "used_by": "data/games.json - the Daily 73-9 cards",
+      "kind": "page",
+      "note": "Launched publicly 2026-08-24 and served through the hoopsmatic-daily-router Worker, not plain Pages. If this 404s the router's zone route is gone, not the game."
+    },
+    {
+      "id": "game-739",
+      "url": "https://hoopsmatic.com/73-9-game",
+      "used_by": "data/games.json - the original 73-9 card",
+      "kind": "page",
+      "note": "Proxied from aderoa/BoxScoreLab by the main router Worker."
+    },
+    {
+      "id": "game-career-map",
+      "url": "https://jsierrahoopshype.github.io/nba-career-map/",
+      "used_by": "data/games.json - the Career Map cards",
+      "kind": "page",
+      "note": "GitHub Pages. ?view=quiz and teams.html are the other two entry points the cards use."
     }
   ],
   "probe_false_note": "An entry with probe:false is registered for coverage but never fetched. Used where there is no stable URL to check - a preconnect host that serves font binaries at hashed paths has nothing a test could meaningfully assert about.",
