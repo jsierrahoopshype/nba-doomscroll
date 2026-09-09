@@ -626,17 +626,45 @@ async function buildBallotPool(db, universe) {
       payload: { season, award_key: award, subjects, ...payload }
     });
 
-    // T1: who finished higher in the voting (winner vs a lower finisher)
+    /* T1: who finished HIGHEST of four from this ballot.
+     *
+     * This used to be a straight two-way "who finished higher", which is a coin
+     * flip dressed as a question - a reader who knows nothing is right half the
+     * time, and the card cannot tell them apart from a reader who knows. Four
+     * names from the same ballot is the same fact asked properly, and it brings
+     * ballot cards into line with the other two quiz types, which have always
+     * offered four.
+     *
+     * The winner is not always in the four: taking them from the top eight
+     * rather than the top two means the answer is often a third-place finisher
+     * beating a fourth, which is the argument people actually have. */
     const hi = rows[0];
-    const lo = rows[Math.min(rows.length - 1, 2 + Math.floor(rand() * 3))];
-    if (hi && lo && hi.player !== lo.player) {
-      const pair = rand() < 0.5 ? [hi, lo] : [lo, hi];
-      add([hi.player, lo.player], {
-        question: `Who finished higher in the ${season} ${label} voting?`,
-        options: [pair[0].player, pair[1].player],
-        answer_idx: pair[0].pts >= pair[1].pts ? 0 : 1,
-        detail: `${hi.player} led with ${hi.pts} points; ${lo.player} had ${lo.pts}.`
-      });
+    if (rows.length >= 4) {
+      const field = rows.slice(0, Math.min(rows.length, 8));
+      const picks = [];
+      const usedT1 = new Set();
+      let g1 = 0;
+      while (picks.length < 4 && g1++ < 80) {
+        const c = field[Math.floor(rand() * field.length)];
+        if (c && !usedT1.has(c.player)) { usedT1.add(c.player); picks.push(c); }
+      }
+      if (picks.length === 4) {
+        let top = picks[0];
+        for (const c of picks) if (c.pts > top.pts) top = c;
+        /* A tie on points has no single right answer, so the card is not made
+         * rather than made wrong. */
+        const tied = picks.filter(c => c.pts === top.pts).length > 1;
+        if (!tied) {
+          add(picks.map(c => c.player), {
+            question: `Who finished highest in the ${season} ${label} voting?`,
+            options: picks.map(c => c.player),
+            answer_idx: picks.findIndex(c => c.player === top.player),
+            detail: `${top.player} had ${top.pts} points. ` +
+              picks.filter(c => c.player !== top.player)
+                   .map(c => `${c.player} ${c.pts}`).join(", ") + "."
+          });
+        }
+      }
     }
 
     // T2: the podium. Replaces "how many first-place votes did X get in 2019",

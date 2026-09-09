@@ -238,6 +238,12 @@
     },
     skim: function (card) { bump(card, "skim"); },
 
+    /* The learned weight for one content type, on the engine's own -12..24
+     * scale. Exposed so the feed can size the reserved Buzz block from what a
+     * reader actually does, rather than a second copy of the weights living in
+     * app.js and drifting from this one. */
+    typeWeight: function (name) { return profile.weights["type:" + name] || 0; },
+
     isLiked: function (id) { return profile.liked.indexOf(id) >= 0; },
     isSaved: function (id) { return profile.saved.indexOf(id) >= 0; },
     likedIds: function () { return profile.liked.slice(); },

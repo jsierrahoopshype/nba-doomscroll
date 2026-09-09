@@ -25,7 +25,26 @@
   ];
   var BATCH = 8;
   // Share of every mixed batch reserved for live Content Stream items.
+  /* HOW MUCH OF A MIXED BATCH IS BUZZ.
+   *
+   * It was a flat 40% - three of every eight - which is a lot to promise when
+   * the live feed is having a quiet week. Two changes, both Jorge's call:
+   *
+   * A BAND, NOT A NUMBER. 40% is where a reader starts, and it moves between
+   * 15% and 55% with what they actually do: the engine already learns a weight
+   * for "type:buzz" from likes, saves, taps and skims, and this reads it.
+   * Someone who likes every Buzz card gets more of them; someone who skims
+   * past them gets fewer, without ever losing them entirely.
+   *
+   * AND NEVER BACKFILLED WITH STALE POSTS. The reserved slots are capped at
+   * how many FRESH items exist, so a thin news day yields a smaller share
+   * rather than three day-old posts propped up to fill a quota. Older Buzz is
+   * not banned - it can still win a slot in the ordinary weighted draw. It
+   * just stops being guaranteed one. */
   var BUZZ_SHARE = 0.4;
+  var BUZZ_MIN = 0.15;
+  var BUZZ_MAX = 0.55;
+  var BUZZ_FRESH_MS = 48 * 3600 * 1000;
   var TAB_FOR_TYPE = { rumor: "rumors", trade: "trades", buzz: "buzz" };
   var SKIM_MS = 1200; // visible less than this while scrolling past = skim
 
@@ -89,11 +108,21 @@
     vault:  ["data/vault-pool.json", "data/lean-pool.json", "data/oddity-pool.json",
              "data/salary-pool.json"],
     races:  ["data/race-pool.json", "data/ballotrace-pool.json"],
-    quiz:   ["data/frivolities-pool.json"],
+    /* FRIVOLITIES ARE OFF. Jorge's call, Sept 2026: the cards were weak.
+     *
+     * The pool file, its builder and its tests are all left exactly where they
+     * are - this is two list entries, not a deletion, so turning them back on
+     * is putting "data/frivolities-pool.json" back in these two arrays. The
+     * quiz tab now draws its cards from the shared pools like every other tab.
+     *
+     * It also removes the last consumer of the surname-matching in
+     * build_frivolities.mjs, which is the code the shared resolver in
+     * js/player-resolver.js was written to replace. */
+    quiz:   [],
     foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json",
              "data/teammates-pool.json", "data/compare-pool.json",
              "data/ballotrace-pool.json", "data/lean-pool.json",
-             "data/frivolities-pool.json", "data/oddity-pool.json",
+             "data/oddity-pool.json",
              "data/salary-pool.json"]
   };
 
@@ -616,7 +645,7 @@
         var el = document.querySelector('#feed [data-id^="daily-"]');
         if (el) {
           var F = root.DailyFive;
-          var ids = F.pick(allCards, F.dayKey()).map(function (c) { return c.id; });
+          var ids = F.pick(allCards.filter(usableCard), F.dayKey()).map(function (c) { return c.id; });
           F.answered(card.id, correct, ids, F.dayKey());
           dailyAnswered(card);
         }
@@ -649,7 +678,10 @@
   function dailyCard() {
     if (!root.DailyFive) return null;
     var F = root.DailyFive;
-    var five = F.pick(allCards, F.dayKey());
+    /* usableCard, not allCards raw: the Daily Five must not be the one place a
+     * two-option ballot can still reach a reader. Everything the feed refuses
+     * to show, this refuses to ask. */
+    var five = F.pick(allCards.filter(usableCard), F.dayKey());
     if (five.length < F.SIZE) return null;          // pools not loaded yet
 
     var ids = five.map(function (c) { return c.id; });
@@ -742,12 +774,25 @@
     return list.indexOf(e.value) >= 0;
   }
 
+  /* A ballot card with two options is a coin flip dressed as a question: a
+   * reader who knows nothing is right half the time and the card cannot tell
+   * them apart from one who knows. The builder makes four now
+   * (tools/build_data.mjs, T1), and this drops the two-option cards still
+   * sitting in a pool built before that change - 66 of the 160 at the time of
+   * writing. They come back the moment the pool is rebuilt; nothing is edited
+   * or deleted on disk. */
+  function usableCard(c) {
+    if (c && c.type === "ballot" && (c.payload.options || []).length < 4) return false;
+    return true;
+  }
+
   function poolForTab(tab, excludeRendered) {
     // The entity filter outranks the tab: it draws from everything.
-    var pool = state.entity
+    var pool = (state.entity
       ? allCards.filter(function (c) { return matchesEntity(c, state.entity); })
       : (tab === "foryou" ? allCards
-        : allCards.filter(function (c) { return (c.tab || []).indexOf(tab) >= 0; }));
+        : allCards.filter(function (c) { return (c.tab || []).indexOf(tab) >= 0; })))
+      .filter(usableCard);
     if (!state.entity && tab === "races" && state.raceGroup) {
       pool = pool.filter(function (c) { return c.payload.group === state.raceGroup; });
     }
@@ -802,6 +847,32 @@
     return isNaN(t) ? 0 : t;
   }
 
+  /* The share of the next batch reserved for Buzz: a band, bounded by supply.
+   *
+   * The learned weight runs from -12 to 24 by the engine's own clamp. Negative
+   * pulls toward BUZZ_MIN, positive toward BUZZ_MAX, and an untouched profile
+   * sits exactly on the 40% it always did. The curve is deliberately gentle on
+   * the positive side - a reader who likes one Buzz card has not asked for the
+   * feed to become a news feed. */
+  function buzzShare(pool) {
+    var w = E.typeWeight ? E.typeWeight("buzz") : 0;
+    var want = BUZZ_SHARE;
+    if (w > 0) want = BUZZ_SHARE + (BUZZ_MAX - BUZZ_SHARE) * Math.min(1, w / 18);
+    else if (w < 0) want = BUZZ_SHARE - (BUZZ_SHARE - BUZZ_MIN) * Math.min(1, -w / 9);
+
+    /* The supply cap. Counting only what is fresh means a quiet week shrinks
+     * the reserved block instead of filling it with week-old posts. */
+    var cutoff = Date.now() - BUZZ_FRESH_MS;
+    var fresh = 0;
+    for (var i = 0; i < pool.length; i++) {
+      var c = pool[i];
+      if (((c.tags && c.tags.content_type) || c.type) !== "buzz") continue;
+      if (rendered[c.id]) continue;
+      if (buzzTime(c) >= cutoff) fresh++;
+    }
+    return Math.max(0, Math.min(want, fresh / BATCH));
+  }
+
   /* ---------------- how far the feed goes ----------------
    *
    * "You have seen everything here for now." was an honest end to a section and
@@ -837,10 +908,21 @@
     // Cap the media-heavy card type: a run of autoplaying clips stacked in one
     // batch is both visually noisy and the one thing here that costs real data.
     return hasMixedTypes(pool)
-      // Buzz gets a reserved 40% of every mixed batch - Jorge's call, and the
-      // type-balanced draw cannot produce it on its own: it damps thin pools,
+      // Buzz gets a RESERVED share of every mixed batch, because the
+      // type-balanced draw cannot produce one on its own: it damps thin pools,
       // and ~50 live items is a thin pool against thousands of archive cards.
-      ? E.sampleMixed(pool, BATCH, { cap: { race: 1, mates: 1, compare: 1, lean: 1 }, share: { buzz: BUZZ_SHARE }, avoid: avoid })
+      // How big that share is now depends on the reader and on how much fresh
+      // Buzz there actually is - see buzzShare().
+      //
+      // `vs` joins the per-batch caps. Those score cards were crowding the VS
+      // tab and Jorge wants the video comparisons carrying it instead; one per
+      // batch of eight is the bluntest version of "much less often" available
+      // here, and it is roughly a fifth of what the tab was showing.
+      ? E.sampleMixed(pool, BATCH, {
+          cap: { race: 1, mates: 1, compare: 1, lean: 1, vs: 1 },
+          share: { buzz: buzzShare(pool) },
+          avoid: avoid
+        })
       // The Buzz tab reads newest-first, because it is the only tab where the
       // order carries information. Everywhere else the pool is an archive and
       // the shuffle is the point. Only ever true while drawing Buzz's own
@@ -1236,7 +1318,7 @@
       if (action === "daily-next") { refreshDaily(); return; }
       if (root.DailyFive) {
         var F = root.DailyFive;
-        var ids = F.pick(allCards, F.dayKey()).map(function (x) { return x.id; });
+        var ids = F.pick(allCards.filter(usableCard), F.dayKey()).map(function (x) { return x.id; });
         var st = F.state(ids, F.dayKey());
         var text = F.shareText(st);
         /* The app's own address, not a baked-in one: this has to keep
