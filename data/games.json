@@ -1,0 +1,86 @@
+{
+  "note": "Cards that send a reader to one of the other HoopsMatic games with a SPECIFIC challenge rather than a link to a homepage. Hand-written: there is no builder, so adding a game is adding an entry here. Every url must also be registered in data/links.json or tools/test_links.mjs fails - that registry is what notices when one of these dies.",
+  "how_to_add": "Copy an entry, give it a new id, and write a hook that states the actual challenge. 'Open the Career Map' is a link; 'Trace a career across every team he played for' is a card. The hook is the whole point of doing this rather than putting a nav bar in the feed.",
+  "only_three_games_so_far": "73-9 Daily, the original 73-9 game and the Career Map are the ones whose live URLs were confirmed. GOAT Machine, Beat LeBron, Rumor Daily, Garbage Time and the Ball Race are not in here because a card pointing at a URL that 404s is worse than no card. Add them with their real addresses.",
+  "generated": "2026-09-09",
+  "cards": [
+    {
+      "id": "game-739-daily",
+      "type": "game",
+      "tab": ["quiz", "foryou"],
+      "tags": { "content_type": "game", "players": [], "teams": [], "era": "2020s", "category": "game-daily" },
+      "payload": {
+        "game": "Daily 73-9",
+        "hook": "Ten players, one from each of today's ten teams, $150M to spend. Build the squad that beats the 73-9 Warriors.",
+        "note": "Everyone gets the same ten teams. Three attempts, then it locks until 9am ET.",
+        "url": "https://hoopsmatic.com/73-9-game/daily",
+        "cta": "Play today's board"
+      }
+    },
+    {
+      "id": "game-739-daily-streak",
+      "type": "game",
+      "tab": ["quiz", "foryou"],
+      "tags": { "content_type": "game", "players": [], "teams": [], "era": "2020s", "category": "game-daily" },
+      "payload": {
+        "game": "Daily 73-9",
+        "hook": "There is exactly one best squad on today's board. Most people find three or four of its ten players.",
+        "note": "Solve it and you go on the streak board.",
+        "url": "https://hoopsmatic.com/73-9-game/daily",
+        "cta": "Find the ten"
+      }
+    },
+    {
+      "id": "game-739-roulette",
+      "type": "game",
+      "tab": ["quiz", "foryou"],
+      "tags": { "content_type": "game", "players": [], "teams": [], "era": "2020s", "category": "game-classic" },
+      "payload": {
+        "game": "73-9",
+        "hook": "Spin five players out of NBA history, fit them under the cap, and see what your team does across 82 games against the 2015-16 Warriors.",
+        "note": "The original. Nobody has cleared 75%.",
+        "url": "https://hoopsmatic.com/73-9-game",
+        "cta": "Spin a squad"
+      }
+    },
+    {
+      "id": "game-career-map-quiz",
+      "type": "game",
+      "tab": ["quiz", "foryou"],
+      "tags": { "content_type": "game", "players": [], "teams": [], "era": "2010s", "category": "game-quiz" },
+      "payload": {
+        "game": "Career Map",
+        "hook": "One player, every club he ever signed for, in order. Name him before the trail runs out.",
+        "note": "Survival: three wrong answers and it is over.",
+        "url": "https://jsierrahoopshype.github.io/nba-career-map/?view=quiz",
+        "cta": "Trace a career"
+      }
+    },
+    {
+      "id": "game-career-map",
+      "type": "game",
+      "tab": ["vault", "foryou"],
+      "tags": { "content_type": "game", "players": [], "teams": [], "era": "2010s", "category": "game-atlas" },
+      "payload": {
+        "game": "Career Map",
+        "hook": "5,100 players and every team, club and country they ever played for, on one map.",
+        "note": "Well-travelled careers, reunions, All-Stars who finished abroad.",
+        "url": "https://jsierrahoopshype.github.io/nba-career-map/",
+        "cta": "Open the map"
+      }
+    },
+    {
+      "id": "game-career-map-clubs",
+      "type": "game",
+      "tab": ["vault", "foryou"],
+      "tags": { "content_type": "game", "players": [], "teams": [], "era": "2010s", "category": "game-atlas" },
+      "payload": {
+        "game": "Career Map",
+        "hook": "Which NBA players came through the clubs in your country?",
+        "note": "Every team page lists who passed through, era-accurate names included.",
+        "url": "https://jsierrahoopshype.github.io/nba-career-map/teams.html",
+        "cta": "Browse by club"
+      }
+    }
+  ]
+}

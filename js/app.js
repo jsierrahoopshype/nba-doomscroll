@@ -106,7 +106,7 @@
   var TAB_POOLS = {
     vs:     ["data/vs-pool.json", "data/teammates-pool.json", "data/compare-pool.json"],
     vault:  ["data/vault-pool.json", "data/lean-pool.json", "data/oddity-pool.json",
-             "data/salary-pool.json"],
+             "data/salary-pool.json", "data/games.json"],
     races:  ["data/race-pool.json", "data/ballotrace-pool.json"],
     /* FRIVOLITIES ARE OFF. Jorge's call, Sept 2026: the cards were weak.
      *
@@ -118,12 +118,12 @@
      * It also removes the last consumer of the surname-matching in
      * build_frivolities.mjs, which is the code the shared resolver in
      * js/player-resolver.js was written to replace. */
-    quiz:   [],
+    quiz:   ["data/games.json"],
     foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json",
              "data/teammates-pool.json", "data/compare-pool.json",
              "data/ballotrace-pool.json", "data/lean-pool.json",
              "data/oddity-pool.json",
-             "data/salary-pool.json"]
+             "data/salary-pool.json", "data/games.json"]
   };
 
   /* Pools that may legitimately not exist.

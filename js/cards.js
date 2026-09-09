@@ -106,7 +106,10 @@
     mates:  { chip: "TEAMMATES", cls: "t-vs", tab: "vs" },
     compare: { chip: "HEAD TO HEAD", cls: "t-vs", tab: "vs" },
     lean:   { chip: "MEDIA LEAN", cls: "t-quiz", tab: "vault" },
-    daily:  { chip: "DAILY FIVE", cls: "t-quiz", tab: "foryou" }
+    daily:  { chip: "DAILY FIVE", cls: "t-quiz", tab: "foryou" },
+    /* The other HoopsMatic games, as a card with a specific challenge on it
+     * rather than a link to a homepage. */
+    game:   { chip: "PLAY", cls: "t-quiz", tab: "quiz" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -616,6 +619,21 @@
         '<button class="btn primary" type="button" data-action="daily-next">' +
           (p.index + 1 >= p.total ? "See your result" : "Next question") + '</button>' +
       '</div>';
+  }
+
+  /* A card that sends the reader to one of the other games.
+   *
+   * The whole design decision is in data/games.json, not here: the card states
+   * a CHALLENGE, not a destination. "Open the Career Map" is a nav link and
+   * would be ignored in a feed; "Trace a career across every team he played
+   * for" is something a reader decides to do. Deep-linking rather than
+   * embedding was Jorge's call and is also the cheap version - each game keeps
+   * its own page, its own leaderboard and its own deploy. */
+  function renderGame(c) {
+    var p = c.payload;
+    return '<div class="game-name mono">' + esc(p.game) + '</div>' +
+      '<p class="game-hook">' + esc(p.hook) + '</p>' +
+      (p.note ? '<p class="game-note">' + esc(p.note) + '</p>' : "");
   }
 
   /* Head to head: the VS scoreline being built rather than declared. The canvas
@@ -1153,7 +1171,7 @@
 
   var RENDERERS = {
     trade: renderTrade, rumor: renderRumor, vs: renderVs, trivia: renderTrivia,
-    daily: renderDaily,
+    daily: renderDaily, game: renderGame,
     quiz: renderQuiz, ballot: renderBallot, friv: renderBallot, salary: renderSalary,
     salaryrank: renderSalaryRank, otd: renderOtd,
     race: renderRace, oddity: renderOddity, buzz: renderBuzz,
@@ -1240,6 +1258,9 @@
       /* No tap-through. The Daily Five IS the destination, and a button
        * sending someone off it mid-run is the opposite of what it wants. */
       case "daily": return null;
+      /* The card exists to send you there, so its tap-through carries the
+       * game's own call to action rather than a generic label. */
+      case "game": return { url: c.payload.url, label: c.payload.cta || "Play" };
       // The item lives somewhere else and that is the point: Buzz is a pointer
       // to the source, never a replacement for it.
       case "buzz":  return { url: c.payload.url, label: c.payload.cta || "Open" };
