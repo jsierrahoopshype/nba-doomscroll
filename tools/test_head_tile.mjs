@@ -17,9 +17,18 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { decodePng, encodePng, resize, crop } from "./lib/png.mjs";
-import { headRaceTile, TILE_HEAD_HEIGHT, TILE_HEAD_CENTRE } from "./lib/faces.mjs";
+import { headRaceTile, headTile, BCR_PIXEL_ASPECT, TILE_HEAD_HEIGHT, TILE_HEAD_CENTRE } from "./lib/faces.mjs";
 
 const png = { decodePng, encodePng, resize, crop };
+
+/* headTile hands back an encoded PNG; the checks below need pixels. Written to
+ * a scratch file rather than decoded in memory because decodePng takes a path. */
+let tmpN = 0;
+function decodePng2(buf) {
+  const f = path.join(dir, "out" + (tmpN++) + ".png");
+  fs.writeFileSync(f, buf);
+  return decodePng(f);
+}
 let pass = 0, fail = 0;
 function ok(label, cond, detail) {
   if (cond) { console.log(`  ok   ${label}`); pass++; }
@@ -189,6 +198,89 @@ ok("an opaque source returns null rather than a guess",
 
 ok("a missing file returns null", headRaceTile(path.join(dir, "nope.png"), W, H, png) === null);
 
+/* ---------------- the source's own pixel aspect ----------------
+ *
+ * THE BUG THIS PINS DOWN, and it shipped for months: bar-chart-race's cut-outs
+ * are square FILES holding a person squashed 1.4x narrow, because that
+ * renderer stretches them back when it draws its 1.4:1 bars. headTile cropped
+ * a square out of a square and preserved the squash, so every circular avatar
+ * in the app carried a face 1.4x too narrow. Nothing errored. It just looked
+ * slightly wrong everywhere at once, which is the hardest kind to notice.
+ *
+ * The fixture is a head-shaped blob of KNOWN proportions, drawn pre-squashed
+ * the way the real assets are. A correct tile makes it round again. */
+function squashedHead(file, a) {
+  const W = 256, H = 256;
+  const buf = Buffer.alloc(W * H * 4, 0);
+  /* A round head in display space: rx * a in source pixels, ry unchanged. */
+  const ry = 46, rx = ry / a, cx = W / 2, cy = 70;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const dx = (x - cx) / rx, dy = (y - cy) / ry;
+      const inHead = dx * dx + dy * dy <= 1;
+      const inBody = y > cy + ry * 0.6 && Math.abs(x - cx) < rx * 1.9 && y < H - 8;
+      if (inHead) { buf[i] = 240; buf[i + 1] = 200; buf[i + 2] = 170; buf[i + 3] = 255; }
+      else if (inBody) { buf[i] = 30; buf[i + 1] = 60; buf[i + 2] = 140; buf[i + 3] = 255; }
+    }
+  }
+  fs.writeFileSync(file, encodePng({ w: W, h: H, data: buf }));
+  return { rx, ry };
+}
+
+/* The head's bounding box in an output tile, found by its colour. */
+function headBox(img) {
+  let x0 = 1e9, x1 = -1, y0 = 1e9, y1 = -1;
+  for (let y = 0; y < img.h; y++) {
+    for (let x = 0; x < img.w; x++) {
+      const i = (y * img.w + x) * 4;
+      if (img.data[i] > 200 && img.data[i + 1] > 150 && img.data[i + 1] < 235 && img.data[i + 3] > 128) {
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+  }
+  return x1 < 0 ? null : { w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+
+console.log("\nthe source's pixel aspect");
+
+{
+  const f = path.join(dir, "squashed.png");
+  squashedHead(f, BCR_PIXEL_ASPECT);
+
+  /* Told nothing, it reproduces the squash - this is the shipped bug. */
+  const naive = headBox(decodePng2(headTile(f, 96, png)));
+  const naiveRatio = naive.h / naive.w;
+  ok("without the aspect, the head comes out too tall for its width",
+     naiveRatio > 1.25, `h/w = ${naiveRatio.toFixed(2)}`);
+
+  /* Told the truth, it comes out round. */
+  const fixed = headBox(decodePng2(headTile(f, 96, png, { srcAspect: BCR_PIXEL_ASPECT })));
+  const fixedRatio = fixed.h / fixed.w;
+  ok("with it, the head is round again",
+     Math.abs(fixedRatio - 1) < 0.08, `h/w = ${fixedRatio.toFixed(2)}`);
+  ok("and that is a real improvement, not a wash",
+     Math.abs(fixedRatio - 1) < Math.abs(naiveRatio - 1) - 0.2,
+     `${naiveRatio.toFixed(2)} -> ${fixedRatio.toFixed(2)}`);
+
+  ok("the output is still square", (() => {
+    const im = decodePng2(headTile(f, 96, png, { srcAspect: BCR_PIXEL_ASPECT }));
+    return im.w === 96 && im.h === 96;
+  })());
+
+  /* An undistorted source must be left alone, or nba-headshots crops would be
+   * stretched by a fix aimed at a different repo. */
+  const g = path.join(dir, "round.png");
+  squashedHead(g, 1);
+  const round1 = headBox(decodePng2(headTile(g, 96, png)));
+  ok("a square-pixelled source is untouched at aspect 1",
+     Math.abs(round1.h / round1.w - 1) < 0.08, `h/w = ${(round1.h / round1.w).toFixed(2)}`);
+  ok("aspect 1 and no option at all are the same thing",
+     headTile(g, 96, png).equals(headTile(g, 96, png, { srcAspect: 1 })));
+}
+
 fs.rmSync(dir, { recursive: true, force: true });
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

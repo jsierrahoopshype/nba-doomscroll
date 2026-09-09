@@ -126,6 +126,10 @@ async function loadSources() {
  * therefore keeps the restriction without ever seeing a PNG.
  */
 
+/* Re-bake every tile even when the PNG already exists. Needed exactly once
+ * after the headTile geometry changes; a normal build should not pay for it. */
+const REFRESH_FACES = process.argv.includes("--refresh-faces");
+
 const FACE_DIR = path.join(REPO, "data", "faces");
 const FACE_INDEX = path.join(FACE_DIR, "index.json");
 const FACE_PX = 96;                        // .face.lg is 3.2rem ≈ 51px CSS
@@ -205,9 +209,14 @@ function bakeFaces(resolved, used) {
     const tile = resolved.faces[name];
     if (!tile) continue;
     const outFile = path.join(FACE_DIR, tile);
-    if (fs.existsSync(outFile)) { reused++; }
+    /* REUSE IS WHY A FIX TO THE TILE GEOMETRY LOOKS LIKE IT DID NOTHING.
+     * An existing file is never re-encoded, which is right for a normal build
+     * and wrong for the build after headTile changes - the squashed tiles would
+     * survive their own fix. --refresh-faces re-bakes every one. */
+    if (fs.existsSync(outFile) && !REFRESH_FACES) { reused++; }
     else {
-      const png = Faces.headTile(resolved.source[name], FACE_PX, Png);
+      const png = Faces.headTile(resolved.source[name], FACE_PX, Png,
+                                 { srcAspect: Faces.BCR_PIXEL_ASPECT });
       if (!png) { failed++; continue; }
       fs.writeFileSync(outFile, png);
       baked++;
@@ -223,6 +232,9 @@ function bakeFaces(resolved, used) {
     generated: new Date().toISOString().slice(0, 10),
     px: FACE_PX,
     source: "bar-chart-race/assets/headshots",
+    /* Recorded so a future reader can tell which tiles were baked before the
+     * un-squash and which after. Absent means before. */
+    src_aspect: Faces.BCR_PIXEL_ASPECT,
     faces
   }));
   console.log(`faces: ${Object.keys(faces).length} tiles in play, ${(bytes / 1048576).toFixed(1)} MB ` +

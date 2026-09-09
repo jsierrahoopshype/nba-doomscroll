@@ -397,32 +397,69 @@ const HEAD_BAND = 0.34;
 const HEAD_PAD = 2.25;
 const HEAD_RATIO = 1.4;
 
+/* THE SOURCE IS NOT SQUARE-PIXELLED, AND THAT IS WHY EVERY FACE LOOKED NARROW.
+ *
+ * bar-chart-race's cut-outs are 256x256 FILES, but the person inside them is
+ * horizontally compressed: that renderer draws its emblems into a 1.4:1
+ * rectangle, so the assets are pre-squashed to come out right when stretched
+ * back. js/race-player.js says as much - "the crop and the 1.4:1 squash already
+ * baked into the tile" - and its bars look correct precisely because drawing at
+ * 1.4:1 undoes the squash by accident.
+ *
+ * headTile did not. It cropped a square out of a square and resized it to a
+ * square, faithfully preserving a distortion nobody had told it about, and
+ * every circular avatar in the app - trades, VS, quizzes, the Top 25 - carried
+ * a face 1.4x too narrow.
+ *
+ * So a caller now declares the source's pixel aspect. 1 means square pixels and
+ * behaves exactly as before; 1.4 means "the person in here is 1.4x too narrow,
+ * take a taller-than-wide region and stretch it back". Measured, not guessed:
+ * the shipped tiles stretched 1.4x horizontally are the ones that look like
+ * people. */
+export const BCR_PIXEL_ASPECT = 1.4;
+
 /**
  * @param {string} src   source PNG (a background-removed cut-out)
  * @param {number} side  output edge in px
  * @param {object} png   { decodePng, crop, resize, encodePng } from ./png.mjs
  * @returns {Buffer|null}
  */
-export function headTile(src, side, png) {
+export function headTile(src, side, png, opts) {
   const img = png.decodePng(src);
   if (!img) return null;
+  /* How much narrower than life the person in the source is. Everything below
+   * measures in SOURCE pixels and thinks in DISPLAY units, and `a` is the only
+   * bridge between them. At a === 1 every line collapses to what it was. */
+  const a = ((opts && opts.srcAspect) > 0) ? opts.srcAspect : 1;
   const full = alphaBox(src);
-  let s, x, y;
+  let cw, ch, x, y;
   if (full) {
     const fy = full[1] * img.h, fh = full[3];
     const headBox = alphaBox(src, full[1], full[1] + fh * HEAD_BAND) || full;
     const hx = headBox[0] * img.w, hw = headBox[2] * img.w;
-    s = Math.round(Math.min(img.w, img.h, hw * HEAD_PAD));
-    x = Math.round(hx + hw / 2 - s / 2);
-    y = Math.round(fy + hw * HEAD_RATIO / 2 - s / 2);
+    /* The head's width as the READER will see it, which is what the framing is
+     * about. In source pixels it is hw; on screen it is hw * a. */
+    const hwD = hw * a;
+    const sD = Math.min(img.w * a, img.h, hwD * HEAD_PAD);   // display-square side
+    cw = Math.round(sD / a);
+    ch = Math.round(sD);
+    x = Math.round(hx + hw / 2 - cw / 2);
+    /* HEAD_RATIO is a head's height against its width AS SEEN, so it multiplies
+     * the display width and the result is already a vertical distance. */
+    y = Math.round(fy + (hwD * HEAD_RATIO) / 2 - ch / 2);
   } else {
-    s = Math.min(img.w, Math.round(img.h * 0.78));
-    x = Math.round((img.w - s) / 2);
+    ch = Math.min(img.h, Math.round(img.w * a * 0.78));
+    cw = Math.min(img.w, Math.round(ch / a));
+    x = Math.round((img.w - cw) / 2);
     y = 0;
   }
-  x = Math.max(0, Math.min(x, img.w - s));
-  y = Math.max(0, Math.min(y, img.h - s));
-  return png.encodePng(png.resize(png.crop(img, x, y, s, s), side, side));
+  cw = Math.max(1, Math.min(cw, img.w));
+  ch = Math.max(1, Math.min(ch, img.h));
+  x = Math.max(0, Math.min(x, img.w - cw));
+  y = Math.max(0, Math.min(y, img.h - ch));
+  /* The stretch happens here: a cw x ch region, narrower than tall when a > 1,
+   * resized into a square output. */
+  return png.encodePng(png.resize(png.crop(img, x, y, cw, ch), side, side));
 }
 
 /* ---------------- accent-folded filename lookup ----------------
