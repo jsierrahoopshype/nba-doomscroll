@@ -256,6 +256,61 @@
     return out.players;
   }
 
+  /* ---------------- league-level topics ----------------
+   *
+   * Buzz drops anything with no player or team tag, and that rule earns its
+   * keep: the accounts this feed follows post about their own lives and other
+   * sports in between NBA posts, and an untagged item is usually one of those.
+   *
+   * But it also throws away real NBA material that happens to name nobody.
+   * Adam Silver, the CBA, expansion, officiating, the TV deal, NBA Europe, the
+   * draft lottery — none of it carries a player or a team, and all of it is
+   * exactly what the league's own conversation is about.
+   *
+   * So: a narrow exemption, in two tiers, both listed in
+   * data/buzz-sources.json rather than here.
+   *
+   *   STRONG   stands alone. "adam silver", "board of governors", "nba europe"
+   *            — nothing else in sport uses these words.
+   *   WEAK     needs help. "expansion", "officiating", "ratings", "salary cap"
+   *            are ordinary words in four other leagues, so one of them only
+   *            counts when a MARKER (nba, league, commissioner, basketball)
+   *            appears in the same text.
+   *
+   * WHAT THIS DOES NOT BYPASS: the off-topic list and the editorial blocklist
+   * both run first and are untouched, so an NHL expansion story is dropped
+   * before this is ever consulted. And it is not a general loosening — an
+   * untagged post about somebody's lunch matches nothing here and still goes.
+   *
+   * Returns the term that matched, so a card can say why it is here and a
+   * builder can log it. Null means no exemption.
+   */
+  function leagueTopic(item, cfg) {
+    var lt = (cfg && cfg.league_topics) || null;
+    if (!lt || lt.on === false) return null;
+    var text = [item && item.title, item && item.body_excerpt].filter(Boolean).join(" ");
+    if (!text) return null;
+    var h = " " + fold(text).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() + " ";
+    var i, t;
+
+    for (i = 0; i < (lt.strong || []).length; i++) {
+      t = lt.strong[i];
+      if (t && h.indexOf(" " + t + " ") >= 0) return t;
+    }
+
+    var marked = false;
+    for (i = 0; i < (lt.markers || []).length; i++) {
+      if (h.indexOf(" " + lt.markers[i] + " ") >= 0) { marked = true; break; }
+    }
+    if (!marked) return null;
+
+    for (i = 0; i < (lt.weak || []).length; i++) {
+      t = lt.weak[i];
+      if (t && h.indexOf(" " + t + " ") >= 0) return t;
+    }
+    return null;
+  }
+
   // "Dončić" and "Doncic" have to compare equal: the two feeds disagree.
   function fold(s) {
     s = String(s || "");
@@ -617,6 +672,7 @@
 
   function build(lists, cfg, map, blocked) {
     var seenId = {}, seenTitle = {}, perSource = {}, cards = [], dropped = 0;
+    var leagueKept = 0;
     var oldest = cfg.max_age_days
       ? Date.now() - cfg.max_age_days * 86400000
       : 0;
@@ -635,7 +691,11 @@
          * podcast plug, a joke. Requiring an NBA entity drops all of it, and
          * has the side benefit that every Buzz card can be personalised and
          * cross-matched like every other card here. */
-        if (cfg.require_entity !== false && src.require_entity !== false &&
+        /* The league-topic exemption is computed ONCE and reused by the
+         * second check below, so an item cannot pass the first gate and then
+         * be dropped by the second for a reason the first already forgave. */
+        var topic = src.league_topics === false ? null : leagueTopic(item, cfg);
+        if (cfg.require_entity !== false && src.require_entity !== false && !topic &&
             !(item.players || []).length && !(item.teams || []).length) { dropped++; return; }
         if (oldest && Date.parse(item.published_at) < oldest) { dropped++; return; }
         // A headline cut off mid-sentence with no body to finish it.
@@ -649,9 +709,16 @@
         // mostly from trending.json, so badging all 40 would badge everything.
         var hot = entry.trending && rank < (cfg.trending_top || 12);
         var card = toCard(item, cfg, map, hot);
+        if (topic) {
+          /* Kept so the card can say why it is here without a player chip, and
+           * so a count of these is possible from the console. */
+          card.tags.league_topic = topic;
+          card.payload.league_topic = topic;
+          leagueKept++;
+        }
         // Re-check after the tags have been verified against the text: an
         // item whose only tag was a mis-match has nothing left to stand on.
-        if (cfg.require_entity !== false && src.require_entity !== false &&
+        if (cfg.require_entity !== false && src.require_entity !== false && !topic &&
             !card.tags.players.length && !card.tags.teams.length) { dropped++; return; }
         seenId[id] = 1;
         if (tk) seenTitle[tk] = 1;
@@ -676,6 +743,14 @@
     });
     out.filtered = dropped;
     out.deduped = kept.merged || 0;
+    /* Counted and reported, because an exemption nobody can measure is an
+     * exemption nobody can tune. If this number is ever large, the weak list
+     * is too loose. */
+    out.leagueTopics = leagueKept;
+    if (leagueKept) {
+      console.info("[doomscroll] buzz kept " + leagueKept +
+        " league-level item(s) that name no player or team");
+    }
     return out;
   }
 
@@ -743,5 +818,5 @@
     });
   }
 
-  root.LiveBuzz = { load: load, base: BASE };
+  root.LiveBuzz = { load: load, base: BASE, leagueTopic: leagueTopic };
 })(window);

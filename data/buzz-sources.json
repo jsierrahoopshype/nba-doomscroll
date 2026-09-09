@@ -60,5 +60,29 @@
     "canadiens", "maple leafs", "oilers", "flames", "canucks", "penguins", "flyers",
     "islanders", "sabres", "senators", "avalanche", "golden knights", "lightning",
     "predators", "blue jackets", "red wings", "blackhawks"
-  ]
+  ],
+
+  "league_topics_note": "Buzz drops anything carrying no player or team tag. That rule exists because the accounts this feed follows post about their own lives and other sports between NBA posts, and it works - but it also throws away real NBA material that names nobody: Adam Silver, the CBA, expansion, officiating, TV money, NBA Europe, the draft lottery. This is the narrow exemption, and it is deliberately narrow. STRONG terms stand alone because nothing else in sport uses them. WEAK terms are ordinary words in other leagues too - expansion, officiating, ratings, salary cap - so one only counts when a MARKER appears in the same text. The off-topic list and the editorial blocklist still run and are NOT bypassed: an NHL expansion story is dropped by off_topic before this is ever consulted. Set on:false to switch the exemption off entirely, or league_topics:false on one source to keep that source strict.",
+  "league_topics": {
+    "on": true,
+    "strong": [
+      "adam silver", "nba commissioner", "deputy commissioner", "mark tatum",
+      "board of governors", "nba europe", "nba africa", "basketball africa league",
+      "collective bargaining", "national basketball players association", "nbpa",
+      "draft lottery", "in season tournament", "nba cup", "load management",
+      "second apron", "first apron", "designated player exception",
+      "midlevel exception", "mid level exception", "bird rights",
+      "two way contract", "g league", "summer league", "play in tournament"
+    ],
+    "weak": [
+      "expansion", "expansion team", "expansion franchise", "officiating",
+      "officials", "referee", "referees", "replay center", "rule change",
+      "rule changes", "tampering", "salary cap", "luxury tax", "apron",
+      "media rights", "tv deal", "broadcast rights", "ratings", "tv ratings",
+      "viewership", "schedule release", "trade deadline", "buyout market",
+      "all star format", "all star weekend", "draft order", "lottery odds",
+      "tanking", "franchise valuation", "revenue sharing", "player safety"
+    ],
+    "markers": ["nba", "league", "commissioner", "basketball"]
+  }
 }
