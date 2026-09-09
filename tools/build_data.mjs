@@ -132,7 +132,12 @@ const REFRESH_FACES = process.argv.includes("--refresh-faces");
 
 const FACE_DIR = path.join(REPO, "data", "faces");
 const FACE_INDEX = path.join(FACE_DIR, "index.json");
-const FACE_PX = 96;                        // .face.lg is 3.2rem ≈ 51px CSS
+/* .face.lg is 3.2rem (~51px CSS) but .quiz-sil-mask is 9.5rem (~152px CSS),
+ * which is 304 device px on a phone. 96 was sized for the first and was always
+ * going to be soft in the second. The 256px sources still downscale into 160,
+ * so this costs nothing in sharpness - only bytes. Kept in step with
+ * tools/rebake_face_tiles.mjs, which is what actually re-bakes them. */
+const FACE_PX = 160;
 const FACE_URL = "data/faces/";
 
 function faceSlug(name) {
