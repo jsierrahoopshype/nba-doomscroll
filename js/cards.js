@@ -105,7 +105,8 @@
     traderank:   { chip: "WEEKLY TOP 25", cls: "t-trade", tab: "trades" },
     mates:  { chip: "TEAMMATES", cls: "t-vs", tab: "vs" },
     compare: { chip: "HEAD TO HEAD", cls: "t-vs", tab: "vs" },
-    lean:   { chip: "MEDIA LEAN", cls: "t-quiz", tab: "vault" }
+    lean:   { chip: "MEDIA LEAN", cls: "t-quiz", tab: "vault" },
+    daily:  { chip: "DAILY FIVE", cls: "t-quiz", tab: "foryou" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -551,6 +552,69 @@
         '<div class="rumor-who">' + face(p.face, p.player, "face rumor-face") +
           (p.player ? '<span class="rumor-who-name">' + ent(p.player, "player") + '</span>' : "") +
         '</div>' +
+      '</div>';
+  }
+
+  /* ---------------- the Daily Five ----------------
+   *
+   * Five questions, the same five for everyone, and a grid you can post without
+   * spoiling it. The questions are ORDINARY quiz, trivia and ballot cards from
+   * the ordinary pools, and this renders them by calling the ordinary renderer:
+   * a second copy of the quiz markup here would drift from the real one within
+   * a month, and the two would look almost the same while behaving differently.
+   *
+   * THE NESTED .card IS DELIBERATE. app.js finds a card from a click with
+   * closest(".card") and then looks the id up. Wrapping the question in an
+   * element that is itself a .card carrying the QUESTION's id means every
+   * existing handler - answer, reveal, hint - works inside here untouched, with
+   * no special cases and no second answer path to keep in step. The CSS strips
+   * the inherited frame so it does not read as a card inside a card.
+   */
+  function renderDaily(c) {
+    var p = c.payload;
+    var pips = "";
+    for (var i = 0; i < p.total; i++) {
+      var cls = "dq-pip";
+      if (p.marks && p.marks[i] === "hit") cls += " hit";
+      else if (p.marks && p.marks[i] === "miss") cls += " miss";
+      else if (i === p.index && !p.done) cls += " now";
+      pips += '<span class="' + cls + '"></span>';
+    }
+    var head = '<div class="dq-head">' +
+      '<span class="dq-title">Five questions. Everyone gets the same five.</span>' +
+      '<span class="dq-pips">' + pips + '</span></div>';
+
+    if (p.done) {
+      /* The grid is the product. It is rendered big, on its own line, because
+       * the thing people copy should be the thing they can see. */
+      return head +
+        '<div class="dq-grid">' + esc(p.grid) + '</div>' +
+        '<div class="dq-score"><strong>' + esc(String(p.score)) + '/' +
+          esc(String(p.total)) + '</strong> today' +
+          (p.streak > 1 ? ' · ' + esc(String(p.streak)) + ' day streak' : '') + '</div>' +
+        '<div class="dq-actions">' +
+          '<button class="btn primary" type="button" data-action="daily-x">Post on X</button>' +
+          '<button class="btn primary" type="button" data-action="daily-bsky">Post on Bluesky</button>' +
+          '<button class="btn" type="button" data-action="daily-copy">Copy result</button>' +
+        '</div>' +
+        '<p class="dq-note">Come back tomorrow for five more.</p>';
+    }
+
+    if (!p.inner) {
+      /* No question to show and not done: the pools have not loaded yet, or
+       * there are fewer than five answerable cards in them. Say so rather than
+       * rendering an empty frame. */
+      return head + '<p class="dq-note">Today&rsquo;s five are not ready yet.</p>';
+    }
+
+    var body = (RENDERERS[p.inner.type] || function () { return ""; })(p.inner);
+    return head +
+      '<div class="dq-step mono">Question ' + esc(String(p.index + 1)) +
+        ' of ' + esc(String(p.total)) + '</div>' +
+      '<div class="card daily-inner" data-id="' + escAttr(p.inner.id) + '">' + body + '</div>' +
+      '<div class="dq-next" hidden>' +
+        '<button class="btn primary" type="button" data-action="daily-next">' +
+          (p.index + 1 >= p.total ? "See your result" : "Next question") + '</button>' +
       '</div>';
   }
 
@@ -1089,6 +1153,7 @@
 
   var RENDERERS = {
     trade: renderTrade, rumor: renderRumor, vs: renderVs, trivia: renderTrivia,
+    daily: renderDaily,
     quiz: renderQuiz, ballot: renderBallot, friv: renderBallot, salary: renderSalary,
     salaryrank: renderSalaryRank, otd: renderOtd,
     race: renderRace, oddity: renderOddity, buzz: renderBuzz,
@@ -1172,6 +1237,9 @@
       // The tracker holds every ballot behind these six rows, which is more
       // than a card can carry and exactly what someone who cares will want.
       case "lean":  return { url: c.payload.url, label: "Every ballot" };
+      /* No tap-through. The Daily Five IS the destination, and a button
+       * sending someone off it mid-run is the opposite of what it wants. */
+      case "daily": return null;
       // The item lives somewhere else and that is the point: Buzz is a pointer
       // to the source, never a replacement for it.
       case "buzz":  return { url: c.payload.url, label: c.payload.cta || "Open" };

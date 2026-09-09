@@ -612,6 +612,15 @@
     try {
       root.Scoreboard.record(card.id, card.type, correct);
       renderScore();
+      if (root.DailyFive) {
+        var el = document.querySelector('#feed [data-id^="daily-"]');
+        if (el) {
+          var F = root.DailyFive;
+          var ids = F.pick(allCards, F.dayKey()).map(function (c) { return c.id; });
+          F.answered(card.id, correct, ids, F.dayKey());
+          dailyAnswered(card);
+        }
+      }
     } catch (e) { /* never break a card over a tally */ }
   }
 
@@ -624,6 +633,97 @@
     try { line = root.Scoreboard.line(); } catch (e) { line = ""; }
     el.textContent = line;
     el.hidden = !line;
+  }
+
+  /* ---------------- the Daily Five ----------------
+   *
+   * Pinned as the tenth card of the first screen, at Jorge's call: not the
+   * first thing anyone sees, because a feed that opens with a quiz is a quiz;
+   * and not buried, because a game nobody finds is not a game. Ten cards in is
+   * far enough to have started scrolling and near enough to still be there.
+   *
+   * The five are ordinary quiz, trivia and ballot cards. This builds a wrapper
+   * card around whichever one is next; js/daily-five.js decides which five and
+   * remembers how each went.
+   */
+  function dailyCard() {
+    if (!root.DailyFive) return null;
+    var F = root.DailyFive;
+    var five = F.pick(allCards, F.dayKey());
+    if (five.length < F.SIZE) return null;          // pools not loaded yet
+
+    var ids = five.map(function (c) { return c.id; });
+    var st = F.state(ids, F.dayKey());
+    var cur = F.current(st);
+    var byResult = {};
+    st.results.forEach(function (r) { byResult[r.id] = r.correct; });
+
+    return {
+      id: "daily-" + st.day,
+      type: "daily",
+      tab: ["foryou"],
+      pinned: true,
+      tags: { content_type: "daily", players: [], teams: [], era: "2020s" },
+      payload: {
+        day: st.day,
+        total: st.ids.length,
+        index: cur ? cur.index : st.ids.length,
+        done: F.done(st),
+        score: F.score(st),
+        grid: F.grid(st),
+        streak: root.Scoreboard ? root.Scoreboard.streak() : 0,
+        marks: st.ids.map(function (id) {
+          return (id in byResult) ? (byResult[id] ? "hit" : "miss") : "";
+        }),
+        inner: cur ? byId[cur.id] || null : null
+      }
+    };
+  }
+
+  /* Slot ten of the first screen. Silently does nothing when the feed is short,
+   * when the tab is not For You, or when an entity filter is on - a filtered
+   * feed is a promise about what it contains, and today's five are not about
+   * whoever was tapped. */
+  function insertDaily() {
+    if (state.tab !== "foryou" || state.entity) return;
+    if (feedEl.querySelector('[data-id^="daily-"]')) return;
+    var cards = feedEl.querySelectorAll(".card");
+    if (cards.length < 10) return;
+    var card = dailyCard();
+    if (!card) return;
+    var frag = document.createElement("div");
+    frag.innerHTML = C.render(card);
+    var el = frag.firstChild;
+    if (!el) return;
+    rendered[card.id] = 1;
+    byId[card.id] = card;
+    cards[9].parentNode.insertBefore(el, cards[9]);
+  }
+
+  /* Redraw in place, keeping its position in the feed. */
+  function refreshDaily() {
+    var el = feedEl.querySelector('[data-id^="daily-"]');
+    if (!el) return;
+    var card = dailyCard();
+    if (!card) return;
+    byId[card.id] = card;
+    var frag = document.createElement("div");
+    frag.innerHTML = C.render(card);
+    if (frag.firstChild) el.parentNode.replaceChild(frag.firstChild, el);
+  }
+
+  /* Called after every scored answer. Only today's five are its business; the
+   * rest of the feed answers cards all day and none of it belongs here. */
+  function dailyAnswered(card) {
+    var el = feedEl.querySelector('[data-id^="daily-"]');
+    if (!el || !root.DailyFive) return;
+    var inner = el.querySelector(".daily-inner");
+    if (!inner || inner.dataset.id !== card.id) return;
+    /* The reveal stays on screen. Advancing immediately would wipe the
+     * right/wrong colouring the reader has not read yet, so the next question
+     * waits behind a button. */
+    var next = el.querySelector(".dq-next");
+    if (next) next.hidden = false;
   }
 
   function hasMixedTypes(pool) {
@@ -853,6 +953,7 @@
       if (node.nodeType === 1) { decorate(node); watchCard(node); rendered[node.dataset.id] = 1; }
       feedEl.appendChild(node);
     }
+    insertDaily();
     state.loading = false;
   }
 
@@ -1127,6 +1228,38 @@
     if (!card) return;
     cardEl.dataset.engaged = "1";
     var action = actEl.dataset.action;
+
+    /* The Daily Five's own controls. Handled before the generic card actions
+     * because "next" and the three share buttons belong to the wrapper, not to
+     * whichever question is currently inside it. */
+    if (action.indexOf("daily-") === 0) {
+      if (action === "daily-next") { refreshDaily(); return; }
+      if (root.DailyFive) {
+        var F = root.DailyFive;
+        var ids = F.pick(allCards, F.dayKey()).map(function (x) { return x.id; });
+        var st = F.state(ids, F.dayKey());
+        var text = F.shareText(st);
+        /* The app's own address, not a baked-in one: this has to keep
+         * working on localhost, and to follow the feed if it ever moves onto
+         * hoopsmatic.com. Query and hash stripped so a shared grid opens a
+         * clean feed rather than someone else's deep link. */
+        var u = new URL(window.location.href);
+        u.search = ""; u.hash = "";
+        var url = u.toString();
+        if (action === "daily-copy") { copyText(text + "\n" + url); toast("Result copied"); return; }
+        if (action === "daily-x") {
+          window.open("https://x.com/intent/post?text=" + encodeURIComponent(text) +
+            "&url=" + encodeURIComponent(url), "_blank", "noopener,noreferrer");
+          return;
+        }
+        if (action === "daily-bsky") {
+          window.open("https://bsky.app/intent/compose?text=" +
+            encodeURIComponent(text + "\n\n" + url), "_blank", "noopener,noreferrer");
+          return;
+        }
+      }
+      return;
+    }
 
     if (action === "like") {
       actEl.classList.toggle("on", E.like(card));
