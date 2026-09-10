@@ -49,7 +49,7 @@ import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 import { raceFaceTile, decodePng, encodePng, resize, crop } from "./lib/png.mjs";
-import { BCR_PIXEL_ASPECT, headTile } from "./lib/faces.mjs";
+import { BCR_PIXEL_ASPECT, headTile, tileSlugVariants } from "./lib/faces.mjs";
 
 const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -188,21 +188,11 @@ if (!CHOSEN.length) {
   process.exit(1);
 }
 
-const slugOf = name => name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-
-/* build_races.mjs slugs the name as it appears in the RACE DATA, which is
- * plain ASCII. The headshot FILES keep their diacritics, and slugOf drops an
- * accented letter rather than folding it - so "Jusuf Nurkić.png" slugged to
- * "jusuf-nurki" and never met the tile called "jusuf-nurkic". That is the
- * whole reason six players kept a distorted tile after a 99% run.
- *
- * Both forms are indexed rather than replacing one with the other: a folder
- * whose filenames are already ASCII must keep matching exactly as before. */
-const fold = s => s.normalize ? s.normalize("NFD").replace(/[̀-ͯ]/g, "") : s;
-const slugsFor = name => {
-  const raw = slugOf(name), folded = slugOf(fold(name));
-  return folded === raw ? [raw] : [raw, folded];
-};
+/* Slugging lives in lib/faces.mjs now, as tileSlugVariants, because this is
+ * the third time a tile and its source file have disagreed over punctuation
+ * and the first two fixes were made here where nothing could test them.
+ * tools/test_tile_slugs.mjs covers it. */
+const slugsFor = name => tileSlugVariants(name);
 
 /* slug -> source, by PRECEDENCE: the first folder named on the command line
  * that has the file wins. Not the largest, not the newest. If you want a
@@ -214,20 +204,40 @@ const slugsFor = name => {
  * silently resolved it the wrong way instead of saying "these disagree". */
 const bySlug = new Map();
 const conflicts = [];
-for (let i = 0; i < SOURCES.length; i++) {
-  const dir = SOURCES[i];
-  let files;
-  try { files = fs.readdirSync(dir); } catch (e) { continue; }
-  for (const f of files) {
-    if (!f.toLowerCase().endsWith(".png")) continue;
-    const full = path.join(dir, f);
-    let size;
-    try { size = fs.statSync(full).size; } catch (e) { continue; }
-    for (const slug of slugsFor(f.slice(0, -4))) {
+
+/* ONE PASS PER VARIANT LEVEL, so an exact match can never be displaced by a
+ * fuzzier one from a folder named later. Doing it in a single pass per file
+ * would let "Nenê" claim nene before some other file's exact nene arrived.
+ *
+ * Files are SORTED within each folder. readdir order is the filesystem's
+ * business, and letting it decide which of two candidates wins makes a build's
+ * output depend on the machine's mood - the same reason foldedPngIndex sorts. */
+const listing = SOURCES.map(dir => {
+  let files = [];
+  try { files = fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith(".png")).sort(); }
+  catch (e) { /* unreadable folder, reported by the existence check above */ }
+  return { dir, files };
+});
+
+const LEVELS = 4;
+for (let level = 0; level < LEVELS; level++) {
+  for (let i = 0; i < listing.length; i++) {
+    const { dir, files } = listing[i];
+    for (const f of files) {
+      const variants = slugsFor(f.slice(0, -4));
+      const slug = variants[level];
+      if (!slug) continue;
+      const full = path.join(dir, f);
+      let size;
+      try { size = fs.statSync(full).size; } catch (e) { continue; }
       const prev = bySlug.get(slug);
-      if (!prev) { bySlug.set(slug, { file: full, size, dir, rank: i }); continue; }
-      /* Same bytes in two checkouts is a copy, not a disagreement. */
-      if (prev.size !== size) conflicts.push({ slug, kept: prev, other: { file: full, size } });
+      if (!prev) { bySlug.set(slug, { file: full, size, dir, rank: i, level }); continue; }
+      /* A conflict only counts within the SAME level: an exact match beating a
+       * punctuation-cut one is the precedence working, not a disagreement.
+       * Same bytes is a copy of one file in two checkouts, also not one. */
+      if (prev.level === level && prev.size !== size) {
+        conflicts.push({ slug, kept: prev, other: { file: full, size } });
+      }
     }
   }
 }
