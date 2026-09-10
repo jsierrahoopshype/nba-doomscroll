@@ -2,6 +2,7 @@
  *
  *     node tools/build_award_history.mjs
  *     node tools/build_award_history.mjs --local "C:\path\to\nba-player-data"
+ *     node tools/build_award_history.mjs --sample 12
  *
  * WHY THIS EXISTS SEPARATELY FROM build_oddities.mjs
  *
@@ -22,24 +23,55 @@
  *   Hustle        24 rows   2017-2026    8 seasons
  *   RNK 1 to 32, every row parses
  *
- * Seventy-one seasons of MVP voting is what turns "no Kings player in the 12
- * seasons this tracker covers" into "the first Kings player to receive an MVP
- * vote since 1993". That is the whole point of this file.
+ * WHAT THE FIRST VERSION GOT WRONG, BECAUSE IT IS WHY THIS FILE LOOKS LIKE
+ * THIS
+ *
+ * The facts were right and the output was still bad. Ten cards went out and
+ * eight of them were the same sentence:
+ *
+ *   "<Player> is the first <Team> player to finish in the top five for
+ *    <Award> since <Year>"
+ *   "He finished 5th. The last was <Name> in <Year>. <N> seasons of <Award>
+ *    voting went by without another."
+ *
+ * Five separate defects, and only one of them was arithmetic:
+ *
+ *   1. ONE TEMPLATE, so the third card taught the reader it was generated.
+ *      Fixed in lib/award_sentences.mjs: several sentence STRUCTURES per case,
+ *      chosen by a hash of the card's own facts, with a per-shape budget in
+ *      the thinning pass below so no shape can dominate the pool.
+ *
+ *   2. "The last was Shane Battier and Metta World Peace in 2009" - plural
+ *      subject, singular verb. Fixed, and checked by the verifier.
+ *
+ *   3. "Metta World Peace in 2009" - he was Ron Artest until 2011. Fixed with
+ *      a small table of renamings, applied by season.
+ *
+ *   4. "the first Raptors player ... in 43 seasons of voting, going back to
+ *      1983" - Toronto joined the NBA in 1996. THE WINDOW IS THE OVERLAP OF
+ *      THE AWARD'S SPAN AND THE FRANCHISE'S, and the franchise's comes from
+ *      rsStats here, never from a hand-typed year.
+ *
+ *   5. Thresholds set by feel. Five players finish top five each season, which
+ *      across thirty teams is one appearance per team per six years, so the
+ *      old seven-season Rookie of the Year "drought" was close to chance. The
+ *      gates now differ by award and by how strong the claim is; see
+ *      lib/award_sentences.mjs for the arithmetic behind each number.
  *
  * THE LABEL BUG THE PROBE FOUND
  *
- * There is an eighth award: "Sixth", 12 rows, 2026 only. It is not an award -
- * it is "Sixth Man" with the second word lost, and it splits that award's most
- * recent season off into a one-season history of its own. Left alone it would
- * make Sixth Man look as though it ended in 2025 and make "Sixth" fail the
- * window gate, so 2026 would simply vanish from that award. Normalised here
- * and worth reporting upstream, because it will be wrong again next season.
+ * There is an eighth award: "Sixth", 12 rows, 2026 only. It is "Sixth Man"
+ * with the second word lost, and it splits that award's most recent season off
+ * into a one-season history of its own. Left alone it would make Sixth Man
+ * look as though it ended in 2025 and 2026 would vanish. Normalised here and
+ * worth reporting upstream, because it will be wrong again next season.
  *
- * NO TEAM ON THE ROW, SO THE JOIN STAYS
+ * ONE FRANCHISE, SEVERAL CODES
  *
- * The probe settled that too. Franchise comes from rsStats, by the plurality of
- * games played, refusing an exact tie - see lib/vote_context.mjs for why a
- * guess there is the one error that makes the card a lie rather than dull.
+ * SAC, KCK, KCO, CIN and ROC are one continuous franchise and a drought that
+ * stops at a relocation is not a drought. lib/franchises.mjs groups the codes
+ * and, just as importantly, says what the team was CALLED in the season being
+ * described, so a 1974 Bullets player is never called a Wizard.
  *
  * RECENCY, BECAUSE 71 SEASONS IS A LOT OF 1970s
  *
@@ -54,6 +86,11 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { resolveSource } from "./lib/find.mjs";
 import { teamByPlayerSeason, voteHistory, teamVoteDrought } from "./lib/vote_context.mjs";
+import { franchiseKey, identity } from "./lib/franchises.mjs";
+import {
+  sentenceShapes, checkText, displaySurname, pastName,
+  minGapFor, MIN_NEVER_WINDOW, MIN_AWARD_SEASONS
+} from "./lib/award_sentences.mjs";
 import { recencyFactor } from "./lib/salary.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -61,6 +98,8 @@ const REPO = path.join(__dirname, "..");
 const argv = process.argv.slice(2);
 const li = argv.indexOf("--local");
 const oi = argv.indexOf("--out");
+const si = argv.indexOf("--sample");
+const SAMPLE = si >= 0 ? (parseInt(argv[si + 1], 10) || 10) : 0;
 
 const PD = resolveSource("nba-player-data", {
   explicit: li >= 0 ? argv[li + 1] : null,
@@ -72,51 +111,65 @@ const OUT = path.isAbsolute(outArg) ? outArg : path.join(REPO, outArg);
 
 const readJson = p => JSON.parse(fs.readFileSync(path.join(PD, p), "utf8"));
 
-/* ---------------- labels ---------------- */
-
-/* The award as the data spells it, mapped to how a card should say it. "Sixth"
- * is the truncation the probe found; the rest are the file's own short codes,
- * which read fine in a sentence. */
+/* The award as the data spells it, mapped to how a card should say it. */
 const AWARD_FIX = { "Sixth": "Sixth Man" };
 const SAY = {
   MVP: "MVP", DPOY: "Defensive Player of the Year", ROY: "Rookie of the Year",
   MIP: "Most Improved Player", "Sixth Man": "Sixth Man of the Year",
-  Clutch: "Clutch Player of the Year", Hustle: "the Hustle Award"
+  Clutch: "Clutch Player of the Year", Hustle: "Hustle Award"
 };
 const say = a => SAY[a] || a;
 
-const NICK = {
-  ATL: "Hawks", BOS: "Celtics", BKN: "Nets", CHA: "Hornets", CHI: "Bulls",
-  CLE: "Cavaliers", DAL: "Mavericks", DEN: "Nuggets", DET: "Pistons",
-  GSW: "Warriors", HOU: "Rockets", IND: "Pacers", LAC: "Clippers",
-  LAL: "Lakers", MEM: "Grizzlies", MIA: "Heat", MIL: "Bucks",
-  MIN: "Timberwolves", NOP: "Pelicans", NYK: "Knicks", OKC: "Thunder",
-  ORL: "Magic", PHI: "76ers", PHX: "Suns", POR: "Trail Blazers",
-  SAC: "Kings", SAS: "Spurs", TOR: "Raptors", UTA: "Jazz", WAS: "Wizards",
-  /* Seventy-one seasons reaches well past the current thirty. These are the
-   * codes rsStats uses for franchises that have moved or been renamed, and a
-   * headline reading "the first NJN player" would be worse than the table. */
-  SEA: "SuperSonics", NJN: "Nets", VAN: "Grizzlies", CHH: "Hornets",
-  NOH: "Hornets", NOK: "Hornets", WSB: "Bullets", CAP: "Bullets",
-  BAL: "Bullets", KCK: "Kings", KCO: "Kings", CIN: "Royals",
-  SDC: "Clippers", BUF: "Braves", SFW: "Warriors", PHW: "Warriors",
-  STL: "Hawks", MLH: "Hawks", SYR: "Nationals", FTW: "Pistons",
-  ROC: "Royals", MNL: "Lakers", CHP: "Packers", CHZ: "Zephyrs",
-  NYN: "Nets", SDR: "Rockets", NOJ: "Jazz", UTH: "Jazz", PHO: "Suns",
-  BRK: "Nets", CHO: "Hornets"
-};
-const nick = code => NICK[code] || code;
+const upper = t => String(t).trim().toUpperCase();
 
 /* ---------------- load ---------------- */
 
 const votes = readJson("awardVotes.json");
 const statRows = readJson("rsStats.json");
 
-const teamOf = teamByPlayerSeason(statRows, t => String(t).trim().toUpperCase());
-console.log(`${votes.length} vote rows, ${teamOf.size} player-seasons resolved to one franchise`);
+/* Which franchise did each player-season belong to. The code comes from the
+ * plurality of games played, refusing an exact tie - see lib/vote_context.mjs
+ * for why a guess there is the one error that makes a card a lie rather than
+ * dull - and the code is then resolved to a franchise. */
+const codeOf = teamByPlayerSeason(statRows, upper);
+const keyOf = new Map();
+const unknownCodes = new Map();
+for (const [ps, code] of codeOf) {
+  const year = parseInt(ps.slice(ps.lastIndexOf("|") + 1), 10);
+  const key = franchiseKey(code, year);
+  if (!key) { unknownCodes.set(code, (unknownCodes.get(code) || 0) + 1); continue; }
+  keyOf.set(ps, key);
+}
 
-/* award -> year -> [{ player, rnk }] */
+/* HOW LONG HAS THIS FRANCHISE EXISTED. Read, not typed: the moment this
+ * becomes a table of founding years is the moment a card claims a team was
+ * around for a season it was not. */
+const span = new Map();          // franchise key -> { from, to }
+let dataFloor = Infinity;
+for (const r of statRows) {
+  const year = parseInt(r.YEAR, 10);
+  if (!year || !r.TEAM) continue;
+  const code = upper(r.TEAM);
+  if (/^(TOT|TOTAL|2TM|3TM|4TM)$/.test(code)) continue;
+  if (year < dataFloor) dataFloor = year;
+  const key = franchiseKey(code, year);
+  if (!key) continue;
+  const s = span.get(key);
+  if (!s) span.set(key, { from: year, to: year });
+  else { if (year < s.from) s.from = year; if (year > s.to) s.to = year; }
+}
+
+console.log(`${votes.length} vote rows, ${codeOf.size} player-seasons on one franchise, ` +
+  `${span.size} franchises spanning ${dataFloor} onwards`);
+if (unknownCodes.size) {
+  console.log(`  team codes lib/franchises.mjs does not know, so no card can name them: ` +
+    [...unknownCodes.entries()].sort((a, b) => b[1] - a[1])
+      .map(([c, n]) => `${c} x${n}`).join(", "));
+}
+
+/* award -> year -> rows */
 const byAwardYear = new Map();
+const rankOf = new Map();        // "award|year|player" -> rnk
 let fixed = 0, unusable = 0;
 for (const r of votes) {
   const rawAward = String(r.AWARD || "").trim();
@@ -129,182 +182,286 @@ for (const r of votes) {
   const key = award + "|" + year;
   if (!byAwardYear.has(key)) byAwardYear.set(key, { award, year, rows: [] });
   byAwardYear.get(key).rows.push({ player: r.PLAYER, rnk: isFinite(rnk) ? rnk : null });
+  if (isFinite(rnk)) rankOf.set(award + "|" + year + "|" + r.PLAYER, rnk);
 }
 if (fixed) {
   console.log(`labels: ${fixed} rows said "Sixth" rather than "Sixth Man" - merged. ` +
-    `That is a bug in awardVotes.json and will recur.`);
+    `That is a bug in awardVotes.json and it will recur.`);
 }
 if (unusable) console.log(`${unusable} rows had no award, player or year`);
 
-/* ---------------- two histories ---------------- */
+/* ---------------- three histories, because they are three claims ----------- */
 
-/* TOP FIVE IS A DIFFERENT AND BETTER CLAIM THAN A VOTE.
- *
- * "The first Kings player to receive an MVP vote since 1993" is good. "The
- * first Kings player to finish top five since 1993" is better, because a
- * single stray vote is one voter and a top-five finish is the electorate. Both
- * are computed and the stronger one is preferred where it exists - but they
- * are separate histories, because a team can have appeared every year and
- * finished top five never. */
+/* A vote, a top-five finish and a win are not degrees of the same thing. A
+ * stray vote is one voter; a top-five finish is the electorate; a win is the
+ * award. Each gets its own history, because a franchise can have appeared
+ * every season and won never, and the sentence has to be about the one that is
+ * actually true. */
 const TOP = 5;
-const asAll = [], asTop = [];
+const asAll = [], asTop = [], asWin = [];
 for (const g of byAwardYear.values()) {
-  asAll.push({ award: g.award, season: String(g.year), players: g.rows.map(r => r.player) });
+  const season = String(g.year);
+  asAll.push({ award: g.award, season, players: g.rows.map(r => r.player) });
   const top = g.rows.filter(r => r.rnk != null && r.rnk <= TOP).map(r => r.player);
-  if (top.length) asTop.push({ award: g.award, season: String(g.year), players: top });
+  if (top.length) asTop.push({ award: g.award, season, players: top });
+  const won = g.rows.filter(r => r.rnk === 1).map(r => r.player);
+  if (won.length) asWin.push({ award: g.award, season, players: won });
 }
-const histAll = voteHistory(asAll, teamOf);
-const histTop = voteHistory(asTop, teamOf);
+const HIST = {
+  any: voteHistory(asAll, keyOf),
+  top: voteHistory(asTop, keyOf),
+  win: voteHistory(asWin, keyOf)
+};
 
-for (const [award, h] of [...histAll.entries()].sort()) {
-  console.log(`  ${award.padEnd(10)} ${h.years.length} seasons ` +
-    `${h.years[0]}-${h.years[h.years.length - 1]}, ${h.teamYears.size} franchises`);
+const awardSeasons = new Map();  // award -> seasons in the data
+for (const [award, h] of [...HIST.any.entries()].sort()) {
+  awardSeasons.set(award, h.years.length);
+  console.log(`  ${award.padEnd(10)} ${String(h.years.length).padStart(2)} seasons ` +
+    `${h.years[0]}-${h.years[h.years.length - 1]}, ${h.teamYears.size} franchises` +
+    (h.years.length < MIN_AWARD_SEASONS ? "   (too short for a drought claim, skipped)" : ""));
 }
 
-/* ---------------- cards ---------------- */
+/* ---------------- candidate cards ---------------- */
 
 const LATEST = Math.max(...[...byAwardYear.values()].map(g => g.year));
+const SCOPES = ["win", "top", "any"];       // strongest claim first
 const cards = [];
-let noTeam = 0;
+let noTeam = 0, noSentence = 0;
 
 for (const g of [...byAwardYear.values()].sort((a, b) => b.year - a.year)) {
-  /* Best finisher first, so the representative of each franchise is the man a
-   * reader has heard of rather than whoever the loop met first. */
+  if ((awardSeasons.get(g.award) || 0) < MIN_AWARD_SEASONS) continue;
+  const label = say(g.award);
+
+  /* Best finisher first, so each franchise is represented by the man a reader
+   * has heard of rather than whoever the loop met first. */
   const rows = g.rows.slice().sort((a, b) =>
     (a.rnk == null ? 999 : a.rnk) - (b.rnk == null ? 999 : b.rnk));
 
   const options = [];
-  const seenTeam = new Set();
+  const seen = new Set();
   for (const r of rows) {
-    const team = teamOf.get(r.player + "|" + g.year);
-    if (!team) { noTeam++; continue; }
-    if (seenTeam.has(team)) continue;
-    seenTeam.add(team);
+    const key = keyOf.get(r.player + "|" + g.year);
+    if (!key) { noTeam++; continue; }
+    if (seen.has(key)) continue;
+    seen.add(key);
 
-    /* The stronger claim first. A top-five finish that also breaks an
-     * any-vote drought is described as the top-five one, because it is the
-     * more surprising of two true things. */
-    const top = (r.rnk != null && r.rnk <= TOP)
-      ? teamVoteDrought(histTop, g.award, team, g.year) : null;
-    const any = teamVoteDrought(histAll, g.award, team, g.year);
-    const d = top || any;
-    if (!d) continue;
-    options.push({ r, team, d, scope: top ? "top" : "any" });
+    const sp = span.get(key);
+    if (!sp) continue;
+    const bounds = { franchiseFrom: sp.from, franchiseTo: sp.to };
+
+    for (const scope of SCOPES) {
+      if (scope === "win" && r.rnk !== 1) continue;
+      if (scope === "top" && !(r.rnk != null && r.rnk <= TOP)) continue;
+
+      const d = teamVoteDrought(HIST[scope], g.award, key, g.year, {
+        ...bounds, minGap: minGapFor(g.award, scope)
+      });
+      if (!d) continue;
+
+      /* A "nobody here has done this" card needs a long window, and is never
+       * offered for a win: twenty-odd franchises have never won Most Improved
+       * Player, so that card exists for all of them and says nothing about the
+       * player who broke it. */
+      if (d.kind === "first-in-window") {
+        if (scope === "win") continue;
+        if (d.seasonsCovered < (MIN_NEVER_WINDOW[scope] || 20)) continue;
+      }
+
+      options.push({ r, key, d, scope });
+      break;                     // strongest true claim for this franchise
+    }
   }
 
-  /* One card per award-season, and it goes to the longest story - never in the
-   * data ahead of a gap, then the bigger number. */
+  /* One card per award-season, to the longest story: never-in-this-franchise
+   * ahead of a gap, then the bigger span. */
   options.sort((x, y) =>
     ((y.d.kind === "first-in-window") - (x.d.kind === "first-in-window")) ||
     ((y.d.gap || y.d.seasonsCovered) - (x.d.gap || x.d.seasonsCovered)));
   const best = options[0];
   if (!best) continue;
 
-  const { r, team, d, scope } = best;
-  const label = say(g.award);
-  const who = nick(team);
-  const did = scope === "top" ? `finish in the top five for ${label}` : `receive a ${label} vote`;
-  const didPast = scope === "top" ? `finished in the top five` : `received one`;
-  const place = r.rnk != null ? `He finished ${ordinal(r.rnk)}.` : "";
+  const { r, key, d, scope } = best;
+  const id = identity(key, g.year);
+  if (!id) continue;
 
-  /* NOT "EVER". The word crept back in and it is the exact overclaim the
-   * window machinery exists to prevent: ROY voting began in 1953 and this file
-   * starts at 1964, so "the first Kings player ever" would be a sentence about
-   * eleven seasons nobody here has seen. "In 70 seasons of MVP voting" is
-   * factual, needs no table of award start years, and is not weaker - it is
-   * the number a reader wanted anyway.
-   *
-   * And the gap is the seasons BETWEEN, so a last appearance in 2016 with a
-   * gap of 9 is ten seasons ago, not nine. "Since 2016" in the headline is
-   * unambiguous; the detail says how many seasons went without rather than
-   * how long ago it was, which is the same fact stated so it cannot be off
-   * by one. */
-  const headline = d.kind === "first-in-window"
-    ? `${r.player} is the first ${who} player to ${did} in ${d.seasonsCovered} seasons of voting`
-    : `${r.player} is the first ${who} player to ${did} since ${d.sinceYear}`;
+  const fact = {
+    player: r.player,
+    surname: displaySurname(r.player),
+    label, year: g.year, rank: r.rnk, scope, kind: d.kind, id
+  };
 
-  const detail = d.kind === "first-in-window"
-    ? `${place} No ${who} player had done it in the ${d.seasonsCovered} seasons of ` +
-      `${label} voting this data covers before ${g.year}, going back to ${d.windowFrom}.`
-    : `${place} The last was ` +
-      `${d.sincePlayers.slice(0, 2).join(" and ") || "a predecessor"} in ${d.sinceYear}. ` +
-      `${d.gap} season${d.gap === 1 ? "" : "s"} of ${label} voting went by without another.`;
+  if (d.kind === "first-since") {
+    /* Names as they were at the time, and the predecessor's own finish, which
+     * is the difference between "the last was Chauncey Billups in 2006" and
+     * "Chauncey Billups finished fifth that year". */
+    const raw = (d.sincePlayers || []).slice(0, 3);
+    fact.sinceNames = raw.map(n => pastName(n, d.sinceYear));
+    fact.sinceYear = d.sinceYear;
+    fact.gap = d.gap;
+    fact.sinceSeasons = d.gap + 1;      // gap counts seasons BETWEEN, both ends out
+    fact.sinceId = identity(key, d.sinceYear);
+    if (raw.length === 1) {
+      fact.sinceSurname = displaySurname(fact.sinceNames[0]);
+      const rk = rankOf.get(g.award + "|" + d.sinceYear + "|" + raw[0]);
+      fact.sinceRank = rk == null ? null : rk;
+    }
+  } else {
+    const awardFrom = HIST[scope].get(g.award).years[0];
+    fact.seasonsCovered = d.seasonsCovered;
+    fact.windowFrom = d.windowFrom;
+    /* "In franchise history" is only sayable when the award was already being
+     * voted on before this team existed - and only when the data actually
+     * covers the franchise's first season, or its "from" is just where the
+     * file starts. */
+    const sp2 = span.get(key);
+    fact.wholeHistory = sp2.from > awardFrom && sp2.from > dataFloor;
+    const then = identity(key, d.windowFrom);
+    fact.sameIdentityThroughout = !!then && then.city === id.city && then.nick === id.nick;
+  }
 
-  /* A never-in-the-data claim beats a gap, a top-five claim beats a vote, and
-   * a longer gap beats a shorter one - then aged, so seventy-one seasons of
-   * history does not bury the last five. */
-  const base = 0.72 +
-    (d.kind === "first-in-window" ? 0.10 : 0) +
-    (scope === "top" ? 0.06 : 0) +
-    Math.min(0.08, (d.gap || d.seasonsCovered) / 400);
-  const q = base * recencyFactor(g.year, LATEST);
+  const shapes = sentenceShapes(fact);
+  if (!shapes.length) { noSentence++; continue; }
+
+  /* A never-claim beats a gap, a win beats a top five beats a vote, a longer
+   * span beats a shorter one - then aged, so seventy-one seasons of history
+   * does not bury the last five. */
+  const size = d.gap || d.seasonsCovered;
+  const base = 0.70 +
+    (scope === "win" ? 0.12 : scope === "top" ? 0.06 : 0) +
+    (d.kind === "first-in-window" ? (fact.wholeHistory ? 0.10 : 0.06) : 0) +
+    Math.min(0.08, size / 500);
+  const rec = recencyFactor(g.year, LATEST);
 
   cards.push({
+    fact, shapes, award_key: g.award, key, scope,
+    quality_score: Math.round(Math.min(1, base * rec) * 100) / 100,
+    quality_raw: Math.round(Math.min(1, base) * 100) / 100,
+    recency: Math.round(rec * 1000) / 1000,
+    drawn: g.rows.length
+  });
+}
+
+/* ---------------- thin, with a budget per sentence shape ------------------- */
+
+/* MAX_PER_SHAPE is the part of this that answers the actual complaint. Caps on
+ * teams and awards stop the pool being all Lakers or all MVP; nothing stopped
+ * it being the same sentence forty times, which is what shipped. */
+const MAX_PER_TEAM = 3, MAX_PER_AWARD = 12, MAX_PER_SHAPE = 8, MAX_PER_SHAPE_AWARD = 3;
+const perTeam = new Map(), perAward = new Map(), perShape = new Map(), perShapeAward = new Map();
+const kept = [];
+let shapeStarved = 0;
+
+for (const c of cards.slice().sort((a, b) => b.quality_score - a.quality_score)) {
+  if ((perTeam.get(c.key) || 0) >= MAX_PER_TEAM) continue;
+  if ((perAward.get(c.award_key) || 0) >= MAX_PER_AWARD) continue;
+
+  /* Take the first sentence shape this card can have that the pool is not
+   * already full of. Dropping the card is the right answer when every shape it
+   * supports is spent - there is no shortage of candidates, and a card is not
+   * worth repeating a structure for. */
+  let picked = null;
+  for (const s of c.shapes) {
+    const sa = s.shape + "|" + c.award_key;
+    if ((perShape.get(s.shape) || 0) >= MAX_PER_SHAPE) continue;
+    if ((perShapeAward.get(sa) || 0) >= MAX_PER_SHAPE_AWARD) continue;
+    picked = s;
+    break;
+  }
+  if (!picked) { shapeStarved++; continue; }
+
+  perTeam.set(c.key, (perTeam.get(c.key) || 0) + 1);
+  perAward.set(c.award_key, (perAward.get(c.award_key) || 0) + 1);
+  perShape.set(picked.shape, (perShape.get(picked.shape) || 0) + 1);
+  const sa = picked.shape + "|" + c.award_key;
+  perShapeAward.set(sa, (perShapeAward.get(sa) || 0) + 1);
+
+  const f = c.fact;
+  kept.push({
     /* "oddity-" so js/app.js routes it to the vault tab with no change to its
      * id-prefix table - only the pool list needs the new file. */
-    id: "oddity-hist-" + g.award.toLowerCase().replace(/[^a-z]/g, "") + "-" + g.year + "-" + team.toLowerCase(),
+    id: "oddity-hist-" + c.award_key.toLowerCase().replace(/[^a-z]/g, "") +
+        "-" + f.year + "-" + c.key,
     type: "oddity",
     tab: ["vault"],
     tags: {
-      content_type: "oddity", players: [r.player], teams: [team],
-      era: (g.year - (g.year % 10)) + "s", category: "award-history"
+      content_type: "oddity", players: [f.player], teams: [codeOf.get(f.player + "|" + f.year)],
+      era: (f.year - (f.year % 10)) + "s", category: "award-history"
     },
-    quality_score: Math.round(Math.min(1, q) * 100) / 100,
-    quality_raw: Math.round(Math.min(1, base) * 100) / 100,
-    recency: Math.round(recencyFactor(g.year, LATEST) * 1000) / 1000,
-    story_family: "awardhist:" + (d.kind === "first-in-window" ? "first-ever" : "drought"),
+    quality_score: c.quality_score,
+    quality_raw: c.quality_raw,
+    recency: c.recency,
+    /* The shape is in the family, so the feed engine spaces two cards with the
+     * same structure apart even when they are about different awards. */
+    story_family: "awardhist:" + picked.shape,
     /* Shares the ballot namespace so the engine will not show this and a
      * tracker oddity about the same award-season in one scroll. */
-    story_key: ["ballot", g.award, String(g.year), r.player].join("|"),
+    story_key: ["ballot", c.award_key, String(f.year), f.player].join("|"),
     payload: {
-      season: String(g.year), award: label, award_key: g.award,
-      subjects: [r.player], headline, detail,
-      scope: `${g.rows.length} players drew votes in ${g.year}`,
-      url: "https://hoopsmatic.com/compare?player=" + encodeURIComponent(r.player),
-      cta: `${r.player} on HoopsMatic`
+      season: String(f.year), award: f.label, award_key: c.award_key,
+      subjects: [f.player],
+      headline: picked.head,
+      detail: picked.detail,
+      shape: picked.shape,
+      scope: `${c.drawn} players drew votes in ${f.year}`,
+      url: "https://hoopsmatic.com/compare?player=" + encodeURIComponent(f.player),
+      cta: `${f.player} on HoopsMatic`
     }
   });
 }
 
-function ordinal(n) {
-  const s = ["th", "st", "nd", "rd"], v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
+/* ---------------- verify ---------------- */
 
-/* ---------------- thin, verify, write ---------------- */
-
-const MAX_PER_TEAM = 3, MAX_PER_AWARD = 12;
-const perTeam = new Map(), perAward = new Map();
-const kept = [];
-for (const c of cards.slice().sort((a, b) => b.quality_score - a.quality_score)) {
-  const t = c.tags.teams[0], a = c.payload.award_key;
-  if ((perTeam.get(t) || 0) >= MAX_PER_TEAM) continue;
-  if ((perAward.get(a) || 0) >= MAX_PER_AWARD) continue;
-  perTeam.set(t, (perTeam.get(t) || 0) + 1);
-  perAward.set(a, (perAward.get(a) || 0) + 1);
-  kept.push(c);
-}
-
+/* checkText is lib/award_sentences.mjs's own, so the rules a sentence is
+ * written to are the rules it is checked against - one list, not two that
+ * drift. On top of it: no two cards may carry the same headline, which is the
+ * crudest possible test for the defect that started all this. */
 let bad = 0;
+const seenHead = new Map();
 for (const c of kept) {
-  const p = c.payload;
-  if (!p.headline || !p.detail) { console.error(`  ${c.id}: empty text`); bad++; }
-  if (/NaN|undefined|Infinity|since null|in 0 seasons|\bever\b/.test(p.headline + " " + p.detail)) {
-    console.error(`  ${c.id}: bad text -> ${p.headline}`); bad++;
+  for (const why of checkText(c.payload.headline, c.payload.detail)) {
+    console.error(`  ${c.id}: ${why}`);
+    console.error(`      ${c.payload.headline}`);
+    bad++;
   }
+  const h = c.payload.headline.toLowerCase();
+  if (seenHead.has(h)) { console.error(`  ${c.id}: same headline as ${seenHead.get(h)}`); bad++; }
+  seenHead.set(h, c.id);
 }
-if (bad) { console.error(`FAILED: ${bad} problems`); process.exit(1); }
+if (bad) { console.error(`\nFAILED: ${bad} problems. Nothing written.`); process.exit(1); }
+
+/* ---------------- report ---------------- */
 
 console.log(`\n${cards.length} candidates -> ${kept.length} cards` +
-  (noTeam ? `; ${noTeam} vote rows had no single franchise` : ""));
+  (noTeam ? `; ${noTeam} vote rows had no single franchise` : "") +
+  (noSentence ? `; ${noSentence} had no sentence the data supports` : "") +
+  (shapeStarved ? `; ${shapeStarved} dropped rather than repeat a sentence shape` : ""));
+
+console.log("  by award:");
 [...perAward.entries()].sort((a, b) => b[1] - a[1])
-  .forEach(([a, n]) => console.log(`  ${a.padEnd(12)} ${n}`));
-console.log(`  eras: ` + [...new Set(kept.map(c => c.tags.era))].sort().join(" "));
+  .forEach(([a, n]) => console.log(`    ${a.padEnd(12)} ${n}`));
+console.log("  by sentence shape:");
+[...perShape.entries()].sort((a, b) => b[1] - a[1])
+  .forEach(([s, n]) => console.log(`    ${s.padEnd(20)} ${n}`));
+const byScope = new Map();
+for (const c of kept) {
+  const s = c.payload.shape.startsWith("never") ? "never" : "drought";
+  byScope.set(s, (byScope.get(s) || 0) + 1);
+}
+console.log("  " + [...byScope.entries()].map(([k, n]) => `${k}: ${n}`).join(", "));
+console.log("  eras: " + [...new Set(kept.map(c => c.tags.era))].sort().join(" "));
+
+if (SAMPLE) {
+  console.log(`\n  ${Math.min(SAMPLE, kept.length)} of them, best first:\n`);
+  for (const c of kept.slice(0, SAMPLE)) {
+    console.log("  " + c.payload.headline);
+    console.log("     " + c.payload.detail + "\n");
+  }
+}
 
 fs.writeFileSync(OUT, JSON.stringify({
   generated: new Date().toISOString().slice(0, 10),
   source: "nba-player-data awardVotes + rsStats",
   cards: kept
 }));
-console.log(`\nwrote ${path.relative(REPO, OUT)} (${Math.round(fs.statSync(OUT).size / 1024)}KB)`);
-console.log(`\nAdd it to js/app.js TAB_POOLS.vault to put these in the feed.`);
+console.log(`wrote ${path.relative(REPO, OUT)} (${Math.round(fs.statSync(OUT).size / 1024)}KB)`);
+console.log(`\nRun with --sample 12 to read a dozen of them without opening the file.`);
