@@ -43,7 +43,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { decodePng, resize, crop, encodePng } from "./lib/png.mjs";
-import { alphaBox, buildBcrIndex } from "./lib/faces.mjs";
+import { buildBcrIndex, headTile, BCR_PIXEL_ASPECT } from "./lib/faces.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -114,23 +114,27 @@ const sourceFor = name => faceIdx.fileFor(name);
 /* ---------------- faces ----------------
  *
  * The scoreboard draws heads in circles, so these are square tiles rather than
- * the races' 1.4:1 landscape ones — and a square cut from a fixed fraction of
+ * the races' 1.4:1 landscape ones - and a square cut from a fixed fraction of
  * the source is not good enough. Every file here is 256x256 with the
  * background removed, but the subject sits differently in each: some are
- * framed tight on the head, some are half torso. Cropping the top 78% of all
- * of them gave a head that filled the circle for one player and floated in it
- * for the next, which reads as inconsistent sizing.
+ * framed tight on the head, some are half torso.
  *
- * So the visible pixels are measured (tools/lib/faces.mjs), and the square is
- * placed on the head: as wide as roughly two thirds of the subject's height,
- * centred on the subject horizontally, starting just below the top of the
- * crown. Square in, square out, resized once — the tile is never stretched on
- * either axis, and every head lands at the same size in its circle.
+ * THIS USED TO BE ITS OWN COPY OF headTile, AND THAT IS WHY IT STAYED BROKEN.
+ *
+ * The same forty lines of geometry lived here and in lib/faces.mjs, with the
+ * same three constants and the same confident comment that the tile is "never
+ * stretched on either axis". Both were wrong in the same way: the SOURCE is
+ * pre-squashed 1.4x, because bar-chart-race stretches its cut-outs back when
+ * it draws them into 1.4:1 bars. Fixing lib/faces.mjs fixed the feed's
+ * avatars and left this copy exactly as it was, so the Teammates scoreboard
+ * kept every narrow face - which is what Jorge was still looking at two
+ * rounds later.
+ *
+ * So the copy is gone and this calls the one implementation, which is the only
+ * arrangement where a fix to the framing reaches every circle in the app.
  */
 const tileCache = new Map();
-const HEAD_BAND = 0.34;   // the top third of a cut-out is the head
-const HEAD_PAD = 2.25;    // square side, as a multiple of head WIDTH
-const HEAD_RATIO = 1.4;   // a head is about this many times as tall as it is wide
+const PNG = { decodePng, encodePng, resize, crop };
 
 function discFor(name) {
   if (tileCache.has(name)) return tileCache.get(name);
@@ -138,49 +142,12 @@ function discFor(name) {
   const src = sourceFor(name);
   try {
     if (src) {
-      const img = decodePng(src);
-      const full = img && alphaBox(src);
-      if (img) {
-        let side, x, y;
-        if (full) {
-          /* Centre on the HEAD, not on the subject and not on the crown.
-           *
-           * The subject is head and shoulders, so its centre of mass is the
-           * chest — a square around that put Jerry West's face half outside
-           * the circle. Hanging the square off the top of the head instead
-           * pushed every chin past the bottom edge, which is what "a bit cut
-           * off" looked like.
-           *
-           * So: measure the head's width from the top third of the cut-out,
-           * assume a head is about 1.4 times as tall as it is wide (true
-           * enough for every face here), and centre the square on the middle
-           * of THAT. The square is 2.25 head-widths across, which leaves the
-           * whole head inside the inscribed circle with air around it —
-           * a square that just contains the head does not, because the circle
-           * cuts its corners off.
-           */
-          const fy = full[1] * img.h, fh = full[3];
-          const headBox = alphaBox(src, full[1], full[1] + fh * HEAD_BAND) || full;
-          const hx = headBox[0] * img.w, hw = headBox[2] * img.w;
-          side = Math.round(Math.min(img.w, img.h, hw * HEAD_PAD));
-          x = Math.round(hx + hw / 2 - side / 2);
-          y = Math.round(fy + hw * HEAD_RATIO / 2 - side / 2);
-        } else {
-          side = Math.min(img.w, Math.round(img.h * 0.78));
-          x = Math.round((img.w - side) / 2);
-          y = 0;
-        }
-        // Keep the square inside the image. Square in, square out, one resize:
-        // the tile is never stretched on either axis.
-        x = Math.max(0, Math.min(x, img.w - side));
-        y = Math.max(0, Math.min(y, img.h - side));
-        const buf = encodePng(resize(crop(img, x, y, side, side), DISC, DISC));
-        if (buf) {
-          const slug = name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-          fs.mkdirSync(FACE_DIR, { recursive: true });
-          fs.writeFileSync(path.join(FACE_DIR, slug + ".png"), buf);
-          out = "data/teammates/faces/" + slug + ".png";
-        }
+      const buf = headTile(src, DISC, PNG, { srcAspect: BCR_PIXEL_ASPECT });
+      if (buf) {
+        const slug = name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+        fs.mkdirSync(FACE_DIR, { recursive: true });
+        fs.writeFileSync(path.join(FACE_DIR, slug + ".png"), buf);
+        out = "data/teammates/faces/" + slug + ".png";
       }
     }
   } catch (e) { /* unreadable source */ }

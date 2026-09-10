@@ -183,7 +183,21 @@ export function encodePng(img) {
 
 /** The bar-chart-race "rectangle" headshot transform, baked in:
  *  crop the top 80% of the source, then squash to a 1.4:1 landscape tile. */
-export function raceFaceTile(srcFile, outW, outH) {
+/* @param {object} [opts]  srcAspect: the DISPLAY width of one source pixel.
+ *   1 means square pixels and behaves exactly as this always has. 1.4 means
+ *   the person in the file is 1.4x too narrow - bar-chart-race's cut-outs are
+ *   pre-squashed because that renderer stretches them back when it draws.
+ *
+ * THIS IS THE THIRD COPY OF THE SAME BUG.
+ *
+ * headTile carried it, build_teammates.mjs carried its own inlined copy, and
+ * this carried a third. All three said some version of "never squashed" and
+ * all three faithfully preserved a squash nobody had told them about, because
+ * the distortion is in the SOURCE and none of them asked. Fixing headTile
+ * fixed the feed's avatars and left the races and the Teammates scoreboard
+ * exactly as they were, which is what Jorge was still looking at.
+ */
+export function raceFaceTile(srcFile, outW, outH, opts) {
   const img = decodePng(srcFile);
   if (!img) return null;
   // Head and shoulders: the bottom fifth of an NBA portrait is jersey.
@@ -204,18 +218,23 @@ export function raceFaceTile(srcFile, outW, outH) {
    * the head and leave transparent bars, and the bar is only ~30px tall. NBA
    * portraits are centred, so the width this trims is background and the
    * outer edge of a shoulder. */
+  /* Both aspects in DISPLAY units. A source pixel `a` wide means a region of
+   * cropped.w pixels is cropped.w * a across on screen, and it is the screen
+   * shape that has to match the tile - so the region taken is a/1 times
+   * TALLER than the tile, and the final resize stretches it back. */
+  const a = ((opts && opts.srcAspect) > 0) ? opts.srcAspect : 1;
   const want = outW / outH;
-  const have = cropped.w / cropped.h;
+  const have = (cropped.w * a) / cropped.h;
   let box = cropped;
   if (Math.abs(have - want) > 0.001) {
     if (have > want) {
-      const w = Math.max(1, Math.round(cropped.h * want));
+      const w = Math.max(1, Math.round(cropped.h * want / a));
       box = crop(cropped, Math.round((cropped.w - w) / 2), 0, w, cropped.h);
     } else {
       /* Trim from the BOTTOM, not evenly. Taking half the excess off the top
        * removes the crown of the head, which is often the most identifiable
        * thing in the tile; the jersey below is not. */
-      const h = Math.max(1, Math.round(cropped.w / want));
+      const h = Math.max(1, Math.round(cropped.w * a / want));
       box = crop(cropped, 0, 0, cropped.w, h);
     }
   }

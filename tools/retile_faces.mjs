@@ -2,6 +2,8 @@
  *
  *     node tools/retile_faces.mjs --find
  *     node tools/retile_faces.mjs --find --write
+ *     node tools/retile_faces.mjs --find --write --set teammates
+ *     node tools/retile_faces.mjs --find --write --set both
  *
  * --find locates the headshot folders itself, under your home directory, and
  * uses ALL of them together. Explicit paths still work if you want them:
@@ -42,11 +44,37 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
-import { raceFaceTile } from "./lib/png.mjs";
+import { raceFaceTile, decodePng, encodePng, resize, crop } from "./lib/png.mjs";
+import { BCR_PIXEL_ASPECT, headTile } from "./lib/faces.mjs";
 
 const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const FACE_DIR = path.join(REPO, "data/races/faces");
-const TILE_W = 112, TILE_H = 80;
+
+/* TWO TILE SETS, ONE MATCHER.
+ *
+ * data/races/faces are 112x80 landscape, drawn as bars. data/teammates/faces
+ * are 128x128 squares, drawn as circles. Different shapes, different tile
+ * functions - but the same job: find the best source for a slug across every
+ * headshot checkout on the machine and re-bake in place, without rebuilding
+ * the pool that references them.
+ *
+ * They were separate before and only the races got re-baked, so the Teammates
+ * scoreboard kept its distorted faces through two rounds of "the faces are
+ * fixed". Adding it here rather than writing a third tool is the only version
+ * where that cannot happen again.
+ */
+const PNG = { decodePng, encodePng, resize, crop };
+const SETS = {
+  races: {
+    dir: path.join(REPO, "data/races/faces"),
+    label: "data/races/faces  (112x80, bar races)",
+    bake: file => raceFaceTile(file, 112, 80, { srcAspect: BCR_PIXEL_ASPECT })
+  },
+  teammates: {
+    dir: path.join(REPO, "data/teammates/faces"),
+    label: "data/teammates/faces  (128x128, Teammates scoreboard)",
+    bake: file => headTile(file, 128, PNG, { srcAspect: BCR_PIXEL_ASPECT })
+  }
+};
 // Same rule build_races.mjs applies: below this a file is an NBA CDN
 // silhouette placeholder, which is a grey outline of nobody.
 const MIN_SRC_BYTES = 15000;
@@ -119,8 +147,23 @@ if (!SOURCES.length) {
 for (const s of SOURCES) {
   if (!fs.existsSync(s)) { console.error(`no such folder: ${s}`); process.exit(1); }
 }
-if (!fs.existsSync(FACE_DIR)) {
-  console.error(`no tiles to rebuild: ${FACE_DIR} is missing`);
+const si = argv.indexOf("--set");
+const setArg = si >= 0 && argv[si + 1] ? argv[si + 1] : "both";
+if (!["races", "teammates", "both"].includes(setArg)) {
+  console.error(`--set must be races, teammates or both (got "${setArg}")`);
+  process.exit(1);
+}
+const CHOSEN = (setArg === "both" ? ["races", "teammates"] : [setArg])
+  .map(k => SETS[k])
+  /* A missing folder is not an error when both were asked for: a checkout that
+   * has never built the teammates pool simply has nothing to re-bake there. */
+  .filter(cfg => {
+    if (fs.existsSync(cfg.dir)) return true;
+    console.log(`  skipping ${cfg.label} - the folder is not in this checkout`);
+    return false;
+  });
+if (!CHOSEN.length) {
+  console.error("nothing to rebuild: neither tile folder is present");
   process.exit(1);
 }
 
@@ -145,7 +188,6 @@ const slugsFor = name => {
  * holds only placeholders therefore cannot displace a real portrait found
  * somewhere else, which is the whole point of merging rather than choosing. */
 const bySlug = new Map();
-const contributed = new Map(SOURCES.map(s => [s, 0]));
 for (const dir of SOURCES) {
   let files;
   try { files = fs.readdirSync(dir); } catch (e) { continue; }
@@ -161,39 +203,49 @@ for (const dir of SOURCES) {
   }
 }
 
-const tiles = fs.readdirSync(FACE_DIR).filter(f => f.endsWith(".png"));
-let rebuilt = 0, unchanged = 0, tooSmall = 0, failed = 0;
-const missing = [];
+let anyWritten = 0;
 
-for (const tile of tiles) {
-  const slug = tile.slice(0, -4);
-  const hit = bySlug.get(slug);
-  if (!hit) { missing.push(slug); continue; }
-  if (hit.size < MIN_SRC_BYTES) { tooSmall++; continue; }
+for (const cfg of CHOSEN) {
+  const tiles = fs.readdirSync(cfg.dir).filter(f => f.endsWith(".png"));
+  let rebuilt = 0, unchanged = 0, tooSmall = 0, failed = 0;
+  const missing = [];
+  const used = new Map(SOURCES.map(x => [x, 0]));
 
-  const buf = raceFaceTile(hit.file, TILE_W, TILE_H);
-  if (!buf) { failed++; console.log(`  could not decode ${path.basename(hit.file)}`); continue; }
-  contributed.set(hit.dir, (contributed.get(hit.dir) || 0) + 1);
+  for (const tile of tiles) {
+    const slug = tile.slice(0, -4);
+    const hit = bySlug.get(slug);
+    if (!hit) { missing.push(slug); continue; }
+    if (hit.size < MIN_SRC_BYTES) { tooSmall++; continue; }
 
-  const dest = path.join(FACE_DIR, tile);
-  const before = fs.readFileSync(dest);
-  if (before.equals(buf)) { unchanged++; continue; }
-  if (WRITE) fs.writeFileSync(dest, buf);
-  rebuilt++;
-}
+    /* The sources are bar-chart-race cut-outs, whose pixels are not square.
+     * Without srcAspect the tiles come out correctly FRAMED and 1.4x too
+     * narrow, which is what "the Bar Races still look stretched" was. Each
+     * set passes it in its own bake function so neither can be forgotten. */
+    const buf = cfg.bake(hit.file);
+    if (!buf) { failed++; console.log(`  could not decode ${path.basename(hit.file)}`); continue; }
+    used.set(hit.dir, (used.get(hit.dir) || 0) + 1);
 
-/* The headline number when comparing checkouts. Five folders called
- * "headshots" can sit on one machine and resolve wildly different numbers of
- * players; picking the wrong one silently leaves most tiles distorted. */
-const matched = tiles.length - missing.length;
-const pct = tiles.length ? Math.round(100 * matched / tiles.length) : 0;
+    const dest = path.join(cfg.dir, tile);
+    const before = fs.readFileSync(dest);
+    if (before.equals(buf)) { unchanged++; continue; }
+    if (WRITE) fs.writeFileSync(dest, buf);
+    rebuilt++;
+  }
+  anyWritten += rebuilt;
 
-console.log(`
+  /* The match rate is the headline number when comparing checkouts. Five
+   * folders called "headshots" can sit on one machine and resolve wildly
+   * different numbers of players; picking the wrong one silently leaves most
+   * tiles distorted. */
+  const matched = tiles.length - missing.length;
+  const pct = tiles.length ? Math.round(100 * matched / tiles.length) : 0;
+
+  console.log(`
+  ${cfg.label}
+  ${"-".repeat(58)}
   folders used       ${SOURCES.length}`);
-for (const [dir, n] of contributed) {
-  console.log(`    ${String(n).padStart(4)} tiles   ${dir}`);
-}
-console.log(`
+  for (const [dir, n] of used) console.log(`    ${String(n).padStart(4)} tiles   ${dir}`);
+  console.log(`
   MATCH RATE         ${matched} of ${tiles.length} tiles (${pct}%)
   source images      ${bySlug.size} distinct players across all folders
   tiles on disk      ${tiles.length}
@@ -203,10 +255,14 @@ console.log(`
   no source found    ${missing.length}
   decode failed      ${failed}`);
 
-if (missing.length) {
-  console.log(`\n  These keep their old tile - the headshots folder has no file for them:`);
-  console.log("  " + missing.slice(0, 12).join(", ") + (missing.length > 12 ? `, and ${missing.length - 12} more` : ""));
+  if (missing.length) {
+    console.log(`\n  These keep their old tile - no file for them in any headshots folder:`);
+    console.log("  " + missing.slice(0, 12).join(", ") +
+      (missing.length > 12 ? `, and ${missing.length - 12} more` : ""));
+  }
 }
-if (!WRITE && rebuilt) {
-  console.log(`\n  Re-run with --write to apply.`);
-}
+
+console.log(WRITE
+  ? `\n  ${anyWritten} tiles rewritten. Look at a bar race and a Teammates card before` +
+    `\n  committing. To undo all of it:\n     git checkout -- data/races/faces data/teammates/faces\n`
+  : `\n  Nothing was changed. Add --write when the match rates look right.\n`);
