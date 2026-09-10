@@ -28,6 +28,8 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { teamByPlayerSeason, voteHistory, teamVoteDrought, seasonEndYear }
+  from "./lib/vote_context.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -39,8 +41,29 @@ const outArg = arg("out", "data/oddity-pool.json");
 const OUT = path.isAbsolute(outArg) ? outArg : path.join(REPO, outArg);
 
 if (!SRC) {
-  console.error("usage: node tools/build_oddities.mjs --local <media-vote-tracker/docs/data>");
+  console.error("usage: node tools/build_oddities.mjs --local <media-vote-tracker/docs/data> " +
+    "[--player-data <nba-player-data>]");
   process.exit(1);
+}
+
+/* OPTIONAL, AND THE ONE FAMILY THAT NEEDS IT SAYS SO WHEN IT IS ABSENT.
+ *
+ * The ballots carry a player, an award, a season and a slot - no team. Every
+ * question about a franchise therefore needs a second source, and without it
+ * this builder behaves exactly as it did before. */
+const PD = arg("player-data", "");
+let teamOf = null;
+if (PD) {
+  try {
+    const rows = JSON.parse(fs.readFileSync(path.join(PD, "rsStats.json"), "utf8"));
+    teamOf = teamByPlayerSeason(rows, t => String(t).trim().toUpperCase());
+    console.log(`teams: ${teamOf.size} player-seasons resolved to a single franchise`);
+  } catch (e) {
+    console.log(`teams: could not read rsStats.json under ${PD} - no franchise cards`);
+  }
+} else {
+  console.log("teams: no --player-data given, so no franchise-drought cards. Add e.g.\n" +
+    '  --player-data "C:\\Users\\Jorge Sierra\\Documents\\nba-player-data"');
 }
 
 const readJson = p => JSON.parse(fs.readFileSync(p, "utf8"));
@@ -406,6 +429,128 @@ for (const [key, g] of groups) {
   }
 }
 
+/* ---------------- family: a franchise that had not been here ----------------
+ *
+ * "One voter, and only one, named Jayson Tatum for MVP" is arithmetic read
+ * aloud, and it is the same sentence every time with a name slotted in. What
+ * makes a reader stop is the franchise: a vote is unremarkable for a Laker and
+ * startling for a Piston who has not had one in a decade.
+ *
+ * WHY THIS IS NOT IN FAMILIES ABOVE
+ *
+ * Every family up there is handed one award-season and answers a question
+ * about it. This question is about all of them at once - how long since this
+ * franchise last appeared - so it runs after the history has been built.
+ *
+ * THE WINDOW IS IN THE SENTENCE, ALWAYS
+ *
+ * "The first Clipper since 1993" is a claim this data cannot make if the
+ * tracker starts in 2015. teamVoteDrought returns the window it measured over
+ * and which kind of claim is available, and the wording below follows it
+ * rather than reaching for the stronger phrasing. "In the N seasons this
+ * tracker covers" is a smaller claim with the advantage of being true.
+ */
+const NICK = {
+  ATL: "Hawks", BOS: "Celtics", BKN: "Nets", CHA: "Hornets", CHI: "Bulls",
+  CLE: "Cavaliers", DAL: "Mavericks", DEN: "Nuggets", DET: "Pistons",
+  GSW: "Warriors", HOU: "Rockets", IND: "Pacers", LAC: "Clippers",
+  LAL: "Lakers", MEM: "Grizzlies", MIA: "Heat", MIL: "Bucks",
+  MIN: "Timberwolves", NOP: "Pelicans", NYK: "Knicks", OKC: "Thunder",
+  ORL: "Magic", PHI: "76ers", PHX: "Suns", POR: "Trail Blazers",
+  SAC: "Kings", SAS: "Spurs", TOR: "Raptors", UTA: "Jazz", WAS: "Wizards",
+  /* Codes rsStats uses for franchises that have since moved or been renamed.
+   * The tracker's window is recent, so these are unlikely to fire - but a
+   * headline reading "the first NJN player" would be worse than one extra
+   * line of table. */
+  SEA: "SuperSonics", NJN: "Nets", VAN: "Grizzlies", CHH: "Hornets",
+  NOH: "Hornets", WSB: "Bullets", PHO: "Suns", BRK: "Nets", CHO: "Hornets"
+};
+const nick = code => NICK[code] || code;
+
+if (teamOf) {
+  const awardSeasons = [];
+  for (const g of groups.values()) {
+    const players = [];
+    for (const b of g.ballots) for (const p of b.picks) {
+      if (p.player && players.indexOf(p.player) < 0) players.push(p.player);
+    }
+    awardSeasons.push({ award: g.award, season: g.season, players });
+  }
+  const history = voteHistory(awardSeasons, teamOf);
+
+  let found = 0, noTeam = 0;
+  for (const [, g] of groups) {
+    const a = aggregate(g);
+    if (a.ballots < MIN_BALLOTS) continue;
+    const year = seasonEndYear(g.season);
+    if (!year) continue;
+
+    /* ONE CARD PER AWARD-SEASON, AND IT GOES TO THE BEST STORY - NOT THE
+     * FIRST ONE MET.
+     *
+     * The first version broke on its own fixture: LAC's ten-season gap came
+     * earlier in the rows than SAC's twelve-season absence, so the weaker card
+     * won and the stronger was never considered. Rows are ordered by voting
+     * points, which is a fact about the player and says nothing about which
+     * franchise has the longer story.
+     *
+     * So every franchise in the season is asked, and the winner is: never-in-
+     * window ahead of a gap, then the longer gap, then the better finisher. */
+    const options = [];
+    const seen = new Set();
+    for (const r of a.rows) {
+      const team = teamOf.get(r.player + "|" + year);
+      if (!team) { noTeam++; continue; }
+      if (seen.has(team)) continue;      // the best finisher represents his team
+      seen.add(team);
+      const d = teamVoteDrought(history, g.award, team, year);
+      if (d) options.push({ r, team, d, rank: a.rows.indexOf(r) });
+    }
+    options.sort((x, y) =>
+      ((y.d.kind === "first-in-window") - (x.d.kind === "first-in-window")) ||
+      ((y.d.gap || y.d.seasonsCovered) - (x.d.gap || x.d.seasonsCovered)) ||
+      (x.rank - y.rank));
+
+    for (const best of options.slice(0, 1)) {
+      const { r, team, d } = best;
+      const label = AWARD_LABEL[g.award] || g.award;
+      const where = nick(team);
+      const votes = r.appear === 1 ? "on one ballot" : `on ${r.appear} of ${a.ballots} ballots`;
+
+      /* "a vote for X" rather than "an X vote", so the article never has to
+       * agree with a label that might be MVP, All-NBA or Sixth Man of the
+       * Year. "a All-NBA vote" was the first draft. */
+      const headline = d.kind === "first-in-window"
+        ? `No ${where} player had a vote for ${label} in ${d.seasonsCovered} seasons. ${r.player} does.`
+        : `${r.player} is the first ${where} player with a vote for ${label} in ${d.gap} seasons`;
+
+      const detail = d.kind === "first-in-window"
+        ? `${r.player} appears ${votes} in ${g.season}. Across the ${d.seasonsCovered} ` +
+          `earlier seasons this tracker covers, from ${d.windowFrom}, no ${where} player ` +
+          `appeared on a ballot for ${label} at all.`
+        : `${r.player} appears ${votes} in ${g.season}. The last ${where} player to draw one ` +
+          `was ${d.sincePlayers.join(" and ") || "a teammate"} in ${d.sinceYear}, ` +
+          `${d.gap} covered seasons earlier.`;
+
+      candidates.push({
+        subjects: [r.player], voters: [],
+        headline, detail,
+        url: playerLink(r),
+        cta: `${r.player} on the tracker`,
+        /* Scored above the lone-voter families it is meant to displace: a
+         * franchise drought is a fact about a decade, and those are a fact
+         * about one person's ballot. */
+        q: d.kind === "first-in-window" ? 0.88 : 0.84,
+        family: "team-drought", award: g.award, season: g.season, ballots: a.ballots,
+        _team: team
+      });
+      found++;
+    }
+  }
+  console.log(`team-drought: ${found} candidates` +
+    (noTeam ? `; ${noTeam} vote-getters had no single franchise for their season` : ""));
+}
+
 /* Best first, then thinned: an award-season may contribute at most a couple of
  * cards, no family may dominate the pool, and no player may be the subject of
  * more than a few. Without these the pool is technically varied and reads as
@@ -459,7 +604,7 @@ for (const c of ordered) {
     tags: {
       content_type: "oddity",
       players: c.subjects.slice(0, 3),
-      teams: [],
+      teams: c._team ? [c._team] : [],
       era: seasonEra(c.season),
       category: "ballot-oddity"
     },
