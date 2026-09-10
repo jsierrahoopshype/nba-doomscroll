@@ -688,3 +688,65 @@ export function headRaceTile(src, outW, outH, png) {
     }
   };
 }
+
+/* ---------------- tile slugs ----------------
+ *
+ * THE SAME BUG, THREE TIMES, AND IT IS ALWAYS PUNCTUATION.
+ *
+ * A tile is named for a player and so is its source file, but the two are
+ * slugged by different code at different times, and every mismatch so far has
+ * been a character that is neither a letter nor a digit:
+ *
+ *   "Jusuf Nurkić"      slugged to jusuf-nurki   the tile is jusuf-nurkic
+ *   "D.J. Augustin"     slugged to d-j-augustin  the tile is dj-augustin
+ *   "Amar'e Stoudemire" slugged to amar-e-...    the tile is amare-stoudemire
+ *   "Nenê"              slugged to nen           the tile is nen
+ *
+ * The naive slugger turns any run of non-alphanumerics into one hyphen, which
+ * is right for a space and wrong for a full stop inside initials, an
+ * apostrophe inside a name, and an accent it cannot represent. Which of those
+ * a given tile suffered depends on which builder made it and when.
+ *
+ * So rather than one rule, several - tried in order, first hit wins, and each
+ * later form can only FILL A GAP the earlier ones left:
+ *
+ *   1. exact           the slug as the naive rule produces it
+ *   2. accent-folded   ć becomes c, so Nurkić reaches jusuf-nurkic
+ *   3. punctuation cut instead of hyphenated: D.J. reaches dj-augustin,
+ *      Amar'e reaches amare-stoudemire, and Nenê reaches nen because the
+ *      accent is simply gone
+ *   4. both            folded AND cut, for a tile named nene rather than nen
+ *
+ * Ordering matters and the order is deliberate: an exact match must never be
+ * displaced by a fuzzier one. Two different players colliding on a fuzzy form
+ * is possible in principle; in 5,104 source files across this project it has
+ * not happened, and the caller reports collisions rather than resolving them
+ * silently, which is the lesson of the Iverson tile.
+ */
+const naiveSlug = s => String(s).replace(/[^A-Za-z0-9]+/g, "-")
+  .replace(/^-|-$/g, "").toLowerCase();
+
+/** Accents to their base letters. ć -> c, ê -> e, ö -> o. */
+export const foldDiacritics = s => String(s).normalize
+  ? String(s).normalize("NFD").replace(/[̀-ͯ]/g, "")
+  : String(s);
+
+/** Punctuation DELETED rather than hyphenated; whitespace still separates. */
+const cutSlug = s => String(s).replace(/[^A-Za-z0-9\s]+/g, "")
+  .trim().replace(/\s+/g, "-").toLowerCase();
+
+/**
+ * Every slug a file called `stem` could reasonably be filed under, best first.
+ *
+ * @param {string} stem  a filename with its extension already removed, or a
+ *                       player name - they are slugged identically
+ * @returns {string[]} unique, ordered, never empty strings
+ */
+export function tileSlugVariants(stem) {
+  const out = [];
+  for (const s of [naiveSlug(stem), naiveSlug(foldDiacritics(stem)),
+                   cutSlug(stem), cutSlug(foldDiacritics(stem))]) {
+    if (s && out.indexOf(s) < 0) out.push(s);
+  }
+  return out;
+}
