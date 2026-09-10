@@ -33,8 +33,12 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { resolveSource } from "./lib/find.mjs";
-import { stripPhantomTeamRows, summariseSeason, MIN_PAYROLL_OF_CAP } from "./lib/salary.mjs";
+import { resolveSource, cleanPath, findFiles, findCsvWithColumns } from "./lib/find.mjs";
+import { stripPhantomTeamRows, summariseSeason, MIN_PAYROLL_OF_CAP,
+  recencyFactor, yearFromSeasonLabel } from "./lib/salary.mjs";
+import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, scheduleSpan, normalizeGames }
+  from "./lib/games.mjs";
+import { tallyTeamSeasons, joinPayrollWins, playoffYears } from "./lib/payroll_wins.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -93,6 +97,30 @@ const MAX_PER_FAMILY_SHARE = 0.18;
 
 const money = s => Number(String(s || "").replace(/[^0-9.]/g, "")) || 0;
 const num = v => { const n = Number(v); return isFinite(n) ? n : 0; };
+
+/* Quoted cells, doubled quotes, commas inside them. Same shape build_races.mjs
+ * and build_vault.mjs each carry: three call sites, three copies, and lifting
+ * it into lib/ would mean editing two working builders to save nine lines. */
+function parseCsv(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const split = line => {
+    const out = []; let cur = "", q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+      else if (ch === "," && !q) { out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  };
+  const head = split(lines[0]);
+  return lines.slice(1).map(l => {
+    const cells = split(l), row = {};
+    head.forEach((h, i) => { row[h] = cells[i] === undefined ? "" : cells[i]; });
+    return row;
+  });
+}
 
 const salaryRows = readJson(path.join(PD, "salaries.json"));
 const statRows = readJson(path.join(PD, "rsStats.json"));
@@ -263,13 +291,34 @@ const SALARY_TOOL = "https://hoopsmatic.com/salaries";
 const playerUrl = name => SALARY_TOOL + "?player=" + encodeURIComponent(name);
 
 const cards = [];
+/* The newest season the DATA has, not the newest the calendar has. Taken from
+ * the file so a build run a year later does not start marking its own most
+ * recent cards as old. */
+const LATEST_SEASON = seasons.reduce((n, s) => Math.max(n, s.year), 0) || null;
+
 function add(family, quality, tags, payload, storyKey) {
+  /* Recency. A card carrying a season is scaled by how long ago that season
+   * was; an all-time card carries none and is left alone. See recencyFactor in
+   * lib/salary.mjs for why this scales rather than filters.
+   *
+   * WORTH KNOWING: quality_score is what the feed engine ranks on across every
+   * pool, so scaling it down does not only move old salary cards behind recent
+   * ones - it moves them behind other kinds of card too. That is the intended
+   * effect ("too much old salary content"), but it does mean the salary share
+   * of the feed falls as well as its average age. */
+  const year = yearFromSeasonLabel(payload.season);
+  const factor = recencyFactor(year, LATEST_SEASON);
+  const scored = quality * factor;
   cards.push({
     id: "salary-" + family + "-" + cards.length,
     type: payload.rows ? "salaryrank" : "salary",
     tab: ["vault"],
     tags: Object.assign({ content_type: "salary", teams: [], era: "2020s", category: "salary" }, tags),
-    quality_score: Math.round(Math.max(0, Math.min(1, quality)) * 100) / 100,
+    quality_score: Math.round(Math.max(0, Math.min(1, scored)) * 100) / 100,
+    /* Both recorded so a shipped pool can be audited without re-deriving the
+     * curve: what the metric said, and what age did to it. */
+    quality_raw: Math.round(Math.max(0, Math.min(1, quality)) * 100) / 100,
+    recency: Math.round(factor * 1000) / 1000,
     story_family: "salary:" + family,
     story_key: "salary|" + family + "|" + storyKey,
     payload
@@ -462,6 +511,214 @@ for (const r of payrolls.filter(x => x._gap).sort((a, b) => b._gap - a._gap).sli
       url: playerUrl(r._paid.player), cta: "Salary history"
     }, `paidnotscoring|${r.team}|${r.year}`);
 }
+
+/* ---------------- family: what a payroll bought ----------------
+ *
+ * ENTIRELY OPTIONAL, AND SILENT WHEN THE GAMES FILE IS NOT THERE.
+ *
+ * Everything above this point runs off two sources and is unchanged. These
+ * families need a third - a league game log, to know what each payroll won -
+ * and that file is large, is not in this repo, and is not on every machine.
+ * Without it this block adds no cards and changes nothing, which is the only
+ * way to add to a working builder without putting its output at risk.
+ *
+ *     node tools/build_salary.mjs --games "C:\path\to\game.csv"
+ *
+ * The join, the schedule check and the arithmetic all live in
+ * lib/payroll_wins.mjs and are covered by tools/test_payroll_wins.mjs, because
+ * none of the three inputs exist on the machine this was written on.
+ */
+
+const gi = argv.indexOf("--games");
+let GAMES_CSV = cleanPath(gi >= 0 ? argv[gi + 1] : null);
+if (!GAMES_CSV) {
+  /* By columns, not by name. There is no Games.csv on the machine - there is a
+   * game.csv, a Games_enriched.csv and a playoffs-only file - and only the
+   * header row says which is which. Same approach build_races.mjs settled on
+   * after a filesystem date picked the playoffs-only file and shipped a race
+   * titled "All-time franchise wins" showing playoff wins. */
+  const named = findFiles(["Games.csv"]);
+  const byCols = named.length ? named : [...new Set([
+    ...findCsvWithColumns(GAMES_COLUMNS),
+    ...findCsvWithColumns(GAME_TABLE_COLUMNS)
+  ])];
+  /* Full schedules first, then the one covering most history. A playoffs-only
+   * file would make every team's cost per win a cost per playoff win. */
+  const ranked = byCols.map(f => ({ f, full: hasRegularSeason(f), span: scheduleSpan(f) }))
+    .sort((a, b) => ((b.full === true) - (a.full === true)) || (b.span.rows - a.span.rows));
+  if (ranked.length) {
+    GAMES_CSV = ranked[0].f;
+    console.log(`  payroll-and-wins: using ${GAMES_CSV}`);
+    console.log(`    ${ranked[0].full ? "full schedule" : "PLAYOFFS ONLY"}, ` +
+      `${ranked[0].span.rows.toLocaleString()} rows, ${ranked[0].span.from || "?"} to ${ranked[0].span.to || "?"}`);
+    if (ranked.length > 1) console.log(`    (${ranked.length} candidates. --games pins one.)`);
+  }
+}
+
+if (!GAMES_CSV) {
+  console.log("  payroll-and-wins: no league game log found, so no cost-per-win cards.");
+  console.log('    pass one with --games "C:\\path\\to\\game.csv"');
+} else {
+  const raw = normalizeGames(parseCsv(fs.readFileSync(GAMES_CSV, "utf8")));
+  /* The SAME normaliser both sides. salaries.json says "Seattle" and the game
+   * log says "Seattle SuperSonics", so the city is what they agree on - and
+   * the city is the team as it was that season, which is what a payroll join
+   * needs. A franchise-id join would give Seattle's 1996 book to Oklahoma
+   * City. */
+  const codeOf = (g, side) => {
+    const city = String(g[side + "teamCity"] || "").trim();
+    const full = (city + " " + String(g[side + "teamName"] || "")).trim();
+    /* The game-table schema folds the city into the name, so try the whole
+     * string's leading words when there is no separate city. */
+    if (city) return teamCode(city);
+    for (const cut of [3, 2, 1]) {
+      const head = full.split(/\s+/).slice(0, cut).join(" ");
+      const code = TEAM_CODE[head.toLowerCase()];
+      if (code) return code;
+    }
+    return full ? teamCode(full.split(/\s+/).slice(0, -1).join(" ")) : null;
+  };
+
+  const tally = tallyTeamSeasons(raw.rows, codeOf);
+  const poYears = playoffYears(tally);
+  const { joined, missing, winless, shortSchedule } = joinPayrollWins(payrolls, tally);
+
+  console.log(`  payroll-and-wins: ${joined.length} of ${payrolls.length} vetted payrolls ` +
+    `joined to a full schedule` +
+    (raw.noResult ? `; ${raw.noResult} game rows had no result` : ""));
+  if (shortSchedule.length) {
+    console.log(`    ${shortSchedule.length} held back for a partial schedule in the file, e.g. ` +
+      shortSchedule.slice(0, 4).map(r => `${r.team} ${r.year} ${r.gp}/${r.expected}`).join(", "));
+  }
+  if (missing.length) {
+    console.log(`    ${missing.length} had no season in the game log, e.g. ` +
+      missing.slice(0, 6).map(r => `${r.team} ${r.year}`).join(", "));
+  }
+  if (winless.length) {
+    console.log(`    ${winless.length} went winless, so there is no rate to state: ` +
+      winless.slice(0, 6).map(r => `${r.team} ${r.year} 0-${r.l}`).join(", "));
+  }
+
+  /* Cross-era ranking is in CAP terms, never dollars. $2m per win in 1994 and
+   * $2m per win in 2026 are not the same fact, and a table mixing them is a
+   * table about the cap rising. The dollar figure is still printed, because it
+   * is the one a reader recognises. */
+  const wins = joined.filter(j => j.capPerWin !== null);
+  const teamsOf = j => [j.team];
+  /* These cards are about a TEAM, but renderSalary's header is built for a
+   * person: a face, a name, then team and season underneath. Rather than
+   * change a renderer 68 working cards already use, the header is given the
+   * biggest number on the book - which is the man the detail line names
+   * anyway, and the one a reader pictures when they hear what the payroll
+   * was. Tagging him also puts these cards under the same MAX_PER_PLAYER cap
+   * as every other family, instead of accidentally capping the family. */
+  /* "The 2025-26 BOS bought a win" is not English. The existing cards get away
+   * with a bare code because it sits in an adjective slot ("the LAL payroll");
+   * these cards make the team the subject, so it needs a name.
+   *
+   * CITY AND NOT NICKNAME, DELIBERATELY.
+   *
+   * A nickname map is wrong about history in a way a city map is not.
+   * salaries.json says "Washington" for every season and teamCode maps it to
+   * WAS, so a nickname map would call the 1994-95 Bullets the Wizards and the
+   * 2010-11 Bobcats the Hornets. The city was the same in both cases, so the
+   * city is the part that is safe to print.
+   *
+   * Anything not in the map is TITLE CASED, which is exactly right for the
+   * historical entries: teamCode passes a city it does not recognise straight
+   * through in upper case, so "Seattle" arrives as "SEATTLE" and "New Jersey"
+   * as "NEW JERSEY", and title case gives them back without a relocation
+   * table. The headlines put the season after the city for the same reason -
+   * "Seattle in 2004-05" reads, "the 2004-05 Seattle" does not.
+   */
+  const CITY = {
+    ATL: "Atlanta", BOS: "Boston", BKN: "Brooklyn", CHA: "Charlotte",
+    CHI: "Chicago", CLE: "Cleveland", DAL: "Dallas", DEN: "Denver",
+    DET: "Detroit", GSW: "Golden State", HOU: "Houston", IND: "Indiana",
+    LAC: "LA Clippers", LAL: "LA Lakers", MEM: "Memphis", MIA: "Miami",
+    MIL: "Milwaukee", MIN: "Minnesota", NOP: "New Orleans", NYK: "New York",
+    OKC: "Oklahoma City", ORL: "Orlando", PHI: "Philadelphia", PHX: "Phoenix",
+    POR: "Portland", SAC: "Sacramento", SAS: "San Antonio", TOR: "Toronto",
+    UTA: "Utah", WAS: "Washington"
+  };
+  const teamName = code => CITY[code] || String(code).toLowerCase()
+    .replace(/\b[a-z]/g, ch => ch.toUpperCase());
+
+  const lead = j => (j.men && j.men[0]) || { player: "", amount: 0 };
+  const head = j => ({ player: lead(j).player, img: faceFor(lead(j).player) });
+  const tagsOf = j => ({ players: [lead(j).player], teams: teamsOf(j), era: era(j.year) });
+  const winNote = j => `${fmtMoney(j.total)} payroll across ${j.gp} regular-season games, ` +
+    `${j.w}-${j.l}. Payroll was ${(j.ofCap * 100).toFixed(0)}% of the ${seasonLabel(j.year)} cap ` +
+    `of ${fmtMoney(j.cap)}.`;
+
+  /* Cheapest wins, in cap terms. */
+  /* RANK, not a superlative. The first version said "the cheapest rate on
+   * record" in the detail line of all six of these, which is true of one of
+   * them. Six cards each claiming to be the cheapest is the kind of quiet
+   * wrongness a reader catches before a build does. */
+  const lowRanked = wins.slice().sort((a, b) => a.capPerWin - b.capPerWin);
+  lowRanked.forEach((j, rank) => { if (rank >= 6) return;
+    const place = rank === 0 ? "the cheapest rate in the file"
+      : `the ${["", "second", "third", "fourth", "fifth", "sixth"][rank]}-cheapest rate in the file`;
+    add("cost-per-win-low", 0.78, tagsOf(j), Object.assign(head(j), {
+      headline: `A win cost ${teamName(j.team)} ${fmtMoney(j.costPerWin)} in ${seasonLabel(j.year)}`,
+      team: j.team, season: seasonLabel(j.year),
+      detail: `${j.w} wins on a ${fmtMoney(j.total)} book. In cap terms ` +
+        `${(j.capPerWin * 100).toFixed(2)}% of the cap per win, ` +
+        `${place} once every era is put in the same units.`,
+      note: winNote(j),
+      url: SALARY_TOOL
+    }), j.team + "|" + j.year);
+  });
+
+  /* Dearest wins. */
+  for (const j of wins.slice().sort((a, b) => b.capPerWin - a.capPerWin).slice(0, 6)) {
+    add("cost-per-win-high", 0.74, tagsOf(j), Object.assign(head(j), {
+      headline: `Every win cost ${teamName(j.team)} ${fmtMoney(j.costPerWin)} in ${seasonLabel(j.year)}`,
+      team: j.team, season: seasonLabel(j.year),
+      detail: `${fmtMoney(j.total)} for ${j.w} wins, or ${(j.capPerWin * 100).toFixed(2)}% ` +
+        `of that season's cap per win.`,
+      note: winNote(j),
+      url: SALARY_TOOL
+    }), j.team + "|" + j.year);
+  }
+
+  /* Fifty wins on the smallest book. Fifty is the threshold a reader already
+   * has a feel for, and it is measured against the cap so a 1996 fifty-win
+   * team can compete with a 2024 one. */
+  const fifties = wins.filter(j => j.w >= 50);
+  for (const j of fifties.slice().sort((a, b) => a.ofCap - b.ofCap).slice(0, 6)) {
+    add("cheap-fifty", 0.8, tagsOf(j), Object.assign(head(j), {
+      headline: `${teamName(j.team)} won ${j.w} games on ${(j.ofCap * 100).toFixed(0)}% of the cap in ${seasonLabel(j.year)}`,
+      team: j.team, season: seasonLabel(j.year),
+      detail: `${fmtMoney(j.total)} against a ${fmtMoney(j.cap)} cap, and ${j.w}-${j.l}. ` +
+        `Top earner: ${j.men[0].player} at ${fmtMoney(j.men[0].amount)}.`,
+      note: winNote(j),
+      url: SALARY_TOOL
+    }), j.team + "|" + j.year);
+  }
+  if (!fifties.length) console.log("    no 50-win season joined, so no cheap-fifty cards");
+
+  /* The expensive misses. Guarded on the file having playoffs for that season
+   * at all: without that check a regular-season-only game log reports all
+   * thirty teams as having missed, and the card would be about the file. */
+  const misses = joined.filter(j => poYears.has(j.year) && !j.madePlayoffs && j.cap);
+  for (const j of misses.slice().sort((a, b) => b.ofCap - a.ofCap).slice(0, 6)) {
+    add("expensive-miss", 0.82, tagsOf(j), Object.assign(head(j), {
+      headline: `${teamName(j.team)} spent ${(j.ofCap * 100).toFixed(0)}% of the cap in ${seasonLabel(j.year)} and missed the playoffs`,
+      team: j.team, season: seasonLabel(j.year),
+      detail: `${j.w}-${j.l} on a ${fmtMoney(j.total)} payroll, ${fmtMoney(j.costPerWin)} per win. ` +
+        `${j.men[0].player} was the biggest number on the book at ${fmtMoney(j.men[0].amount)}.`,
+      note: winNote(j) + " No postseason games in the league log for this team.",
+      url: SALARY_TOOL
+    }), j.team + "|" + j.year);
+  }
+  if (!misses.length) {
+    console.log("    no season had both playoffs in the file and a non-qualifier, " +
+      "so no expensive-miss cards");
+  }
+}
+
 
 /* ---------------- family: cross-era ---------------- */
 
