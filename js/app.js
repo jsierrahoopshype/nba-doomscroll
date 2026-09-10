@@ -106,7 +106,11 @@
   var TAB_POOLS = {
     vs:     ["data/vs-pool.json", "data/teammates-pool.json", "data/compare-pool.json"],
     vault:  ["data/vault-pool.json", "data/lean-pool.json", "data/oddity-pool.json",
-             "data/salary-pool.json", "data/games.json"],
+             "data/salary-pool.json", "data/games.json",
+             /* Franchise droughts from 71 seasons of official award voting.
+              * Its ids start "oddity-hist-" so the prefix table below already
+              * routes them here - this line is the whole wiring. */
+             "data/award-history-pool.json"],
     races:  ["data/race-pool.json", "data/ballotrace-pool.json"],
     /* FRIVOLITIES ARE OFF. Jorge's call, Sept 2026: the cards were weak.
      *
@@ -139,7 +143,13 @@
      * Absent until that has been run, which is a normal state. */
     "data/oddity-pool.json": 1,
     /* Built from nba-player-data plus the cap table by tools/build_salary.mjs. */
-    "data/salary-pool.json": 1
+    "data/salary-pool.json": 1,
+    /* Built from nba-player-data's awardVotes + rsStats by
+     * tools/build_award_history.mjs. Absent until that has been run, which is
+     * a normal state - and better than committing a placeholder, because an
+     * empty pool that exists is indistinguishable from a build that produced
+     * nothing. */
+    "data/award-history-pool.json": 1
   };
   var poolPromises = {};
   // Set when a live source could not be reached, so the tab can say so instead
