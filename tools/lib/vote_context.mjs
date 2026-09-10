@@ -133,6 +133,21 @@ export const MIN_WINDOW = 8;
 /**
  * Is this team getting a vote for this award, this season, remarkable?
  *
+ * THE WINDOW IS THE OVERLAP OF TWO SPANS, NOT ONE OF THEM
+ *
+ * opts.franchiseFrom / franchiseTo narrow the window to the seasons the
+ * franchise actually existed for. Without them this went out on the live site:
+ *
+ *   "the first Raptors player to finish in the top five for Defensive Player
+ *    of the Year in 43 seasons of voting"
+ *
+ * Defensive Player of the Year voting starts in 1983 and Toronto joined the
+ * league in 1996, so thirteen of those seasons are ones the Raptors could not
+ * have appeared in. The claim was true and the number was invented, which
+ * reads as authoritative and is trivially checkable. Both bounds are optional
+ * and default to open, so a caller that does not know a franchise's span gets
+ * the old behaviour rather than a wrong one.
+ *
  * @returns {null | {
  *   kind: "first-in-window" | "first-since",
  *   team: string, year: number, award: string,
@@ -146,18 +161,27 @@ export function teamVoteDrought(history, award, team, year, opts) {
   const o = opts || {};
   const minGap = o.minGap == null ? MIN_GAP : o.minGap;
   const minWindow = o.minWindow == null ? MIN_WINDOW : o.minWindow;
+  const franchiseFrom = o.franchiseFrom == null ? -Infinity : o.franchiseFrom;
+  const franchiseTo = o.franchiseTo == null ? Infinity : o.franchiseTo;
 
   const h = history && history.get(award);
   if (!h || !h.years.length) return null;
 
+  /* The seasons any claim here can be about: this award's, narrowed to the ones
+   * the franchise was in the league for. */
+  const span = h.years.filter(y => y >= franchiseFrom && y <= franchiseTo);
+  if (span.length < minWindow) return null;
+
   /* Only seasons at or before this one. A drought is about what came before;
    * counting later seasons would make the claim depend on the future. */
-  const prior = h.years.filter(y => y < year);
-  const windowFrom = h.years[0], windowTo = h.years[h.years.length - 1];
-  if (h.years.length < minWindow) return null;
+  const prior = span.filter(y => y < year);
+  const windowFrom = span[0], windowTo = span[span.length - 1];
 
   const ty = h.teamYears.get(team);
-  const before = ty ? [...ty.keys()].filter(y => y < year).sort((a, b) => a - b) : [];
+  const before = ty
+    ? [...ty.keys()].filter(y => y < year && y >= franchiseFrom && y <= franchiseTo)
+        .sort((a, b) => a - b)
+    : [];
 
   if (!before.length) {
     /* Never, within the window. Requires the window to actually START before

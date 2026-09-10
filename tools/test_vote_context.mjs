@@ -180,6 +180,81 @@ const hist = voteHistory(seasons, teamOf);
      teamVoteDrought(mk(MIN_GAP - 1), "MVP", "LAC", 2024) === null);
 }
 
+console.log("\nthe window is the overlap of the award's span and the franchise's");
+
+/* THE BUG THIS BLOCK EXISTS FOR, VERBATIM FROM THE LIVE SITE:
+ *
+ *   "Scottie Barnes is the first Raptors player to finish in the top five for
+ *    Defensive Player of the Year in 43 seasons of voting"
+ *
+ * Defensive Player of the Year voting starts in 1983. Toronto joined the NBA
+ * in 1995-96. Thirteen of those forty-three seasons are ones the Raptors could
+ * not have appeared in, so the claim was true and the number was invented -
+ * which is the worst combination, because it reads as authoritative and it
+ * takes one search to check.
+ */
+{
+  /* Twenty-five seasons of voting, 2000 to 2024. BOS every season. An
+   * expansion franchise, EXP, that has only existed since 2010 and gets its
+   * first vote-getter in 2024. */
+  const st = [], ss = [];
+  for (let y = 2000; y <= 2024; y++) {
+    const players = ["Boston " + y];
+    st.push({ PLAYER: "Boston " + y, YEAR: String(y), TEAM: "BOS", GP: 82 });
+    if (y === 2024) {
+      players.push("Expansion Man");
+      st.push({ PLAYER: "Expansion Man", YEAR: "2024", TEAM: "EXP", GP: 82 });
+    }
+    ss.push({ award: "MVP", season: String(y), players });
+  }
+  const h = voteHistory(ss, teamByPlayerSeason(st, code));
+
+  const naive = teamVoteDrought(h, "MVP", "EXP", 2024);
+  ck("without a franchise span it counts the award's whole history",
+     naive && naive.seasonsCovered === 24, naive && String(naive.seasonsCovered));
+
+  const fair = teamVoteDrought(h, "MVP", "EXP", 2024, { franchiseFrom: 2010, franchiseTo: 2024 });
+  ck("with one, it counts only the seasons the team existed for",
+     fair && fair.seasonsCovered === 14, fair && String(fair.seasonsCovered));
+  ck("and the window starts when the team did",
+     fair && fair.windowFrom === 2010, fair && String(fair.windowFrom));
+  ck("it is still a first-in-window claim", fair && fair.kind === "first-in-window");
+
+  /* A franchise too young for the claim to mean anything gets nothing, rather
+   * than a card saying "the first in 4 seasons of voting". */
+  ck("a franchise younger than the minimum window yields nothing",
+     teamVoteDrought(h, "MVP", "EXP", 2024, { franchiseFrom: 2020 }) === null);
+
+  /* BOS has appeared every season, so no claim - and narrowing the window must
+   * not manufacture one. */
+  ck("narrowing the window does not invent a drought",
+     teamVoteDrought(h, "MVP", "BOS", 2024, { franchiseFrom: 2010 }) === null);
+}
+
+{
+  /* A gap must not be measured from an appearance outside the franchise's own
+   * span. If a stray row put a team in a season it did not exist for, the gap
+   * would be measured from that season - a number with no meaning at all. */
+  const st = [], ss = [];
+  for (let y = 1990; y <= 2024; y++) {
+    const players = ["Filler " + y];
+    st.push({ PLAYER: "Filler " + y, YEAR: String(y), TEAM: "BOS", GP: 82 });
+    for (const [yy, who] of [[1992, "Impossible Man"], [2005, "Real Predecessor"], [2024, "Subject"]]) {
+      if (y === yy) {
+        players.push(who);
+        st.push({ PLAYER: who, YEAR: String(yy), TEAM: "NEW", GP: 82 });
+      }
+    }
+    ss.push({ award: "MVP", season: String(y), players });
+  }
+  const h = voteHistory(ss, teamByPlayerSeason(st, code));
+  const d = teamVoteDrought(h, "MVP", "NEW", 2024, { franchiseFrom: 2000, minGap: 5 });
+  ck("a gap ignores appearances before the franchise existed",
+     d && d.sinceYear === 2005, d && String(d.sinceYear));
+  ck("and counts only seasons inside the span",
+     d && d.gap === 18, d && String(d.gap));
+}
+
 {
   ck("an unknown award yields nothing", teamVoteDrought(hist, "Nope", "LAC", 2024) === null);
   ck("an unknown team over a long window is a first-in-window",
