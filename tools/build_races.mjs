@@ -44,7 +44,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents } from "./lib/faces.mjs";
+import { buildFaceIndex, reportFaceIndex, foldedPngIndex, foldAccents, BCR_PIXEL_ASPECT } from "./lib/faces.mjs";
 import { raceFaceTile, decodePng, resize, encodePng } from "./lib/png.mjs";
 import { resolveSource, findFiles, findFolders, findCsvWithColumns, cleanPath } from "./lib/find.mjs";
 import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, normalizeGames, scheduleSpan, mergePlayoffs, pickPlayoffTopUp } from "./lib/games.mjs";
@@ -405,7 +405,7 @@ function tileFor(name) {
   const src = sourceFor(name);
   try {
     if (fs.statSync(src).size >= MIN_SRC_BYTES) {
-      const buf = raceFaceTile(src, TILE_W, TILE_H);
+      const buf = raceFaceTile(src, TILE_W, TILE_H, { srcAspect: BCR_PIXEL_ASPECT });
       if (buf) {
         const slug = name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
         fs.mkdirSync(FACE_DIR, { recursive: true });

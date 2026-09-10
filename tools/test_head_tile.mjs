@@ -16,7 +16,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { decodePng, encodePng, resize, crop } from "./lib/png.mjs";
+import { decodePng, encodePng, resize, crop, raceFaceTile } from "./lib/png.mjs";
 import { headRaceTile, headTile, BCR_PIXEL_ASPECT, TILE_HEAD_HEIGHT, TILE_HEAD_CENTRE } from "./lib/faces.mjs";
 
 const png = { decodePng, encodePng, resize, crop };
@@ -278,6 +278,41 @@ console.log("\nthe source's pixel aspect");
      Math.abs(round1.h / round1.w - 1) < 0.08, `h/w = ${(round1.h / round1.w).toFixed(2)}`);
   ok("aspect 1 and no option at all are the same thing",
      headTile(g, 96, png).equals(headTile(g, 96, png, { srcAspect: 1 })));
+}
+
+console.log("\nthe race tile, which had the same bug in its own copy");
+
+{
+  /* raceFaceTile is what actually bakes data/races/faces, and it carried a
+   * third copy of "match the aspect by cropping, never by squashing" - true of
+   * the tile, silent about the source. So the bar races kept narrow heads
+   * through two rounds of fixing the faces. Same fixture, same measurement,
+   * different function. */
+  const g = path.join(dir, "race-squashed.png");
+  squashedHead(g, BCR_PIXEL_ASPECT);
+
+  const withAspect = headBox(decodePng2(
+    raceFaceTile(g, W, H, { srcAspect: BCR_PIXEL_ASPECT })));
+  ok("with the aspect the head comes out round in a 1.4:1 tile",
+     Math.abs(withAspect.h / withAspect.w - 1) < 0.08,
+     `h/w = ${(withAspect.h / withAspect.w).toFixed(2)}`);
+
+  const without = headBox(decodePng2(raceFaceTile(g, W, H)));
+  ok("without it the head is about 1.4x too narrow",
+     Math.abs(without.h / without.w - BCR_PIXEL_ASPECT) < 0.12,
+     `h/w = ${(without.h / without.w).toFixed(2)}`);
+  ok("so the aspect is a real correction, not a wash",
+     without.h / without.w > withAspect.h / withAspect.w + 0.25);
+
+  /* A square-pixelled source must be untouched, or fixing the races would
+   * break any other caller that feeds it real NBA portraits. */
+  const sq = path.join(dir, "race-square.png");
+  squashedHead(sq, 1);
+  ok("a square-pixelled source is unchanged at aspect 1",
+     raceFaceTile(sq, W, H).equals(raceFaceTile(sq, W, H, { srcAspect: 1 })));
+  ok("and passing no options at all is the same thing",
+     raceFaceTile(sq, W, H).equals(raceFaceTile(sq, W, H, {})));
+  ok("an unreadable file is still null", raceFaceTile(path.join(dir, "nope.png"), W, H) === null);
 }
 
 fs.rmSync(dir, { recursive: true, force: true });
