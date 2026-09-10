@@ -1,27 +1,31 @@
 /* Rebuild the race face tiles in place, without rebuilding the races.
  *
- *     node tools/retile_faces.mjs --find
- *     node tools/retile_faces.mjs --find --write
- *     node tools/retile_faces.mjs --find --write --set teammates
- *     node tools/retile_faces.mjs --find --write --set both
+ *     node tools/retile_faces.mjs --local "C:\Users\Jorge Sierra\Documents\GitHub\bar-chart-race\assets\headshots"
+ *     node tools/retile_faces.mjs --local <folder> --write
+ *     node tools/retile_faces.mjs --local <folder> --write --set teammates
+ *     node tools/retile_faces.mjs --local <folder> --explain allen-iverson
  *
- * --find locates the headshot folders itself, under your home directory, and
- * uses ALL of them together. Explicit paths still work if you want them:
+ * A SOURCE FOLDER MUST BE NAMED. THIS USED TO GUESS, AND IT PUT JAMAL
+ * CRAWFORD'S FACE ON ALLEN IVERSON'S TILE.
  *
- *     node tools/retile_faces.mjs --local <folder> [<folder> ...] [--write]
+ * The old version searched the home directory, merged all thirteen headshot
+ * checkouts it found, and for each slug took the LARGEST file - on the
+ * reasoning that size tracks resolution and the small ones are CDN
+ * placeholders. Size also tracks "a completely different, bigger photograph
+ * filed under this name", and that is what happened:
  *
- * WHY IT SEARCHES RATHER THAN ASKING
+ *   Allen Iverson.png   67,339 bytes   in four folders     - Iverson
+ *   Allen Iverson.png   82,748 bytes   in two folders      - Jamal Crawford
  *
- * There are typically several checkouts of the headshots on one machine -
- * bar-chart-race, bcr-main, an hf_space copy inside each - and they are NOT
- * interchangeable: each resolves a different, overlapping set of players.
- * Choosing one by hand means silently settling for its coverage, which is the
- * same mistake that once had a build reading a media-vote-tracker checkout
- * with 92 players instead of the one with 99.
+ * The 82,748-byte file is a copy of nba-headshots' 2037-allen-iverson.png,
+ * whose id and slug disagree: 947 is Iverson, 2037 is Crawford. Largest-wins
+ * chose it over four correct copies, the run reported a 100% match rate, and
+ * 859 tiles were rewritten before anyone looked at a face.
  *
- * So every candidate is merged. For each tile the LARGEST source file across
- * all folders wins, since size tracks resolution and the small ones are CDN
- * placeholders. The report shows what each folder contributed.
+ * A byte count cannot answer a question about identity. So it no longer tries:
+ * the folder is named, precedence is the order it is named in, and when two
+ * named folders disagree about a slug the disagreement is REPORTED rather than
+ * resolved. A wrong folder is now a thing you can see in the log.
  *
  * WHY THIS EXISTS
  *
@@ -129,19 +133,36 @@ function findHeadshotFolders(root, depth = 0, out = []) {
   return out;
 }
 
-let SOURCES = explicit;
-if (!SOURCES.length && FIND) {
-  const home = os.homedir();
-  process.stdout.write(`  searching ${home} for headshot folders...`);
-  SOURCES = findHeadshotFolders(home);
-  console.log(` found ${SOURCES.length}`);
-}
+const SOURCES = explicit;
 
+/* --find is kept as a DISCOVERY aid and no longer feeds the bake. It lists the
+ * candidates and stops, because the whole lesson of the Iverson tile is that
+ * choosing between them is a judgement about whose data to trust and not a
+ * calculation this tool can make. */
 if (!SOURCES.length) {
-  console.error(FIND
-    ? "no folder named 'headshots' found under your home directory."
-    : "usage: node tools/retile_faces.mjs --find [--write]\n" +
-      "   or: node tools/retile_faces.mjs --local <folder> [<folder> ...] [--write]");
+  if (FIND) {
+    const home = os.homedir();
+    process.stdout.write(`  searching ${home} for headshot folders...`);
+    const found = findHeadshotFolders(home);
+    console.log(` found ${found.length}\n`);
+    found.forEach(f => console.log("    " + f));
+    console.log(`
+  Pick one and pass it with --local. This no longer merges them: two of the
+  folders on this machine carry a file called "Allen Iverson.png" that is a
+  photograph of Jamal Crawford, and the old merge preferred it because it was
+  larger. A byte count cannot tell you whose face is in a file.
+
+  The folder that produced the data/faces tiles already accepted is:
+    C:\\Users\\Jorge Sierra\\Documents\\GitHub\\bar-chart-race\\assets\\headshots
+`);
+  } else {
+    console.error(`usage:
+  node tools/retile_faces.mjs --local <folder> [<folder> ...] [--set races|teammates|both] [--write]
+  node tools/retile_faces.mjs --local <folder> --explain <slug>
+  node tools/retile_faces.mjs --find          (lists candidate folders, bakes nothing)
+
+A source folder must be named. See the header for why this stopped guessing.`);
+  }
   process.exit(1);
 }
 for (const s of SOURCES) {
@@ -183,12 +204,18 @@ const slugsFor = name => {
   return folded === raw ? [raw] : [raw, folded];
 };
 
-/* slug -> best source across every folder. Largest file wins: size tracks
- * resolution, and the sub-15KB entries are CDN silhouettes. A folder that
- * holds only placeholders therefore cannot displace a real portrait found
- * somewhere else, which is the whole point of merging rather than choosing. */
+/* slug -> source, by PRECEDENCE: the first folder named on the command line
+ * that has the file wins. Not the largest, not the newest. If you want a
+ * different folder to win, name it first.
+ *
+ * Where two named folders hold the same slug at different sizes they are
+ * recorded as a conflict and printed. That is the signal the old version threw
+ * away: the Iverson fork was visible in the data all along, and largest-wins
+ * silently resolved it the wrong way instead of saying "these disagree". */
 const bySlug = new Map();
-for (const dir of SOURCES) {
+const conflicts = [];
+for (let i = 0; i < SOURCES.length; i++) {
+  const dir = SOURCES[i];
   let files;
   try { files = fs.readdirSync(dir); } catch (e) { continue; }
   for (const f of files) {
@@ -198,9 +225,50 @@ for (const dir of SOURCES) {
     try { size = fs.statSync(full).size; } catch (e) { continue; }
     for (const slug of slugsFor(f.slice(0, -4))) {
       const prev = bySlug.get(slug);
-      if (!prev || size > prev.size) bySlug.set(slug, { file: full, size, dir });
+      if (!prev) { bySlug.set(slug, { file: full, size, dir, rank: i }); continue; }
+      /* Same bytes in two checkouts is a copy, not a disagreement. */
+      if (prev.size !== size) conflicts.push({ slug, kept: prev, other: { file: full, size } });
     }
   }
+}
+
+if (conflicts.length) {
+  console.log(`
+  ${conflicts.length} slug(s) differ between the folders you named. The FIRST
+  folder wins; these are the ones where that choice actually decided something,
+  so look at any you do not recognise before writing:`);
+  for (const c of conflicts.slice(0, 12)) {
+    console.log(`    ${c.slug}`);
+    console.log(`       using ${c.kept.size} bytes  ${c.kept.file}`);
+    console.log(`       other ${c.other.size} bytes  ${c.other.file}`);
+  }
+  if (conflicts.length > 12) console.log(`    ...and ${conflicts.length - 12} more`);
+}
+
+/* --explain one tile and stop. The question "which file did it pick, and what
+ * else was on offer" had no answer at all before, which is why a wrong pick
+ * could only be found by opening a PNG in a photo viewer. */
+const xi = argv.indexOf("--explain");
+if (xi >= 0 && argv[xi + 1]) {
+  const want = argv[xi + 1].replace(/\.png$/i, "");
+  console.log(`\n  candidates for "${want}" across the ${SOURCES.length} folder(s) named:\n`);
+  let n = 0;
+  for (const dir of SOURCES) {
+    let files = [];
+    try { files = fs.readdirSync(dir); } catch (e) { /* skip */ }
+    for (const f of files) {
+      if (!f.toLowerCase().endsWith(".png")) continue;
+      if (!slugsFor(f.slice(0, -4)).includes(want)) continue;
+      let size = 0;
+      try { size = fs.statSync(path.join(dir, f)).size; } catch (e) { /* skip */ }
+      console.log(`    ${String(size).padStart(9)}  ${path.join(dir, f)}`);
+      n++;
+    }
+  }
+  const hit = bySlug.get(want);
+  console.log(n ? `\n  would use: ${hit ? hit.file : "(none)"}\n`
+                : `\n  no file matching that slug in any folder named.\n`);
+  process.exit(0);
 }
 
 let anyWritten = 0;
@@ -229,6 +297,10 @@ for (const cfg of CHOSEN) {
     const before = fs.readFileSync(dest);
     if (before.equals(buf)) { unchanged++; continue; }
     if (WRITE) fs.writeFileSync(dest, buf);
+    /* The first few sources, printed. 859 lines would be unreadable and no
+     * lines at all is how a wrong folder went unnoticed, so: enough to spot
+     * the wrong checkout in the first second of output. */
+    if (rebuilt < 6) console.log(`    ${tile}  <-  ${hit.file}`);
     rebuilt++;
   }
   anyWritten += rebuilt;
