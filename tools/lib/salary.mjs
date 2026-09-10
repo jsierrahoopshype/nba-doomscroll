@@ -130,3 +130,64 @@ export function summariseSeason(rows, year) {
  * keeps its card; the failures this catches are not marginal - 63% and 73%,
  * against 121% to 224% for every book that was right. */
 export const MIN_PAYROLL_OF_CAP = 0.80;
+
+/* ---------------- recency ----------------
+ *
+ * "There's too much old salary content. Lean more towards recent content."
+ *
+ * The pool spans 1991 to now, and the metrics that decide a card - biggest cap
+ * share, cheapest win, most top-heavy book - do not care what year it is. Over
+ * thirty-five seasons that puts the feed's salary slot in the 1990s far more
+ * often than a reader who follows this league would choose.
+ *
+ * WHY THIS SCALES QUALITY RATHER THAN FILTERING BY YEAR
+ *
+ * A cutoff would throw away the best cards in the file. Shaq at 47% of the
+ * Lakers' book is a better card than the fourteenth-most top-heavy payroll of
+ * 2023, and a rule that dropped it to make room would be worse for the reader
+ * than the problem it fixed. Scaling means a great old card still beats a
+ * mediocre recent one; it just has to be great, not merely old.
+ *
+ * WHY A HALF-LIFE AND NOT A STRAIGHT LINE
+ *
+ * Most of what a reader means by "recent" is the last few seasons, and beyond
+ * about fifteen years back the difference between 2006 and 1996 barely matters
+ * to them. A half-life flattens out where the reader's interest does; a linear
+ * ramp would keep punishing 1994 relative to 1999 long after anyone cared.
+ *
+ * THE FLOOR IS THE POINT
+ *
+ * Without it a 1991 card would be scaled to near nothing and the vault would
+ * lose its history entirely. At FLOOR the oldest card keeps a bit over half
+ * its score, which is enough for the strongest of them to survive.
+ */
+export const RECENCY_HALF_LIFE = 12;   // seasons for half the decay to happen
+export const RECENCY_FLOOR = 0.55;     // what the oldest card keeps
+
+/**
+ * @param {number} year     the card's season-ending year
+ * @param {number} latest   the most recent season in the data, NOT the current
+ *                          calendar year - the file decides what "now" is, so
+ *                          this does not start penalising every card in
+ *                          January because a build is a year old
+ * @returns {number} a multiplier in [RECENCY_FLOOR, 1]
+ */
+export function recencyFactor(year, latest) {
+  const y = parseInt(year, 10), l = parseInt(latest, 10);
+  /* No year is not "old" - group cards like earnings-by-country are all-time
+   * by nature and there is nothing to be recent about. Unscaled. */
+  if (!isFinite(y) || !isFinite(l)) return 1;
+  const age = Math.max(0, l - y);
+  return RECENCY_FLOOR + (1 - RECENCY_FLOOR) * Math.pow(0.5, age / RECENCY_HALF_LIFE);
+}
+
+/** The season-ending year out of a "2023-24" label, or null. */
+export function yearFromSeasonLabel(label) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(label || "").trim());
+  if (!m) return null;
+  const start = parseInt(m[1], 10);
+  /* "1999-00" is 2000, not 1900. The two digits belong to whichever century
+   * makes the season one year long. */
+  const end = Math.floor(start / 100) * 100 + parseInt(m[2], 10);
+  return end === start + 1 ? end : end + 100 === start + 1 ? start + 1 : null;
+}
