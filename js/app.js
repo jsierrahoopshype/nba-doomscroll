@@ -106,7 +106,7 @@
   var TAB_POOLS = {
     vs:     ["data/vs-pool.json", "data/teammates-pool.json", "data/compare-pool.json"],
     vault:  ["data/vault-pool.json", "data/lean-pool.json", "data/oddity-pool.json",
-             "data/salary-pool.json", "data/games.json",
+             "data/salary-pool.json",
              /* Franchise droughts from 71 seasons of official award voting.
               * Its ids start "oddity-hist-" so the prefix table below already
               * routes them here - this line is the whole wiring. */
@@ -122,12 +122,30 @@
      * It also removes the last consumer of the surname-matching in
      * build_frivolities.mjs, which is the code the shared resolver in
      * js/player-resolver.js was written to replace. */
-    quiz:   ["data/games.json"],
+    /* THE GAME CARDS ARE OFF TOO. Jorge's call, Sept 2026, on seeing two of
+     * them at the top of For You: "I don't want cards promoting the games. I
+     * want the game in the stream (or a lite version of it) if possible. If
+     * not, shelve them from the stream."
+     *
+     * They were a hook plus a link - an advert wearing a card's clothes - and
+     * the feed has real playable cards a few rows below them, which is what
+     * makes the contrast obvious. A lite 73-9 that can be played in the card
+     * needs the daily board, which lives in that game's own Worker and not in
+     * this repo, so it is a separate piece of work rather than a line here.
+     *
+     * Three list entries, not a deletion. data/games.json, its test and its
+     * entries in data/links.json are untouched, so turning them back on is
+     * putting "data/games.json" back in these arrays.
+     *
+     * The quiz tab is left with no lazy pool of its own, which is fine: the
+     * quiz, trivia and ballot pools are in EAGER_POOLS above and carry 1,538
+     * cards tagged for that tab. */
+    quiz:   [],
     foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json",
              "data/teammates-pool.json", "data/compare-pool.json",
              "data/ballotrace-pool.json", "data/lean-pool.json",
              "data/oddity-pool.json",
-             "data/salary-pool.json", "data/games.json"]
+             "data/salary-pool.json"]
   };
 
   /* Pools that may legitimately not exist.
