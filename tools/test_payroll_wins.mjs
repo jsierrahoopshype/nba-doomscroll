@@ -11,7 +11,7 @@
 
 import {
   seasonEndYear, tallyTeamSeasons, medianGpByYear, joinPayrollWins,
-  playoffYears, capCostPerWin, GP_SLACK
+  playoffYears, capCostPerWin, GP_SLACK, seasonField, rankInSeason
 } from "./lib/payroll_wins.mjs";
 
 let fail = 0;
@@ -225,6 +225,102 @@ console.log("\nwhether the file even has playoffs for a season");
      joinPayrollWins([{ team: "A", year: 2024, total: 1, cap: 1, ofCap: 1, men: [] }], withPo)
        .joined[0].madePlayoffs === true);
   ck("empty tally has no playoff years", playoffYears(new Map()).size === 0);
+}
+
+console.log("\nthe season's field, and what may be said about it");
+
+/* THE CLAIM THIS GUARDS: "the worst rate in the league that season".
+ *
+ * That is a statement about thirty teams. Made off twenty-six of them it is a
+ * statement about the file, which is the same error as telling the Raptors
+ * they went 43 seasons without a Defensive Player of the Year vote - true of
+ * the data, false of the world, and checkable in one search.
+ */
+{
+  /* Four teams played. Payrolls for all four, so the season is complete.
+   * Costs per win: D 10, C 4, B 2, A 1. */
+  const tally = new Map([
+    ["A|2024", { code: "A", year: 2024, w: 60, l: 22, gp: 82, poGp: 16 }],
+    ["B|2024", { code: "B", year: 2024, w: 40, l: 42, gp: 82, poGp: 0 }],
+    ["C|2024", { code: "C", year: 2024, w: 25, l: 57, gp: 82, poGp: 0 }],
+    ["D|2024", { code: "D", year: 2024, w: 10, l: 72, gp: 82, poGp: 0 }]
+  ]);
+  const rec = (team, w, total) => ({ team, year: 2024, w, l: 82 - w, total, costPerWin: total / w });
+  const joined = [rec("A", 60, 60), rec("B", 40, 80), rec("C", 25, 100), rec("D", 10, 100)];
+
+  const f = seasonField(joined, tally).get(2024);
+  ck("the field is ordered dearest first",
+     f.rows.map(r => r.team).join("") === "DCBA", f.rows.map(r => r.team).join(""));
+  ck("it counts the teams that played, not the payrolls it has",
+     f.leagueTeams === 4 && f.teams === 4, f.teams + "/" + f.leagueTeams);
+  ck("a full field may be described as the league", f.complete === true);
+  ck("the median is the middle of the rates", f.median === 3, String(f.median));
+  ck("the dearest and cheapest are the ends",
+     f.dearest.team === "D" && f.cheapest.team === "A");
+  ck("and the best record is found separately from the cost",
+     f.mostWins.team === "A", f.mostWins.team);
+
+  ck("rank counts from the dearest", rankInSeason(seasonField(joined, tally), joined[3]) === 1,
+     String(rankInSeason(seasonField(joined, tally), joined[3])));
+  ck("the cheapest is last", rankInSeason(seasonField(joined, tally), joined[0]) === 4);
+  ck("a team not in the field has no rank",
+     rankInSeason(seasonField(joined, tally), { team: "Z", year: 2024 }) === null);
+  ck("a year not in the field does not throw",
+     rankInSeason(seasonField(joined, tally), { team: "A", year: 1999 }) === null);
+}
+
+{
+  /* Five teams played and only four have a payroll. No league-wide claim is
+   * available, and the card must not print a ranked table of four teams under
+   * the heading "every team". */
+  const tally = new Map([
+    ["A|2024", { code: "A", year: 2024, w: 60, l: 22, gp: 82, poGp: 0 }],
+    ["B|2024", { code: "B", year: 2024, w: 40, l: 42, gp: 82, poGp: 0 }],
+    ["C|2024", { code: "C", year: 2024, w: 25, l: 57, gp: 82, poGp: 0 }],
+    ["D|2024", { code: "D", year: 2024, w: 10, l: 72, gp: 82, poGp: 0 }],
+    ["E|2024", { code: "E", year: 2024, w: 30, l: 52, gp: 82, poGp: 0 }]
+  ]);
+  const joined = [60, 40, 25, 10].map((w, i) => ({
+    team: "ABCD"[i], year: 2024, w, l: 82 - w, total: 100, costPerWin: 100 / w
+  }));
+  const f = seasonField(joined, tally).get(2024);
+  ck("a partly covered season is not complete", f.complete === false);
+  ck("but it still has a median, for the honest version of the sentence",
+     f.median > 0);
+  ck("and it says how many it actually has", f.teams === 4 && f.leagueTeams === 5);
+}
+
+{
+  /* A team that appears only in the playoffs is a coverage artefact, not a
+   * team, and must not inflate the league size and so block every claim. */
+  const tally = new Map([
+    ["A|2024", { code: "A", year: 2024, w: 60, l: 22, gp: 82, poGp: 16 }],
+    ["B|2024", { code: "B", year: 2024, w: 40, l: 42, gp: 82, poGp: 0 }],
+    ["GHOST|2024", { code: "GHOST", year: 2024, w: 0, l: 0, gp: 0, poGp: 4 }]
+  ]);
+  const joined = [
+    { team: "A", year: 2024, w: 60, l: 22, total: 60, costPerWin: 1 },
+    { team: "B", year: 2024, w: 40, l: 42, total: 80, costPerWin: 2 }
+  ];
+  ck("a playoff-only row is not counted as a team",
+     seasonField(joined, tally).get(2024).complete === true);
+}
+
+{
+  ck("no rows, no field", seasonField([], new Map()).size === 0);
+  ck("undefined does not throw", seasonField(undefined, undefined).size === 0);
+  /* A winless team has no rate at all. Dropping it silently would let a card
+   * claim the worst rate in a league that contained a team with no wins. */
+  const tally = new Map([
+    ["A|2024", { code: "A", year: 2024, w: 40, l: 42, gp: 82, poGp: 0 }],
+    ["B|2024", { code: "B", year: 2024, w: 0, l: 82, gp: 82, poGp: 0 }]
+  ]);
+  const f = seasonField([{ team: "A", year: 2024, w: 40, l: 42, total: 80, costPerWin: 2 }], tally)
+    .get(2024);
+  ck("a season containing a winless team cannot be complete", f.complete === false);
+  ck("an infinite rate never enters the field",
+     seasonField([{ team: "B", year: 2024, w: 0, l: 82, total: 80, costPerWin: Infinity }], tally)
+       .size === 0);
 }
 
 console.log(fail ? `\n${fail} failed` : "\n0 failed");
