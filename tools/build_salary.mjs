@@ -38,7 +38,9 @@ import { stripPhantomTeamRows, summariseSeason, MIN_PAYROLL_OF_CAP,
   recencyFactor, yearFromSeasonLabel } from "./lib/salary.mjs";
 import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, scheduleSpan, normalizeGames }
   from "./lib/games.mjs";
-import { tallyTeamSeasons, joinPayrollWins, playoffYears } from "./lib/payroll_wins.mjs";
+import {
+  tallyTeamSeasons, joinPayrollWins, playoffYears, seasonField, rankInSeason
+} from "./lib/payroll_wins.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -582,6 +584,11 @@ if (!GAMES_CSV) {
   const tally = tallyTeamSeasons(raw.rows, codeOf);
   const poYears = playoffYears(tally);
   const { joined, missing, winless, shortSchedule } = joinPayrollWins(payrolls, tally);
+  /* What every other team paid for a win that same season. A rate on its own
+   * is inert - "$4.39M a win" means nothing until you know the median team
+   * paid a fifth of that - and the league-wide claims are gated on the season
+   * being fully covered. See lib/payroll_wins.mjs. */
+  const field = seasonField(joined, tally);
 
   console.log(`  payroll-and-wins: ${joined.length} of ${payrolls.length} vetted payrolls ` +
     `joined to a full schedule` +
@@ -593,6 +600,14 @@ if (!GAMES_CSV) {
   if (missing.length) {
     console.log(`    ${missing.length} had no season in the game log, e.g. ` +
       missing.slice(0, 6).map(r => `${r.team} ${r.year}`).join(", "));
+  }
+  {
+    /* Which seasons may be spoken about as "the league". Printed because the
+     * answer is not obvious and it decides whether a card gets its ranked
+     * table or the hedged sentence. */
+    const full = [...field.values()].filter(f => f.complete);
+    console.log(`    ${full.length} of ${field.size} seasons have a payroll for every team ` +
+      `that played, so only those can carry a league-wide rank or the full table`);
   }
   if (winless.length) {
     console.log(`    ${winless.length} went winless, so there is no rate to state: ` +
@@ -651,6 +666,60 @@ if (!GAMES_CSV) {
     `${j.w}-${j.l}. Payroll was ${(j.ofCap * 100).toFixed(0)}% of the ${seasonLabel(j.year)} cap ` +
     `of ${fmtMoney(j.cap)}.`;
 
+  /* THE FIELD, AS A CARD CAN STATE IT.
+   *
+   * "$4.39M a win" is inert on its own. What makes it land is that the median
+   * team that season paid a fifth of it, and that the team with the best
+   * record paid less still - so every one of these cards now carries the
+   * season's whole field and says where the subject sits in it.
+   *
+   * EVERY LEAGUE-WIDE PHRASE IS GATED ON f.complete. "The worst rate in the
+   * league" is a claim about thirty teams; made off twenty-six of them it is a
+   * claim about the file, which is the Raptors-in-43-seasons mistake wearing
+   * different clothes. When the season is short of a full field the sentence
+   * says so in as many words, and the ranked table is withheld entirely. */
+  const WORST = ["", "worst", "second-worst", "third-worst", "fourth-worst", "fifth-worst"];
+  const BEST = ["", "best", "second-best", "third-best", "fourth-best", "fifth-best"];
+
+  /* All of them, dearest first, with the subject flagged so the card can pick
+   * its own row out. Jorge asked for how much it cost each team, so this is
+   * each team and not a top five. */
+  const fieldRows = (f, j) => (f && f.complete)
+    ? f.rows.map((r, i) => ({
+        rank: i + 1, name: teamName(r.team), sub: `${r.w}-${r.l}`,
+        value: fmtMoney(r.costPerWin), me: r.team === j.team
+      }))
+    : null;
+
+  /* One sentence of context, whether or not the season is fully covered. */
+  const fieldContext = (f, j) => {
+    if (!f) return "";
+    const best = f.mostWins;
+    const where = f.complete
+      ? `The median team that season paid ${fmtMoney(f.median)} a win`
+      : `Across the ${f.teams} teams whose payroll is on file for that season the median was ` +
+        `${fmtMoney(f.median)} a win`;
+    if (f.complete && best && best.team !== j.team) {
+      return `${where}, and ${teamName(best.team)} went ${best.w}-${best.l} at ` +
+        `${fmtMoney(best.costPerWin)}.`;
+    }
+    return where + ".";
+  };
+
+  /* Where in its own season, from whichever end the card is about. */
+  const placeIn = (f, j, fromCheap) => {
+    const rank = rankInSeason(field, j);
+    if (!f || !f.complete || !rank) return "";
+    const n = fromCheap ? f.teams - rank + 1 : rank;
+    const word = (fromCheap ? BEST : WORST)[n];
+    return word ? `, the ${word} rate in the league that season` : "";
+  };
+
+  /* The count is in the label so a reader can see there is more below the
+   * seven rows the card shows without scrolling. */
+  const fieldLabel = (f, j) => f
+    ? `What a win cost all ${f.teams} teams in ${seasonLabel(j.year)}` : "";
+
   /* Cheapest wins, in cap terms. */
   /* RANK, not a superlative. The first version said "the cheapest rate on
    * record" in the detail line of all six of these, which is true of one of
@@ -660,25 +729,32 @@ if (!GAMES_CSV) {
   lowRanked.forEach((j, rank) => { if (rank >= 6) return;
     const place = rank === 0 ? "the cheapest rate in the file"
       : `the ${["", "second", "third", "fourth", "fifth", "sixth"][rank]}-cheapest rate in the file`;
+    const f = field.get(j.year);
     add("cost-per-win-low", 0.78, tagsOf(j), Object.assign(head(j), {
-      headline: `A win cost ${teamName(j.team)} ${fmtMoney(j.costPerWin)} in ${seasonLabel(j.year)}`,
+      headline: `A win cost ${teamName(j.team)} ${fmtMoney(j.costPerWin)} in ` +
+        `${seasonLabel(j.year)}${placeIn(f, j, true)}`,
       team: j.team, season: seasonLabel(j.year),
-      detail: `${j.w} wins on a ${fmtMoney(j.total)} book. In cap terms ` +
-        `${(j.capPerWin * 100).toFixed(2)}% of the cap per win, ` +
-        `${place} once every era is put in the same units.`,
-      note: winNote(j),
+      detail: `${j.w} wins on a ${fmtMoney(j.total)} book. ${fieldContext(f, j)}`,
+      note: winNote(j) + ` In cap terms ${(j.capPerWin * 100).toFixed(2)}% of the cap ` +
+        `per win, ${place} once every era is put in the same units.`,
+      field: fieldRows(f, j),
+      field_label: fieldLabel(f, j),
       url: SALARY_TOOL
     }), j.team + "|" + j.year);
   });
 
   /* Dearest wins. */
   for (const j of wins.slice().sort((a, b) => b.capPerWin - a.capPerWin).slice(0, 6)) {
+    const f = field.get(j.year);
     add("cost-per-win-high", 0.74, tagsOf(j), Object.assign(head(j), {
-      headline: `Every win cost ${teamName(j.team)} ${fmtMoney(j.costPerWin)} in ${seasonLabel(j.year)}`,
+      headline: `Every win cost ${teamName(j.team)} ${fmtMoney(j.costPerWin)} in ` +
+        `${seasonLabel(j.year)}${placeIn(f, j, false)}`,
       team: j.team, season: seasonLabel(j.year),
-      detail: `${fmtMoney(j.total)} for ${j.w} wins, or ${(j.capPerWin * 100).toFixed(2)}% ` +
-        `of that season's cap per win.`,
-      note: winNote(j),
+      detail: `${fmtMoney(j.total)} for ${j.w} wins. ${fieldContext(f, j)}`,
+      note: winNote(j) + ` That is ${(j.capPerWin * 100).toFixed(2)}% of that season's ` +
+        `cap per win.`,
+      field: fieldRows(f, j),
+      field_label: fieldLabel(f, j),
       url: SALARY_TOOL
     }), j.team + "|" + j.year);
   }
@@ -708,8 +784,11 @@ if (!GAMES_CSV) {
       headline: `${teamName(j.team)} spent ${(j.ofCap * 100).toFixed(0)}% of the cap in ${seasonLabel(j.year)} and missed the playoffs`,
       team: j.team, season: seasonLabel(j.year),
       detail: `${j.w}-${j.l} on a ${fmtMoney(j.total)} payroll, ${fmtMoney(j.costPerWin)} per win. ` +
-        `${j.men[0].player} was the biggest number on the book at ${fmtMoney(j.men[0].amount)}.`,
-      note: winNote(j) + " No postseason games in the league log for this team.",
+        `${fieldContext(field.get(j.year), j)}`,
+      field: fieldRows(field.get(j.year), j),
+      field_label: fieldLabel(field.get(j.year), j),
+      note: winNote(j) + ` ${j.men[0].player} was the biggest number on the book at ` +
+        `${fmtMoney(j.men[0].amount)}. No postseason games in the league log for this team.`,
       url: SALARY_TOOL
     }), j.team + "|" + j.year);
   }

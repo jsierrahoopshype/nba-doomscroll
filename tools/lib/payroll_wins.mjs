@@ -187,3 +187,90 @@ export function playoffYears(tally) {
 export function capCostPerWin(rec) {
   return rec.cap && rec.w ? (rec.total / rec.cap) / rec.w : null;
 }
+
+/**
+ * What every team in the league paid per win, that season.
+ *
+ * WHY THIS EXISTS
+ *
+ * A card went out reading "Every win cost New York $4.39M in 2005-06.
+ * $100.9M for 23 wins, or 8.86% of that season's cap per win." Jorge's note
+ * was the one he has now made three times: "Every time give more context. Was
+ * the cost of victory the highest of any team? Give me how much it cost each
+ * team."
+ *
+ * He is right that the number alone is inert. $4.39M a win means nothing until
+ * you know that the median team that season paid a fifth of it, and that the
+ * team with the best record paid less still. A figure with no field around it
+ * is a figure a reader has to take on trust.
+ *
+ * THE COVERAGE GATE IS THE POINT OF THE FUNCTION
+ *
+ * "The most expensive win in the league that season" is a claim about thirty
+ * teams. If twenty-six of them joined, it is a claim about the file, which is
+ * the same class of error as telling the Raptors they went 43 seasons without
+ * a Defensive Player of the Year vote. So the league's actual size comes from
+ * the game log - every team that played that season, whether or not a payroll
+ * joined for it - and `complete` says whether a league-wide claim is available
+ * at all. A season where a team went winless is deliberately incomplete: a
+ * 0-win team has no cost per win and might well have been the worst, so the
+ * superlative is not ours to make.
+ *
+ * @param {Array} joined  from joinPayrollWins
+ * @param {Map} tally     from tallyTeamSeasons - the league, not the payrolls
+ * @returns {Map<number, {
+ *   year, rows, teams, leagueTeams, complete,
+ *   median, dearest, cheapest, mostWins
+ * }>} rows are dearest-per-win first
+ */
+export function seasonField(joined, tally) {
+  /* How many teams actually played that season. Regular-season games only:
+   * poGp alone is a team that appears in the file for the playoffs and nothing
+   * else, which is a coverage artefact rather than a team. */
+  const league = new Map();
+  for (const rec of (tally ? tally.values() : [])) {
+    if (!rec.gp) continue;
+    if (!league.has(rec.year)) league.set(rec.year, new Set());
+    league.get(rec.year).add(rec.code);
+  }
+
+  const byYear = new Map();
+  for (const j of (joined || [])) {
+    if (!(j.costPerWin > 0) || !isFinite(j.costPerWin)) continue;
+    if (!byYear.has(j.year)) byYear.set(j.year, []);
+    byYear.get(j.year).push(j);
+  }
+
+  const out = new Map();
+  for (const [year, list] of byYear) {
+    const rows = list.slice().sort((a, b) => b.costPerWin - a.costPerWin);
+    const costs = rows.map(r => r.costPerWin).slice().sort((a, b) => a - b);
+    const mid = Math.floor(costs.length / 2);
+    const median = costs.length % 2 ? costs[mid] : (costs[mid - 1] + costs[mid]) / 2;
+    const size = (league.get(year) || new Set()).size;
+    out.set(year, {
+      year, rows,
+      teams: rows.length,
+      leagueTeams: size,
+      /* Every team that played has a rate here. Anything less and a
+       * league-wide superlative is about the file. */
+      complete: size > 0 && rows.length >= size,
+      median,
+      dearest: rows[0],
+      cheapest: rows[rows.length - 1],
+      /* The contrast that makes the card land: what a win cost the team that
+       * won the most of them. */
+      mostWins: rows.slice().sort((a, b) => b.w - a.w)[0]
+    });
+  }
+  return out;
+}
+
+/** Where this team-season sits in its own season, dearest win first. 1-based,
+ * null when the season is not in the field. */
+export function rankInSeason(field, rec) {
+  const f = field && field.get ? field.get(rec.year) : field;
+  if (!f || !f.rows) return null;
+  const i = f.rows.findIndex(r => r.team === rec.team && r.year === rec.year);
+  return i < 0 ? null : i + 1;
+}

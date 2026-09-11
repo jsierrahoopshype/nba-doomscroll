@@ -831,12 +831,38 @@
      * both shapes render from one function rather than the pool having to be
      * rebuilt before anything works. */
     if (p.headline) {
+      /* THE FIELD, WHEN THE CARD CARRIES ONE.
+       *
+       * "Give me how much it cost each team" - so a cost-per-win card ships
+       * the season's whole table and this draws it, with the card's own team
+       * picked out. Additive and optional: every one of the salary cards
+       * without a p.field renders exactly as it did.
+       *
+       * Reuses .sr-row and friends from renderSalaryRank rather than inventing
+       * a second ranked-row style, so the two look like the same product. */
+      var fieldRows = (p.field || []).map(function (r) {
+        return '<div class="sr-row' + (r.me ? ' me' : '') + '">' +
+          '<span class="sr-rank mono">' + esc(String(r.rank)) + '</span>' +
+          /* Plain text, not ent(): thirty tappable team links in one table is
+           * thirty link targets competing with the card's own. The team this
+           * card is about is already a link in the header. */
+          '<span class="sr-main">' +
+            '<span class="sr-name">' + esc(r.name) + '</span>' +
+            (r.sub ? '<span class="sr-sub">' + esc(r.sub) + '</span>' : '') +
+          '</span>' +
+          '<b class="sr-val mono">' + esc(r.value) + '</b>' +
+        '</div>';
+      }).join("");
       return '<div class="sal-head">' + face(p.img, p.player, "face lg") +
         '<div><div class="sal-name">' + ent(p.player, "player") + '</div>' +
         '<div class="card-sub">' + (p.team ? ent(p.team, "team") + ' · ' : '') +
           '<span class="mono">' + esc(p.season) + '</span></div></div></div>' +
         '<div class="trivia-q sal-headline">' + esc(p.headline) + '</div>' +
         (p.detail ? '<p class="rumor-text sal-note">' + esc(p.detail) + '</p>' : "") +
+        (fieldRows
+          ? (p.field_label ? '<div class="card-sub sal-field-label">' + esc(p.field_label) + '</div>' : '') +
+            '<div class="sr-list sal-field">' + fieldRows + '</div>'
+          : "") +
         (p.note ? '<div class="card-sub sal-denom">' + esc(p.note) + '</div>' : "");
     }
     // Cap share rather than a CPI "worth $Y today" figure: it comes straight
