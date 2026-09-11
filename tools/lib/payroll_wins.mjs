@@ -95,10 +95,17 @@ export function tallyTeamSeasons(games, codeOf) {
   return out;
 }
 
-/** Median games played per season, taken from the tally itself. */
+/** Median games played per season, taken from the tally itself.
+ *
+ * TEAMS THAT PLAYED, not every entry in the tally. A team-season the file
+ * carries only playoff games for has gp 0, and counting those zeroes drags the
+ * median down - in a season made entirely of playoff rows it drags it to zero,
+ * which switches off the short-schedule guard below and lets a team with five
+ * games in the file be treated as having a full season. */
 export function medianGpByYear(tally) {
   const byYear = new Map();
   for (const rec of tally.values()) {
+    if (!rec.gp) continue;
     if (!byYear.has(rec.year)) byYear.set(rec.year, []);
     byYear.get(rec.year).push(rec.gp);
   }
@@ -135,17 +142,38 @@ export const GP_SLACK = 3;
  *                          build_salary.mjs has ALREADY vetted against
  *                          MIN_PAYROLL_OF_CAP. Passing the unvetted set would
  *                          divide a book that is missing players.
- * @returns {{joined:Array, missing:Array, winless:Array, shortSchedule:Array}}
+ * A FIFTH BUCKET, ADDED AFTER A CARD LIED ABOUT SIX PLAYOFF TEAMS.
+ *
+ * The build reported "15 went winless, so there is no rate to state: MIA 2013
+ * 0-0, OKC 2013 0-0, LAC 2013 0-0, CHI 2013 0-0, DEN 2013 0-0, BKN 2013 0-0".
+ * Every one of those six made the 2013 playoffs. 0-0 is not a winless record,
+ * it is NO RECORD: for season 2013 that game log carries playoff rows and no
+ * regular-season rows, so a team with a playoff run got a tally entry with gp
+ * 0 and the winless test - `if (!rec.w)` - was the first one it reached.
+ *
+ * Two bugs in one line. The bucket said something false about real teams, and
+ * because the season's median games played was also 0, the short-schedule
+ * guard above it was switched off for the whole season.
+ *
+ * @returns {{joined:Array, missing:Array, winless:Array, shortSchedule:Array,
+ *            noRegularSeason:Array}}
  */
 export function joinPayrollWins(payrolls, tally) {
   const median = medianGpByYear(tally);
-  const joined = [], missing = [], winless = [], shortSchedule = [];
+  const joined = [], missing = [], winless = [], shortSchedule = [], noRegularSeason = [];
 
   for (const p of (payrolls || [])) {
     const rec = tally.get(p.team + "|" + p.year);
     if (!rec) { missing.push(p); continue; }
     const want = median.get(p.year) || 0;
-    if (want && rec.gp < want - GP_SLACK) {
+    /* No regular-season games for this team, or none for anybody that season.
+     * Either way there is no record here, and calling it winless would put a
+     * false claim about a real team into the build log. */
+    if (!rec.gp || !want) {
+      noRegularSeason.push(Object.assign({}, p, { gp: rec.gp, poGp: rec.poGp, median: want }));
+      continue;
+    }
+    if (rec.gp < want - GP_SLACK) {
       shortSchedule.push(Object.assign({}, p, { gp: rec.gp, expected: want }));
       continue;
     }
@@ -165,7 +193,7 @@ export function joinPayrollWins(payrolls, tally) {
       capPerWin: p.cap ? (p.total / rec.w) / p.cap : null
     });
   }
-  return { joined, missing, winless, shortSchedule };
+  return { joined, missing, winless, shortSchedule, noRegularSeason };
 }
 
 /** Which seasons does the file cover playoffs for?

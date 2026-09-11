@@ -583,7 +583,8 @@ if (!GAMES_CSV) {
 
   const tally = tallyTeamSeasons(raw.rows, codeOf);
   const poYears = playoffYears(tally);
-  const { joined, missing, winless, shortSchedule } = joinPayrollWins(payrolls, tally);
+  const { joined, missing, winless, shortSchedule, noRegularSeason } =
+    joinPayrollWins(payrolls, tally);
   /* What every other team paid for a win that same season. A rate on its own
    * is inert - "$4.39M a win" means nothing until you know the median team
    * paid a fifth of that - and the league-wide claims are gated on the season
@@ -611,6 +612,17 @@ if (!GAMES_CSV) {
       `that played, so only those can carry a league-wide rank`);
     console.log(`    ${tabled.length} have at least 20, which is enough for the table ` +
       `under a heading that says how many`);
+  }
+  if (noRegularSeason.length) {
+    /* Named as what it is. This used to be reported as "went winless", which
+     * was a false statement about six teams that made the 2013 playoffs. */
+    const years = [...new Set(noRegularSeason.map(r => r.year))].sort();
+    console.log(`    ${noRegularSeason.length} have no regular-season games in this log, ` +
+      `so there is no record to divide: ` +
+      noRegularSeason.slice(0, 6).map(r => `${r.team} ${r.year}`).join(", "));
+    console.log(`      the seasons affected: ${years.join(", ")}. A season here with ` +
+      `playoff rows and no regular-season rows is a hole in the game log, not a team ` +
+      `that lost every game - a fuller schedule file would recover these.`);
   }
   if (winless.length) {
     console.log(`    ${winless.length} went winless, so there is no rate to state: ` +
