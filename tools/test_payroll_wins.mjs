@@ -227,6 +227,67 @@ console.log("\nwhether the file even has playoffs for a season");
   ck("empty tally has no playoff years", playoffYears(new Map()).size === 0);
 }
 
+console.log("\n0-0 is no record, not a winless record");
+
+/* THE FALSE STATEMENT THIS PREVENTS, verbatim from a build log:
+ *
+ *   15 went winless, so there is no rate to state: MIA 2013 0-0, OKC 2013 0-0,
+ *   LAC 2013 0-0, CHI 2013 0-0, DEN 2013 0-0, BKN 2013 0-0
+ *
+ * All six made the 2013 playoffs. For that season the game log carries playoff
+ * rows and no regular-season rows, so each of them had a tally entry with gp 0
+ * and `if (!rec.w)` was the first test it reached.
+ */
+{
+  /* A season of playoff rows only: entries exist, none has a regular-season
+   * game, so the median games played for the year is undefined. */
+  const tally = new Map([
+    ["A|2013", { code: "A", year: 2013, w: 0, l: 0, gp: 0, poGp: 16 }],
+    ["B|2013", { code: "B", year: 2013, w: 0, l: 0, gp: 0, poGp: 4 }]
+  ]);
+  const pay = [
+    { team: "A", year: 2013, total: 90, cap: 58, ofCap: 1.55, men: [] },
+    { team: "B", year: 2013, total: 70, cap: 58, ofCap: 1.2, men: [] }
+  ];
+  const r = joinPayrollWins(pay, tally);
+  ck("a playoff-only team-season is not winless", r.winless.length === 0,
+     r.winless.length + " in winless");
+  ck("it is reported as having no regular season", r.noRegularSeason.length === 2);
+  ck("and never becomes a card", r.joined.length === 0);
+  ck("the bucket carries the playoff games, which is the evidence",
+     r.noRegularSeason[0].poGp === 16);
+  ck("a season with no regular-season games has no median",
+     medianGpByYear(tally).get(2013) === undefined,
+     String(medianGpByYear(tally).get(2013)));
+}
+
+{
+  /* A real winless team, in a season that has games. This must still be
+   * reported as winless - the fix must not swallow the case it replaced. */
+  const tally = new Map([
+    ["A|2024", { code: "A", year: 2024, w: 60, l: 22, gp: 82, poGp: 16 }],
+    ["B|2024", { code: "B", year: 2024, w: 0, l: 82, gp: 82, poGp: 0 }]
+  ]);
+  const r = joinPayrollWins([{ team: "B", year: 2024, total: 90, cap: 58, ofCap: 1.5, men: [] }], tally);
+  ck("an actually winless team is still winless", r.winless.length === 1);
+  ck("and not in the no-regular-season bucket", r.noRegularSeason.length === 0);
+}
+
+{
+  /* The median must ignore playoff-only entries, or one of them drags it down
+   * far enough to switch off the short-schedule guard for everybody. */
+  const tally = new Map([
+    ["A|2024", { code: "A", year: 2024, w: 41, l: 41, gp: 82, poGp: 0 }],
+    ["B|2024", { code: "B", year: 2024, w: 41, l: 41, gp: 82, poGp: 0 }],
+    ["GHOST|2024", { code: "GHOST", year: 2024, w: 0, l: 0, gp: 0, poGp: 4 }]
+  ]);
+  ck("the median is of teams that played", medianGpByYear(tally).get(2024) === 82,
+     String(medianGpByYear(tally).get(2024)));
+  const r = joinPayrollWins(
+    [{ team: "A", year: 2024, total: 90, cap: 58, ofCap: 1.5, men: [] }], tally);
+  ck("so a full season still joins", r.joined.length === 1);
+}
+
 console.log("\nthe season's field, and what may be said about it");
 
 /* THE CLAIM THIS GUARDS: "the worst rate in the league that season".
