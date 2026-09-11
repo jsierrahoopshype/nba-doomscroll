@@ -258,14 +258,14 @@ for (const g of [...byAwardYear.values()].sort((a, b) => b.year - a.year)) {
       });
       if (!d) continue;
 
-      /* A "nobody here has done this" card needs a long window, and is never
-       * offered for a win: twenty-odd franchises have never won Most Improved
-       * Player, so that card exists for all of them and says nothing about the
-       * player who broke it. */
-      if (d.kind === "first-in-window") {
-        if (scope === "win") continue;
-        if (d.seasonsCovered < (MIN_NEVER_WINDOW[scope] || 20)) continue;
-      }
+      /* A "nobody here has done this" card needs a long window. It used to be
+       * refused outright for a win, on the grounds that most franchises have
+       * never won most awards - but a card is only built for the player who
+       * just did it, so a franchise-first win can happen at most once per
+       * franchise per award. See lib/award_sentences.mjs for the Gobert card
+       * that exclusion cost. */
+      if (d.kind === "first-in-window" &&
+          d.seasonsCovered < (MIN_NEVER_WINDOW[scope] || 20)) continue;
 
       options.push({ r, key, d, scope });
       break;                     // strongest true claim for this franchise
