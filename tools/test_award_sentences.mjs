@@ -214,6 +214,30 @@ console.log("\nthe specific defects that shipped");
 }
 
 {
+  /* A franchise-first WIN, which the gates used to refuse. Rudy Gobert won
+   * Defensive Player of the Year for a Minnesota team that had never won it;
+   * the card fell back to a top-five drought instead. */
+  const first = F({
+    player: "Rudy Gobert", team: "timberwolves", awardKey: "DPOY",
+    label: "Defensive Player of the Year", year: 2024, rank: 1,
+    scope: "win", kind: "first-in-window",
+    seasonsCovered: 34, windowFrom: 1990, wholeHistory: true, sameIdentityThroughout: true
+  });
+  const all = sentenceShapes(first);
+  ck("a franchise-first win produces sentences", all.length >= 2, String(all.length));
+  ck("one of them says franchise history", all.some(s => s.shape === "never-franchise"));
+  ck("every one is clean", all.every(s => checkText(s.head, s.detail).length === 0));
+  /* "the first Timberwolf to win DPOY in 34 seasons" reads as "the last was 34
+   * seasons ago". The headline is what gets shared, so it must not be the
+   * sentence a reader gets backwards. */
+  const count = all.find(s => s.shape === "never-count");
+  ck("the count shape is phrased as an absence, not a first-since",
+     count && /^No Timberwolf had won/.test(count.head), count && count.head);
+  ck("a win needs no rank line", all.every(s => !/finished/.test(s.detail)));
+  ck("and a never-window exists for a win", MIN_NEVER_WINDOW.win >= 20);
+}
+
+{
   const barnes = REAL.find(f => f.player === "Scottie Barnes");
   const text = sentenceShapes(barnes).map(s => s.head + " " + s.detail).join(" ");
   ck("the Raptors card counts 30 seasons", text.includes("30 seasons"));

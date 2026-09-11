@@ -322,13 +322,20 @@ export function sentenceShapes(fact) {
     }
 
     /* G: the count, with the window stated. "In N seasons" is a claim about a
-     * span, so the span is in the sentence. */
+     * span, so the span is in the sentence.
+     *
+     * PHRASED AS AN ABSENCE, NOT AS A FIRST-SINCE. The earlier version read
+     * "X is the first Timberwolf to win Defensive Player of the Year in 34
+     * seasons", which any reader takes to mean the last one was 34 seasons
+     * ago - when what the data says is that there has never been one. The
+     * detail corrected it and the headline is what gets shared, so the
+     * headline has to be the one that cannot be misread. */
     out.push({
       shape: "never-count",
-      head: `${fact.player} is the first ${theOne} to ${v.inf} in ${N} seasons`,
+      head: `No ${theOne} had ${v.did} in ${N} seasons. ${fact.player} is the first`,
       detail: fact.wholeHistory
         ? `That is every season the franchise has played.${rb}`
-        : `Going back to ${W}, no ${theOne} had managed it.${rb}`
+        : `Going back to ${W}, nobody had managed it.${rb}`
     });
 
     /* H: the city waiting. Needs the city and nickname to have held for the
@@ -434,10 +441,27 @@ export function minGapFor(awardKey, scope) {
 }
 
 /* A "nobody has done this here" card needs a window long enough for the
- * absence to mean something, and it is never offered for a win: twenty-odd
- * franchises have never won Most Improved Player, so that card exists for
- * every one of them and says nothing about the player who broke it. */
-export const MIN_NEVER_WINDOW = { top: 20, any: 20 };
+ * absence to mean something.
+ *
+ * WIN WAS EXCLUDED HERE AND THAT WAS WRONG.
+ *
+ * The reasoning was that twenty-odd franchises have never won Most Improved
+ * Player, so the card would exist for all of them and say nothing about any
+ * player. That only holds if cards are generated for teams that did NOT win.
+ * They are not: a card is only ever built for the player who just did it, so a
+ * franchise-first win can happen at most once per franchise per award, in the
+ * season it happens.
+ *
+ * What the exclusion actually cost showed up in the first real build. Rudy
+ * Gobert won Defensive Player of the Year for a Minnesota team that had never
+ * won it, and the card had to fall back to the top-five drought instead:
+ *
+ *   "Minnesota had gone 20 seasons without a top-five Defensive Player of the
+ *    Year finish. Gobert ended it. Kevin Garnett was the last, in 2003. He won
+ *    the award outright."
+ *
+ * True, and the better sentence was sitting unused two lines away. */
+export const MIN_NEVER_WINDOW = { win: 20, top: 20, any: 20 };
 
 /** An award needs a history before a drought inside it is a fact worth
  * printing. Clutch Player (4 seasons) and the Hustle Award (8) do not have
