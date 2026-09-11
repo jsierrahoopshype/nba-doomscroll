@@ -52,6 +52,22 @@ REM
 REM Still not allowed to fail the build. If the sources are not on this machine
 REM it says so and the existing cards stay as they are, which is what the gate
 REM was protecting - just without pretending nothing was meant to happen.
+REM THIS WAS MISSING, AND THE SYMPTOM WAS SILENCE.
+REM
+REM data\award-history-pool.json was never in this file, so it was never built
+REM here, never picked up by ship.cmd's `git add -A`, and never committed. It
+REM sat untracked in the working copy while js\app.js asked the live site for a
+REM file that was not there. It is in OPTIONAL_POOLS, so the feed skipped it
+REM without a word and the cards simply did not exist for anyone but whoever
+REM had run the builder by hand.
+REM
+REM Fatal, like the three above it and unlike salary: it reads NPD, which this
+REM script has already checked, so a failure here is a real failure.
+echo.
+echo === award history ===
+node tools\build_award_history.mjs --local "%NPD%"
+if errorlevel 1 exit /b 1
+
 echo.
 echo === salary stories ===
 if defined CAP_CSV (

@@ -346,12 +346,23 @@ for (const g of [...byAwardYear.values()].sort((a, b) => b.year - a.year)) {
 /* MAX_PER_SHAPE is the part of this that answers the actual complaint. Caps on
  * teams and awards stop the pool being all Lakers or all MVP; nothing stopped
  * it being the same sentence forty times, which is what shipped. */
+/* ONE CARD PER PLAYER, which the first real run needed and did not have.
+ *
+ * Scottie Barnes came out twice in the best twelve: Rookie of the Year in 2022
+ * and a top-five Defensive Player of the Year finish in 2026. Both true, both
+ * good, and seeing the same face twice in a scroll makes the pool look thinner
+ * than it is. The team cap does not catch it - they are two different claims
+ * about one franchise - and neither does the shape cap, because they came out
+ * as two different sentences. */
 const MAX_PER_TEAM = 3, MAX_PER_AWARD = 12, MAX_PER_SHAPE = 8, MAX_PER_SHAPE_AWARD = 3;
+const MAX_PER_PLAYER = 1;
 const perTeam = new Map(), perAward = new Map(), perShape = new Map(), perShapeAward = new Map();
+const perPlayer = new Map();
 const kept = [];
-let shapeStarved = 0;
+let shapeStarved = 0, playerDupes = 0;
 
 for (const c of cards.slice().sort((a, b) => b.quality_score - a.quality_score)) {
+  if ((perPlayer.get(c.fact.player) || 0) >= MAX_PER_PLAYER) { playerDupes++; continue; }
   if ((perTeam.get(c.key) || 0) >= MAX_PER_TEAM) continue;
   if ((perAward.get(c.award_key) || 0) >= MAX_PER_AWARD) continue;
 
@@ -369,6 +380,7 @@ for (const c of cards.slice().sort((a, b) => b.quality_score - a.quality_score))
   }
   if (!picked) { shapeStarved++; continue; }
 
+  perPlayer.set(c.fact.player, (perPlayer.get(c.fact.player) || 0) + 1);
   perTeam.set(c.key, (perTeam.get(c.key) || 0) + 1);
   perAward.set(c.award_key, (perAward.get(c.award_key) || 0) + 1);
   perShape.set(picked.shape, (perShape.get(picked.shape) || 0) + 1);
@@ -434,6 +446,7 @@ if (bad) { console.error(`\nFAILED: ${bad} problems. Nothing written.`); process
 console.log(`\n${cards.length} candidates -> ${kept.length} cards` +
   (noTeam ? `; ${noTeam} vote rows had no single franchise` : "") +
   (noSentence ? `; ${noSentence} had no sentence the data supports` : "") +
+  (playerDupes ? `; ${playerDupes} were a second card about a player already in` : "") +
   (shapeStarved ? `; ${shapeStarved} dropped rather than repeat a sentence shape` : ""));
 
 console.log("  by award:");
