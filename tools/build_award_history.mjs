@@ -354,9 +354,22 @@ for (const g of [...byAwardYear.values()].sort((a, b) => b.year - a.year)) {
  * than it is. The team cap does not catch it - they are two different claims
  * about one franchise - and neither does the shape cap, because they came out
  * as two different sentences. */
+/* MAX_PER_SHAPE_TEAM is the one the first full build asked for. Two of the
+ * best twelve were:
+ *
+ *   "Utah waited 37 seasons for a Most Improved Player win. Markkanen delivered it"
+ *   "Utah waited 37 seasons for a Sixth Man of the Year win. Clarkson delivered it"
+ *
+ * Both true, both good on their own, and side by side they are the complaint
+ * this whole file exists to answer - same city, same structure, same number,
+ * twice. The per-award shape cap did not catch it (two different awards) and
+ * neither did the per-team cap (three are allowed). A structure gets used once
+ * per franchise. */
 const MAX_PER_TEAM = 3, MAX_PER_AWARD = 12, MAX_PER_SHAPE = 8, MAX_PER_SHAPE_AWARD = 3;
+const MAX_PER_SHAPE_TEAM = 1;
 const MAX_PER_PLAYER = 1;
 const perTeam = new Map(), perAward = new Map(), perShape = new Map(), perShapeAward = new Map();
+const perShapeTeam = new Map();
 const perPlayer = new Map();
 const kept = [];
 let shapeStarved = 0, playerDupes = 0;
@@ -373,8 +386,10 @@ for (const c of cards.slice().sort((a, b) => b.quality_score - a.quality_score))
   let picked = null;
   for (const s of c.shapes) {
     const sa = s.shape + "|" + c.award_key;
+    const st = s.shape + "|" + c.key;
     if ((perShape.get(s.shape) || 0) >= MAX_PER_SHAPE) continue;
     if ((perShapeAward.get(sa) || 0) >= MAX_PER_SHAPE_AWARD) continue;
+    if ((perShapeTeam.get(st) || 0) >= MAX_PER_SHAPE_TEAM) continue;
     picked = s;
     break;
   }
@@ -386,6 +401,8 @@ for (const c of cards.slice().sort((a, b) => b.quality_score - a.quality_score))
   perShape.set(picked.shape, (perShape.get(picked.shape) || 0) + 1);
   const sa = picked.shape + "|" + c.award_key;
   perShapeAward.set(sa, (perShapeAward.get(sa) || 0) + 1);
+  const st = picked.shape + "|" + c.key;
+  perShapeTeam.set(st, (perShapeTeam.get(st) || 0) + 1);
 
   const f = c.fact;
   kept.push({

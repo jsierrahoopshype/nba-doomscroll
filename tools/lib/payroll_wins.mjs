@@ -253,8 +253,16 @@ export function seasonField(joined, tally) {
       teams: rows.length,
       leagueTeams: size,
       /* Every team that played has a rate here. Anything less and a
-       * league-wide superlative is about the file. */
+       * league-wide SUPERLATIVE is about the file. */
       complete: size > 0 && rows.length >= size,
+      /* A superlative and a table are not the same claim, and gating both on
+       * `complete` was wrong. "The worst rate in the league" needs every team,
+       * because a missing team might have been worse. A table headed "26 of
+       * the 30 teams" needs nothing beyond saying 26 and 30, and the real
+       * numbers make that distinction expensive: only 3 of 35 seasons have a
+       * payroll for all thirty, so the strict gate withheld the table from
+       * almost every card that was built to carry one. */
+      coverage: size > 0 ? rows.length / size : 0,
       median,
       dearest: rows[0],
       cheapest: rows[rows.length - 1],
