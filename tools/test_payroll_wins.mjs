@@ -254,6 +254,7 @@ console.log("\nthe season's field, and what may be said about it");
   ck("it counts the teams that played, not the payrolls it has",
      f.leagueTeams === 4 && f.teams === 4, f.teams + "/" + f.leagueTeams);
   ck("a full field may be described as the league", f.complete === true);
+  ck("and its coverage is whole", f.coverage === 1);
   ck("the median is the middle of the rates", f.median === 3, String(f.median));
   ck("the dearest and cheapest are the ends",
      f.dearest.team === "D" && f.cheapest.team === "A");
@@ -285,6 +286,10 @@ console.log("\nthe season's field, and what may be said about it");
   }));
   const f = seasonField(joined, tally).get(2024);
   ck("a partly covered season is not complete", f.complete === false);
+  /* But it is still tableable. A superlative needs every team; a table headed
+   * "4 of the 5 teams" needs only the two numbers it prints. */
+  ck("and it reports its coverage as a fraction",
+     Math.abs(f.coverage - 0.8) < 1e-9, String(f.coverage));
   ck("but it still has a median, for the honest version of the sentence",
      f.median > 0);
   ck("and it says how many it actually has", f.teams === 4 && f.leagueTeams === 5);

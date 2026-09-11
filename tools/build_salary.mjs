@@ -606,8 +606,11 @@ if (!GAMES_CSV) {
      * answer is not obvious and it decides whether a card gets its ranked
      * table or the hedged sentence. */
     const full = [...field.values()].filter(f => f.complete);
+    const tabled = [...field.values()].filter(f => f.teams >= 20);
     console.log(`    ${full.length} of ${field.size} seasons have a payroll for every team ` +
-      `that played, so only those can carry a league-wide rank or the full table`);
+      `that played, so only those can carry a league-wide rank`);
+    console.log(`    ${tabled.length} have at least 20, which is enough for the table ` +
+      `under a heading that says how many`);
   }
   if (winless.length) {
     console.log(`    ${winless.length} went winless, so there is no rate to state: ` +
@@ -683,8 +686,16 @@ if (!GAMES_CSV) {
 
   /* All of them, dearest first, with the subject flagged so the card can pick
    * its own row out. Jorge asked for how much it cost each team, so this is
-   * each team and not a top five. */
-  const fieldRows = (f, j) => (f && f.complete)
+   * each team and not a top five.
+   *
+   * A TABLE IS NOT A SUPERLATIVE. Gating this on f.complete meant almost no
+   * card got one: only 3 of 35 seasons have a payroll for every team that
+   * played. A table that says "26 of the 30 teams" is honest at 26; a headline
+   * that says "the worst in the league" is not, because the four missing teams
+   * might have been worse. So the table needs coverage and the headline needs
+   * completeness, and they are now two different tests. */
+  const FIELD_MIN_TEAMS = 20;
+  const fieldRows = (f, j) => (f && f.teams >= FIELD_MIN_TEAMS)
     ? f.rows.map((r, i) => ({
         rank: i + 1, name: teamName(r.team), sub: `${r.w}-${r.l}`,
         value: fmtMoney(r.costPerWin), me: r.team === j.team
@@ -717,8 +728,10 @@ if (!GAMES_CSV) {
 
   /* The count is in the label so a reader can see there is more below the
    * seven rows the card shows without scrolling. */
-  const fieldLabel = (f, j) => f
-    ? `What a win cost all ${f.teams} teams in ${seasonLabel(j.year)}` : "";
+  const fieldLabel = (f, j) => !f ? ""
+    : f.complete
+      ? `What a win cost all ${f.teams} teams in ${seasonLabel(j.year)}`
+      : `What a win cost ${f.teams} of the ${f.leagueTeams} teams in ${seasonLabel(j.year)}`;
 
   /* Cheapest wins, in cap terms. */
   /* RANK, not a superlative. The first version said "the cheapest rate on
