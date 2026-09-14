@@ -738,8 +738,10 @@
         /* Cap Call carries the salary here, shown from the start - it is the
          * misdirection. Ordinary trivia cards have no sub and render as before. */
         (pl.sub ? '<span class="trivia-sub mono">' + esc(pl.sub) + '</span>' : '') +
+        /* A per-game average keeps its decimal: "14.0" beside "8.8", not
+         * "14". Ordinary trivia values are counts and stay as they were. */
         '<span class="trivia-val mono" data-val="' + key + '">' +
-          Number(pl.value).toLocaleString("en-US") +
+          (p.unit ? Number(pl.value).toFixed(1) : Number(pl.value).toLocaleString("en-US")) +
           (p.unit ? '<em class="trivia-unit">' + esc(p.unit) + '</em>' : '') +
         '</span>' +
         '</button>';

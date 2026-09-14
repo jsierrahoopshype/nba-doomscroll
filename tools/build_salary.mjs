@@ -364,7 +364,22 @@ function add(family, quality, tags, payload, storyKey) {
 
 /* ---------------- family: what production cost ---------------- */
 
-const rateSeasons = seasons.filter(rateOk);
+/* THE GATE GOES BEFORE THE RANKING, NOT AFTER.
+ *
+ * add() drops any card whose lead man has no headshot, and that is the right
+ * last line of defence - but on its own it is the wrong place. The first
+ * build with the gate live went from 94 candidates to 68 and cost-per-win
+ * fell from six cards to ONE: each family took its top six by rate and then
+ * lost the four with no photo, with nothing promoted to fill the gap. Grant
+ * Long and Vernon Maxwell were the cheapest rates on record; they are out, as
+ * asked, and the seventh- and eighth-cheapest should have come in.
+ *
+ * So every pool a family ranks is filtered for a face FIRST. The payroll-wins
+ * join and the league field are NOT filtered - a season's coverage is about
+ * who played, not who has a photo. */
+const faced = s => hasFace(s.player);
+const facedPayroll = r => hasFace(((r.men && r.men[0]) || {}).player);
+const rateSeasons = seasons.filter(s => rateOk(s) && faced(s));
 
 function costFamily(key, label, statKey, unit, minStat, best) {
   const pool = rateSeasons.filter(s => s[statKey] >= minStat);
@@ -470,7 +485,7 @@ const payrolls = payrollAll.filter(r => r.ofCap !== null && r.ofCap >= MIN_PAYRO
 }
 
 /* Most top-heavy payrolls: one man taking the largest share of his team's book. */
-for (const r of payrolls.slice().sort((a, b) => b.topShare - a.topShare).slice(0, 6)) {
+for (const r of payrolls.filter(facedPayroll).sort((a, b) => b.topShare - a.topShare).slice(0, 6)) {
   const m = r.men[0];
   add("payroll-concentration", 0.76,
     { players: [m.player], teams: [r.team], era: era(r.year) },
@@ -494,7 +509,7 @@ for (const r of payrolls.slice().sort((a, b) => b.topShare - a.topShare).slice(0
 }
 
 /* The top five earners on one roster, as a ranked card. */
-for (const r of payrolls.slice().sort((a, b) => b.total - a.total).slice(0, 8)) {
+for (const r of payrolls.filter(facedPayroll).sort((a, b) => b.total - a.total).slice(0, 8)) {
   add("payroll-top5", 0.7,
     { players: r.men.slice(0, TOP_N).map(m => m.player), teams: [r.team], era: era(r.year) },
     {
@@ -530,7 +545,7 @@ for (const r of payrolls) {
   r._gap = 1 - paid.pts / Math.max(1, scorer.pts);
   r._paid = paid; r._scorer = scorer;
 }
-for (const r of payrolls.filter(x => x._gap).sort((a, b) => b._gap - a._gap).slice(0, 6)) {
+for (const r of payrolls.filter(x => x._gap && facedPayroll(x)).sort((a, b) => b._gap - a._gap).slice(0, 6)) {
   add("paid-not-scoring", 0.68,
     { players: [r._paid.player, r._scorer.player], teams: [r.team], era: era(r.year) },
     {
@@ -716,7 +731,8 @@ if (!GAMES_CSV) {
    * $2m per win in 2026 are not the same fact, and a table mixing them is a
    * table about the cap rising. The dollar figure is still printed, because it
    * is the one a reader recognises. */
-  const wins = joined.filter(j => j.capPerWin !== null);
+  /* Cards only. The field and the ranks below still see every team. */
+  const wins = joined.filter(j => j.capPerWin !== null && facedPayroll(j));
   const teamsOf = j => [j.team];
   /* These cards are about a TEAM, but renderSalary's header is built for a
    * person: a face, a name, then team and season underneath. Rather than
@@ -889,7 +905,7 @@ if (!GAMES_CSV) {
   /* The expensive misses. Guarded on the file having playoffs for that season
    * at all: without that check a regular-season-only game log reports all
    * thirty teams as having missed, and the card would be about the file. */
-  const misses = joined.filter(j => poYears.has(j.year) && !j.madePlayoffs && j.cap);
+  const misses = joined.filter(j => poYears.has(j.year) && !j.madePlayoffs && j.cap && facedPayroll(j));
   for (const j of misses.slice().sort((a, b) => b.ofCap - a.ofCap).slice(0, 6)) {
     add("expensive-miss", 0.82, tagsOf(j), Object.assign(head(j), {
       headline: `${teamName(j)} spent ${(j.ofCap * 100).toFixed(0)}% of the cap in ${seasonLabel(j.year)} and missed the playoffs`,
@@ -912,7 +928,7 @@ if (!GAMES_CSV) {
 
 /* ---------------- family: cross-era ---------------- */
 
-for (const s of seasons.filter(x => x.capPct !== null).sort((a, b) => b.capPct - a.capPct).slice(0, 6)) {
+for (const s of seasons.filter(x => x.capPct !== null && faced(x)).sort((a, b) => b.capPct - a.capPct).slice(0, 6)) {
   add("cap-share-record", 0.84,
     { players: [s.player], teams: [s.team], era: era(s.year) },
     {

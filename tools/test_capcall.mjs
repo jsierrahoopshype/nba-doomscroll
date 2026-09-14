@@ -49,6 +49,29 @@ console.log("\nthe rules of a pair");
      pairs.every(p => p.upset === (p.cheap.ppg > p.dear.ppg)));
 }
 
+console.log("\na hold is only a question when it is close");
+
+{
+  /* Curry against a minimum-contract role player is not a question. The
+   * cheaper man in a hold has to be a real scorer, and among holds the one the
+   * star only just wins should rank first. */
+  const seasons = [
+    S("Role Player", 2020, "A", 0.6, 8.8),     // real scorer? no
+    S("Star One", 2020, "B", 55, 24.5),
+    S("Cheap Scorer", 2020, "C", 4, 17.3),     // yes
+    S("Star Two", 2020, "D", 37, 22.9),         // gap 5.6 - a question
+    S("Cheap Scorer 2", 2020, "E", 4, 14.1),
+    S("Star Three", 2020, "F", 40, 30.0)        // gap 15.9 - not much of one
+  ];
+  const pairs = pickCapCalls(seasons, { TARGET: 10 });
+  const holds = pairs.filter(p => !p.upset);
+  ck("a hold against a sub-14 scorer is never offered",
+     !holds.some(p => p.cheap.player === "Role Player"));
+  ck("the closest hold ranks first",
+     holds.length > 0 && holds[0].cheap.player === "Cheap Scorer" && holds[0].dear.player === "Star Two",
+     holds.length ? holds[0].cheap.player + " v " + holds[0].dear.player : "none");
+}
+
 console.log("\nbalance, which is the whole point");
 
 {
