@@ -284,9 +284,35 @@ const plural = (n, one) => n + " " + one + (n === 1 ? "" : "s");
 const fmtRate = n => n >= 1000 ? "$" + Math.round(n).toLocaleString("en-US") : "$" + n.toFixed(0);
 const seasonLabel = y => (y - 1) + "-" + String(y).slice(2);
 const era = y => (y - (y % 10)) + "s";
-const faceFor = name => "data/faces/" + String(name).toLowerCase()
-  .normalize("NFD").replace(/[̀-ͯ]/g, "")
-  .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".png";
+/* THE MANIFEST KNOWS THE FILENAME. SLUGGING IT AGAIN ONLY INVENTS A CHANCE
+ * TO BE WRONG.
+ *
+ * This used to rebuild the tile's filename from the player's name with its own
+ * slugger, which meant a fourth copy of a rule that has now been wrong three
+ * times over punctuation: "Amar'e Stoudemire" slugs to amar-e-stoudemire and
+ * the tile is called amare-stoudemire. data/faces/index.json maps the PLAYER
+ * NAME to the exact filename, so it is read instead of guessed.
+ *
+ * It also answers the other question Jorge asked - "don't give me salary
+ * reports for players we don't have headshots for". A name that is not in the
+ * manifest has no tile, the card would render a grey initials disc, and there
+ * is no shortage of players who do have one. */
+let FACE_INDEX_MAP = null;
+try {
+  const m = JSON.parse(fs.readFileSync(path.join(REPO, "data", "faces", "index.json"), "utf8"));
+  FACE_INDEX_MAP = (m && m.faces) || null;
+} catch (e) { /* no manifest: the gate below opens rather than empties the pool */ }
+if (!FACE_INDEX_MAP) {
+  console.log("  faces: no data/faces/index.json, so cards are NOT gated on having a " +
+    "headshot - some will render an initials disc");
+}
+const faceFor = name => {
+  const f = FACE_INDEX_MAP && FACE_INDEX_MAP[name];
+  return f ? "data/faces/" + f : null;
+};
+/* Absent manifest means "cannot tell", which must not silently delete the
+ * whole pool - so it passes. Present manifest means the answer is knowable. */
+const hasFace = name => !FACE_INDEX_MAP || !!FACE_INDEX_MAP[name];
 
 /* Every card links somewhere useful. The salary tool's own route is the one
  * thing in this file that is not verifiable from here, so it is defined once
@@ -295,6 +321,7 @@ const SALARY_TOOL = "https://hoopsmatic.com/salaries";
 const playerUrl = name => SALARY_TOOL + "?player=" + encodeURIComponent(name);
 
 const cards = [];
+const noFace = [];   // dropped for having no headshot, reported at the end
 /* The newest season the DATA has, not the newest the calendar has. Taken from
  * the file so a build run a year later does not start marking its own most
  * recent cards as old. */
@@ -310,6 +337,12 @@ function add(family, quality, tags, payload, storyKey) {
    * ones - it moves them behind other kinds of card too. That is the intended
    * effect ("too much old salary content"), but it does mean the salary share
    * of the feed falls as well as its average age. */
+  /* A player card with no photograph is dropped here rather than at each of
+   * the fourteen call sites. Cards about a team, a country or a draft class
+   * name no player and are unaffected. */
+  const lead = (tags && tags.players && tags.players[0]) || payload.player;
+  if (lead && !hasFace(lead)) { noFace.push(lead); return; }
+
   const year = yearFromSeasonLabel(payload.season);
   const factor = recencyFactor(year, LATEST_SEASON);
   const scored = quality * factor;
@@ -980,6 +1013,12 @@ for (const c of kept) {
   if (!p.note) { console.error(`  ${c.id}: no denominator note`); bad++; }
 }
 if (bad) { console.error(`FAILED: ${bad} problems`); process.exit(1); }
+
+if (noFace.length) {
+  const uniq = [...new Set(noFace)];
+  console.log(`  faces: ${noFace.length} candidate cards dropped for having no headshot ` +
+    `(${uniq.length} distinct players), e.g. ${uniq.slice(0, 5).join(", ")}`);
+}
 
 console.log(`\n${cards.length} candidates -> ${kept.length} cards`);
 [...perFamily.entries()].sort((a, b) => b[1] - a[1])
