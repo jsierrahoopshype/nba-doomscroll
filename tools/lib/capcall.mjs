@@ -40,6 +40,11 @@ export const CAPCALL = {
   MIN_RATIO: 3,        // dear.salary / cheap.salary
   MIN_PPG: 8,          // both players
   MIN_GAP: 3,          // |dear.ppg - cheap.ppg|
+  /* A HOLD IS ONLY A QUESTION WHEN IT IS CLOSE. The first real pool's holds
+   * were Curry against Justin Champagnie and LeBron against Jarrett Allen -
+   * nobody hesitates. The cheaper man in a hold has to be a real scorer, and
+   * the star has to only just outscore him. */
+  HOLD_MIN_CHEAP_PPG: 14,
   PER_SEASON: 6,       // cards per season, so 35 seasons do not become 35 of one
   PER_PLAYER: 1,       // a player appears once in the whole pool
   TARGET: 120          // pool size, before the feed's own thinning
@@ -88,9 +93,13 @@ export function pickCapCalls(seasons, opts) {
     byYear.get(s.year).push(s);
   }
 
-  /* Every qualifying pair, scored. Interest rewards a bigger money gap and a
-   * bigger scoring gap, both with diminishing returns - a 20x salary ratio is
-   * not ten times the story a 2x one is. */
+  /* Every qualifying pair, scored. Interest is ASYMMETRIC, and that is the
+   * whole game. An upset - the cheaper man scored more - gets better the wider
+   * the gap: Cam Thomas on $2M outscoring Chris Paul on $30M by thirteen a
+   * night is the card. A hold - the star scored more - gets better the
+   * NARROWER the gap, because a star outscoring a minimum-contract role player
+   * by twenty is not a question anyone gets wrong. Money gap has diminishing
+   * returns both ways: a 20x ratio is not ten times the story a 2x one is. */
   const cands = [];
   for (const [year, list] of byYear) {
     const sorted = list.slice().sort((a, b) => a.salary - b.salary);
@@ -103,8 +112,11 @@ export function pickCapCalls(seasons, opts) {
         if (dear.player === cheap.player) continue;
         const gap = Math.abs(dear.ppg - cheap.ppg);
         if (gap < o.MIN_GAP) continue;
-        const interest = Math.log(dear.salary / cheap.salary) * Math.min(gap, 12) * recency(year);
-        cands.push({ year, cheap, dear, upset: cheap.ppg > dear.ppg, interest });
+        const upset = cheap.ppg > dear.ppg;
+        if (!upset && cheap.ppg < o.HOLD_MIN_CHEAP_PPG) continue;
+        const shape = upset ? Math.min(gap, 12) : Math.max(1, 12 - gap);
+        const interest = Math.log(dear.salary / cheap.salary) * shape * recency(year);
+        cands.push({ year, cheap, dear, upset, interest });
       }
     }
   }
