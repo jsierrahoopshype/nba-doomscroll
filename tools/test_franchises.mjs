@@ -21,7 +21,8 @@
  */
 
 import {
-  FRANCHISES, FRANCHISE_KEYS, KNOWN_CODES, franchiseKey, identity, oneOf, theOneOf
+  FRANCHISES, FRANCHISE_KEYS, KNOWN_CODES, franchiseKey, identity, oneOf, theOneOf,
+  franchiseOf, existedIn, currentCode, displayCity
 } from "./lib/franchises.mjs";
 
 let fail = 0;
@@ -156,6 +157,105 @@ ck("a Heat player, because there is no singular",
 ck("the first Piston", theOneOf(identity("pistons", 2026)) === "Piston");
 ck("the first Jazz player", theOneOf(identity("jazz", 2026)) === "Jazz player");
 ck("nothing does not throw", oneOf(null) === "a player" && theOneOf(null) === "player");
+
+console.log("\nevery era carries its own code");
+
+{
+  let bad = 0;
+  for (const [key, f] of Object.entries(FRANCHISES)) {
+    for (const e of f.eras) {
+      if (!/^[A-Z]{2,3}$/.test(e[4] || "")) { bad++; console.log(`        ${key} ${e[0]} has no code`); }
+      /* Every era code must be a code the franchise admits to, or a lookup
+       * by that code would land somewhere else. */
+      if (f.codes.indexOf(e[4]) < 0) { bad++; console.log(`        ${key} era code ${e[4]} not in codes`); }
+    }
+  }
+  ck("every era has a code the franchise owns", bad === 0);
+}
+ck("a 2004 Net is NJN, not BKN", identity("nets", 2004).code === "NJN");
+ck("a 2005 Sonic is SEA", identity("thunder", 2005).code === "SEA");
+ck("a 1998 Hornet is CHH", identity("pelicans", 1998).code === "CHH");
+ck("a 1980 King is KCK", identity("kings", 1980).code === "KCK");
+ck("the current code is the newest era's", currentCode("thunder") === "OKC" && currentCode("nets") === "BKN");
+ck("an unknown key has no current code", currentCode("sonics") === null);
+
+console.log("\nexistence is strict where identity is lenient");
+
+ck("the Raptors did not exist in 1990", existedIn("raptors", 1990) === false);
+ck("but identity still answers for that year", !!identity("raptors", 1990));
+ck("the Bobcats did not exist in 1998", existedIn("hornets", 1998) === false);
+ck("the first Hornets did", existedIn("pelicans", 1998) === true);
+ck("nonsense is false", existedIn("nope", 2000) === false && existedIn("nets", "x") === false);
+
+console.log("\na name, in a season, to a franchise - the join fix");
+
+/* THE BUG: the salary file keys old seasons by the CURRENT city (a 2004 New
+ * Jersey payroll arrives as Brooklyn) and the game log by the name of the
+ * night ("New Jersey Nets"). Codes made from each side's own string never
+ * met, so every pre-move season of every relocated franchise failed to join.
+ * Both sides now resolve to a franchise, with the year deciding the cases
+ * where a city has belonged to two of them. */
+const CASES = [
+  ["New Jersey Nets", 2004, "nets"], ["BKN", 2004, "nets"], ["Brooklyn", 2004, "nets"],
+  ["Seattle SuperSonics", 2005, "thunder"], ["OKC", 2005, "thunder"], ["SEATTLE", 2005, "thunder"],
+  ["Vancouver Grizzlies", 1999, "grizzlies"], ["VANCOUVER", 1999, "grizzlies"], ["MEM", 1999, "grizzlies"],
+  ["Washington Bullets", 1995, "wizards"], ["WAS", 1995, "wizards"],
+  ["Kansas City Kings", 1980, "kings"], ["Buffalo Braves", 1975, "clippers"],
+  /* The two Charlottes, decided by the year - both as the log spells it and
+   * as the salary file's code. */
+  ["Charlotte Hornets", 1998, "pelicans"], ["CHA", 1998, "pelicans"], ["Charlotte", 1998, "pelicans"],
+  ["Charlotte Hornets", 2020, "hornets"], ["CHA", 2020, "hornets"], ["Charlotte Bobcats", 2010, "hornets"],
+  /* New Orleans has been the Jazz and the Hornets and the Pelicans. */
+  ["New Orleans", 1977, "jazz"], ["New Orleans Jazz", 1977, "jazz"],
+  ["New Orleans", 2010, "pelicans"], ["NOP", 2010, "pelicans"],
+  /* Oklahoma City hosted the Hornets before it had the Thunder. */
+  ["Oklahoma City", 2006, "pelicans"], ["New Orleans/Oklahoma City Hornets", 2006, "pelicans"],
+  ["Oklahoma City", 2010, "thunder"],
+  /* Chicago and Philadelphia have each had a franchise that moved on. */
+  ["Chicago", 1963, "wizards"], ["Chicago", 1990, "bulls"],
+  ["Philadelphia", 1960, "warriors"], ["Philadelphia", 1990, "sixers"],
+  /* Los Angeles needs the nickname; the salary file always supplies one. */
+  ["Los Angeles Lakers", 2010, "lakers"], ["LA Lakers", 2026, "lakers"], ["LAL", 2010, "lakers"],
+  ["LA Clippers", 2026, "clippers"], ["Los Angeles Clippers", 1990, "clippers"],
+  /* Codes as the stats files spell them. */
+  ["PHO", 2000, "suns"], ["BRK", 2015, "nets"], ["NOH", 2010, "pelicans"],
+  /* Today's name on an old season, which is how the salary file keys things:
+   * the second pass. "Oklahoma City" in 2004 is the Sonics, not the Hornets
+   * who would arrive there two years later. */
+  ["Oklahoma City", 2004, "thunder"], ["Memphis", 1999, "grizzlies"],
+  ["New Orleans", 1998, "pelicans"], ["Brooklyn Nets", 1990, "nets"]
+];
+{
+  let bad = 0;
+  for (const [text, year, want] of CASES) {
+    const got = franchiseOf(text, year);
+    if (got !== want) { bad++; console.log(`        "${text}" ${year} -> ${got}, expected ${want}`); }
+  }
+  ck(`${CASES.length} names and codes land on the right franchise`, bad === 0);
+}
+
+/* What must be refused: guessing here puts a payroll on the wrong record. */
+ck("bare Los Angeles is ambiguous and refused", franchiseOf("Los Angeles", 2010) === null);
+ck("a team that is not in the table is refused", franchiseOf("Tri-Cities Blackhawks", 1950) === null);
+ck("a franchise before it existed is refused", franchiseOf("Toronto Raptors", 1990) === null);
+/* No Charlotte team played in 2003-04. Matching every name a franchise has
+ * ever had would hand this to the old Hornets, by then in New Orleans. */
+ck("Charlotte in 2004, when there was no Charlotte team, is refused",
+   franchiseOf("Charlotte", 2004) === null, String(franchiseOf("Charlotte", 2004)));
+ck("no year, no answer", franchiseOf("Boston Celtics", undefined) === null);
+ck("no text, no answer", franchiseOf("", 2010) === null && franchiseOf(undefined, 2010) === null);
+
+console.log("\nhow a card names the city");
+
+ck("Boston is Boston", displayCity("celtics", 2010) === "Boston");
+ck("Los Angeles is two teams, so the nickname comes along",
+   displayCity("lakers", 2010) === "LA Lakers" && displayCity("clippers", 2010) === "LA Clippers");
+ck("but San Diego was only the Clippers", displayCity("clippers", 1982) === "San Diego");
+ck("a 2004 Nets card says New Jersey", displayCity("nets", 2004) === "New Jersey");
+ck("in 1977 New York had two, so both are named",
+   displayCity("knicks", 1977) === "New York Knicks" && displayCity("nets", 1977) === "New York Nets");
+ck("and in 1990 the Knicks have it to themselves", displayCity("knicks", 1990) === "New York");
+ck("an unknown key yields nothing", displayCity("sonics", 1990) === null);
 
 console.log("\nrubbish in");
 

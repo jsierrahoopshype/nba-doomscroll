@@ -43,8 +43,14 @@
  * takes a year.
  */
 
-/* key -> { eras: [[firstSeasonEndYear, city, nickname, singular|null], ...],
+/* key -> { eras: [[firstSeasonEndYear, city, nickname, singular|null, code], ...],
  *          codes: [codes rsStats might use] }
+ *
+ * The fifth element is the three-letter code the team went by in that era -
+ * SEA for the Sonics, NJN for the New Jersey Nets, CHH for the first Charlotte
+ * Hornets. It is what a card prints beside a season, so a 2004 Nets card says
+ * NJN and not BKN. `codes` is the superset a stats file might use for the
+ * franchise; the era code is the one that is right for a given year.
  *
  * eras are listed NEWEST FIRST; the lookup takes the first one whose year is
  * at or below the season asked about.
@@ -54,96 +60,96 @@
 export const FRANCHISES = {
   hawks: {
     codes: ["ATL", "STL", "MLH", "TRI"],
-    eras: [[1969, "Atlanta", "Hawks", "Hawk"], [1956, "St. Louis", "Hawks", "Hawk"],
-           [1952, "Milwaukee", "Hawks", "Hawk"]]
+    eras: [[1969, "Atlanta", "Hawks", "Hawk", "ATL"], [1956, "St. Louis", "Hawks", "Hawk", "STL"],
+           [1952, "Milwaukee", "Hawks", "Hawk", "MLH"]]
   },
-  celtics: { codes: ["BOS"], eras: [[1947, "Boston", "Celtics", "Celtic"]] },
+  celtics: { codes: ["BOS"], eras: [[1947, "Boston", "Celtics", "Celtic", "BOS"]] },
   nets: {
     codes: ["BKN", "BRK", "NJN", "NYN"],
-    eras: [[2013, "Brooklyn", "Nets", "Net"], [1978, "New Jersey", "Nets", "Net"],
-           [1977, "New York", "Nets", "Net"]]
+    eras: [[2013, "Brooklyn", "Nets", "Net", "BKN"], [1978, "New Jersey", "Nets", "Net", "NJN"],
+           [1977, "New York", "Nets", "Net", "NYN"]]
   },
   /* The 2004 expansion team. Bobcats until 2014, when the Hornets name came
    * back from New Orleans. Nothing to do with the franchise below. */
   hornets: {
     codes: ["CHA", "CHO"],
-    eras: [[2015, "Charlotte", "Hornets", "Hornet"], [2005, "Charlotte", "Bobcats", "Bobcat"]]
+    eras: [[2015, "Charlotte", "Hornets", "Hornet", "CHA"], [2005, "Charlotte", "Bobcats", "Bobcat", "CHA"]]
   },
-  bulls: { codes: ["CHI"], eras: [[1967, "Chicago", "Bulls", "Bull"]] },
-  cavaliers: { codes: ["CLE"], eras: [[1971, "Cleveland", "Cavaliers", "Cavalier"]] },
-  mavericks: { codes: ["DAL"], eras: [[1981, "Dallas", "Mavericks", "Maverick"]] },
-  nuggets: { codes: ["DEN"], eras: [[1977, "Denver", "Nuggets", "Nugget"]] },
+  bulls: { codes: ["CHI"], eras: [[1967, "Chicago", "Bulls", "Bull", "CHI"]] },
+  cavaliers: { codes: ["CLE"], eras: [[1971, "Cleveland", "Cavaliers", "Cavalier", "CLE"]] },
+  mavericks: { codes: ["DAL"], eras: [[1981, "Dallas", "Mavericks", "Maverick", "DAL"]] },
+  nuggets: { codes: ["DEN"], eras: [[1977, "Denver", "Nuggets", "Nugget", "DEN"]] },
   pistons: {
     codes: ["DET", "FTW"],
-    eras: [[1958, "Detroit", "Pistons", "Piston"], [1949, "Fort Wayne", "Pistons", "Piston"]]
+    eras: [[1958, "Detroit", "Pistons", "Piston", "DET"], [1949, "Fort Wayne", "Pistons", "Piston", "FTW"]]
   },
   warriors: {
     codes: ["GSW", "GS", "SFW", "PHW"],
-    eras: [[1972, "Golden State", "Warriors", "Warrior"],
-           [1963, "San Francisco", "Warriors", "Warrior"],
-           [1947, "Philadelphia", "Warriors", "Warrior"]]
+    eras: [[1972, "Golden State", "Warriors", "Warrior", "GSW"],
+           [1963, "San Francisco", "Warriors", "Warrior", "SFW"],
+           [1947, "Philadelphia", "Warriors", "Warrior", "PHW"]]
   },
   rockets: {
     codes: ["HOU", "SDR"],
-    eras: [[1972, "Houston", "Rockets", "Rocket"], [1968, "San Diego", "Rockets", "Rocket"]]
+    eras: [[1972, "Houston", "Rockets", "Rocket", "HOU"], [1968, "San Diego", "Rockets", "Rocket", "SDR"]]
   },
-  pacers: { codes: ["IND"], eras: [[1977, "Indiana", "Pacers", "Pacer"]] },
+  pacers: { codes: ["IND"], eras: [[1977, "Indiana", "Pacers", "Pacer", "IND"]] },
   clippers: {
     codes: ["LAC", "SDC", "BUF"],
-    eras: [[1985, "Los Angeles", "Clippers", "Clipper"],
-           [1979, "San Diego", "Clippers", "Clipper"],
-           [1971, "Buffalo", "Braves", "Brave"]]
+    eras: [[1985, "Los Angeles", "Clippers", "Clipper", "LAC"],
+           [1979, "San Diego", "Clippers", "Clipper", "SDC"],
+           [1971, "Buffalo", "Braves", "Brave", "BUF"]]
   },
   lakers: {
     codes: ["LAL", "MNL"],
-    eras: [[1961, "Los Angeles", "Lakers", "Laker"], [1949, "Minneapolis", "Lakers", "Laker"]]
+    eras: [[1961, "Los Angeles", "Lakers", "Laker", "LAL"], [1949, "Minneapolis", "Lakers", "Laker", "MNL"]]
   },
   grizzlies: {
     codes: ["MEM", "VAN"],
-    eras: [[2002, "Memphis", "Grizzlies", "Grizzly"], [1996, "Vancouver", "Grizzlies", "Grizzly"]]
+    eras: [[2002, "Memphis", "Grizzlies", "Grizzly", "MEM"], [1996, "Vancouver", "Grizzlies", "Grizzly", "VAN"]]
   },
-  heat: { codes: ["MIA"], eras: [[1989, "Miami", "Heat", null]] },
-  bucks: { codes: ["MIL"], eras: [[1969, "Milwaukee", "Bucks", "Buck"]] },
-  timberwolves: { codes: ["MIN"], eras: [[1990, "Minnesota", "Timberwolves", "Timberwolf"]] },
+  heat: { codes: ["MIA"], eras: [[1989, "Miami", "Heat", null, "MIA"]] },
+  bucks: { codes: ["MIL"], eras: [[1969, "Milwaukee", "Bucks", "Buck", "MIL"]] },
+  timberwolves: { codes: ["MIN"], eras: [[1990, "Minnesota", "Timberwolves", "Timberwolf", "MIN"]] },
   /* Charlotte 1989-2002, New Orleans since - including the two seasons the
    * Hornets played in Oklahoma City after Katrina. */
   pelicans: {
     codes: ["NOP", "NOH", "NOK", "CHH"],
-    eras: [[2014, "New Orleans", "Pelicans", "Pelican"],
-           [2008, "New Orleans", "Hornets", "Hornet"],
-           [2006, "Oklahoma City", "Hornets", "Hornet"],
-           [2003, "New Orleans", "Hornets", "Hornet"],
-           [1989, "Charlotte", "Hornets", "Hornet"]]
+    eras: [[2014, "New Orleans", "Pelicans", "Pelican", "NOP"],
+           [2008, "New Orleans", "Hornets", "Hornet", "NOH"],
+           [2006, "Oklahoma City", "Hornets", "Hornet", "NOK"],
+           [2003, "New Orleans", "Hornets", "Hornet", "NOH"],
+           [1989, "Charlotte", "Hornets", "Hornet", "CHH"]]
   },
-  knicks: { codes: ["NYK", "NY"], eras: [[1947, "New York", "Knicks", "Knick"]] },
+  knicks: { codes: ["NYK", "NY"], eras: [[1947, "New York", "Knicks", "Knick", "NYK"]] },
   thunder: {
     codes: ["OKC", "SEA"],
-    eras: [[2009, "Oklahoma City", "Thunder", null], [1968, "Seattle", "SuperSonics", "Sonic"]]
+    eras: [[2009, "Oklahoma City", "Thunder", null, "OKC"], [1968, "Seattle", "SuperSonics", "Sonic", "SEA"]]
   },
-  magic: { codes: ["ORL"], eras: [[1990, "Orlando", "Magic", null]] },
+  magic: { codes: ["ORL"], eras: [[1990, "Orlando", "Magic", null, "ORL"]] },
   sixers: {
     codes: ["PHI", "SYR"],
-    eras: [[1964, "Philadelphia", "76ers", "Sixer"], [1950, "Syracuse", "Nationals", null]]
+    eras: [[1964, "Philadelphia", "76ers", "Sixer", "PHI"], [1950, "Syracuse", "Nationals", null, "SYR"]]
   },
-  suns: { codes: ["PHX", "PHO"], eras: [[1969, "Phoenix", "Suns", "Sun"]] },
-  blazers: { codes: ["POR"], eras: [[1971, "Portland", "Trail Blazers", "Blazer"]] },
+  suns: { codes: ["PHX", "PHO"], eras: [[1969, "Phoenix", "Suns", "Sun", "PHX"]] },
+  blazers: { codes: ["POR"], eras: [[1971, "Portland", "Trail Blazers", "Blazer", "POR"]] },
   kings: {
     codes: ["SAC", "KCK", "KCO", "CIN", "ROC"],
-    eras: [[1986, "Sacramento", "Kings", "King"], [1976, "Kansas City", "Kings", "King"],
-           [1973, "Kansas City-Omaha", "Kings", "King"],
-           [1958, "Cincinnati", "Royals", "Royal"], [1949, "Rochester", "Royals", "Royal"]]
+    eras: [[1986, "Sacramento", "Kings", "King", "SAC"], [1976, "Kansas City", "Kings", "King", "KCK"],
+           [1973, "Kansas City-Omaha", "Kings", "King", "KCO"],
+           [1958, "Cincinnati", "Royals", "Royal", "CIN"], [1949, "Rochester", "Royals", "Royal", "ROC"]]
   },
-  spurs: { codes: ["SAS", "SAN"], eras: [[1977, "San Antonio", "Spurs", "Spur"]] },
-  raptors: { codes: ["TOR"], eras: [[1996, "Toronto", "Raptors", "Raptor"]] },
+  spurs: { codes: ["SAS", "SAN"], eras: [[1977, "San Antonio", "Spurs", "Spur", "SAS"]] },
+  raptors: { codes: ["TOR"], eras: [[1996, "Toronto", "Raptors", "Raptor", "TOR"]] },
   jazz: {
     codes: ["UTA", "UTH", "NOJ"],
-    eras: [[1980, "Utah", "Jazz", null], [1975, "New Orleans", "Jazz", null]]
+    eras: [[1980, "Utah", "Jazz", null, "UTA"], [1975, "New Orleans", "Jazz", null, "NOJ"]]
   },
   wizards: {
     codes: ["WAS", "WSH", "WSB", "CAP", "BAL", "CHZ", "CHP"],
-    eras: [[1998, "Washington", "Wizards", "Wizard"], [1975, "Washington", "Bullets", "Bullet"],
-           [1974, "Capital", "Bullets", "Bullet"], [1964, "Baltimore", "Bullets", "Bullet"],
-           [1963, "Chicago", "Zephyrs", "Zephyr"], [1962, "Chicago", "Packers", "Packer"]]
+    eras: [[1998, "Washington", "Wizards", "Wizard", "WAS"], [1975, "Washington", "Bullets", "Bullet", "WSB"],
+           [1974, "Capital", "Bullets", "Bullet", "CAP"], [1964, "Baltimore", "Bullets", "Bullet", "BAL"],
+           [1963, "Chicago", "Zephyrs", "Zephyr", "CHZ"], [1962, "Chicago", "Packers", "Packer", "CHP"]]
   }
 };
 
@@ -193,7 +199,132 @@ export function identity(key, year) {
    * records, and calling a 1950 Tri-Cities player a Hawk is a small error
    * where calling him an Atlanta Hawk is a nonsense. */
   const era = (isFinite(y) ? eras.find(e => y >= e[0]) : null) || eras[eras.length - 1];
-  return { key, city: era[1], nick: era[2], sing: era[3] || null, since: era[0] };
+  return { key, city: era[1], nick: era[2], sing: era[3] || null, since: era[0], code: era[4] };
+}
+
+/** Was this franchise in the league that season, as far as this table knows?
+ * identity() deliberately answers for any year; this does not. The name
+ * matcher below needs the strict answer, or "Charlotte" in 1998 would match
+ * both Charlottes. */
+export function existedIn(key, year) {
+  const f = FRANCHISES[key];
+  const y = parseInt(year, 10);
+  if (!f || !isFinite(y)) return false;
+  return y >= f.eras[f.eras.length - 1][0];
+}
+
+/** The code the franchise goes by today. */
+export function currentCode(key) {
+  const f = FRANCHISES[key];
+  return f ? f.eras[0][4] : null;
+}
+
+/* ---------------- a name, in a season, to a franchise ---------------- */
+
+const fold = s => String(s == null ? "" : s).toLowerCase()
+  .replace(/[^a-z0-9]+/g, " ").trim();
+
+/**
+ * Which franchise is this text talking about, in this season?
+ *
+ * WHY A YEAR IS REQUIRED
+ *
+ * "Charlotte" in 1998 is the franchise that is now the Pelicans; "Charlotte"
+ * in 2010 is the Bobcats. "New Orleans" in 1977 is the Jazz. "Oklahoma City"
+ * in 2006 is the Hornets, displaced by Katrina, and in 2010 it is the Thunder.
+ * "Chicago" in 1963 is the Zephyrs, who are now the Wizards. Without the year
+ * none of those has an answer, and a matcher that guessed would put a payroll
+ * on the wrong team's record.
+ *
+ * WHAT IT ACCEPTS
+ *
+ * A code (BKN, SEA, or CHA with the year deciding which Charlotte), a full
+ * name as a game log spells it ("New Jersey Nets", "Seattle SuperSonics"), a
+ * city as a salary file spells it ("Vancouver", "LA Lakers"), or a nickname.
+ * Bare "Los Angeles" is refused as ambiguous rather than guessed, and so is
+ * any text that matches two franchises in the same season - it should not
+ * happen, but the table is typed by hand.
+ *
+ * WHAT WAS BROKEN WITHOUT IT
+ *
+ * The salary side keys old seasons by the franchise's CURRENT city, so a 2004
+ * New Jersey payroll arrives as Brooklyn and a 2008 Seattle payroll as
+ * Oklahoma City. The game log says what the team was called that night. The
+ * join was on a code derived from each side's own string, so every pre-move
+ * season of every relocated franchise failed to join - silently, which is how
+ * the SuperSonics came to have no cost-per-win history at all.
+ *
+ * @returns {string|null} franchise key
+ */
+export function franchiseOf(text, year) {
+  const raw = String(text == null ? "" : text).trim();
+  const y = parseInt(year, 10);
+  if (!raw || !isFinite(y)) return null;
+
+  /* A code first: unambiguous, and CHA's year override lives in franchiseKey. */
+  if (/^[A-Za-z]{2,4}$/.test(raw)) {
+    const k = franchiseKey(raw, y);
+    if (k) return k;
+  }
+
+  const t = fold(raw);
+  if (!t) return null;
+  const exact = [], loose = [];
+  for (const key of FRANCHISE_KEYS) {
+    if (!existedIn(key, y)) continue;
+    const id = identity(key, y);
+    const city = fold(id.city), nick = fold(id.nick);
+    const full = city + " " + nick;
+    const la = city === "los angeles" ? "la " + nick : null;
+    if (t === full || t === nick || t === city || (la && t === la) || t === fold(id.code)) {
+      exact.push(key);
+      continue;
+    }
+    /* "New Orleans/Oklahoma City Hornets" is how one source spells the two
+     * displaced seasons: the city and the nickname are both in there. */
+    if (t.includes(nick) && t.includes(city)) loose.push(key);
+  }
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) return null;
+  if (loose.length === 1) return loose[0];
+  if (loose.length > 1) return null;
+
+  /* SECOND PASS: TODAY'S NAME ON AN OLD SEASON.
+   *
+   * This is the case the salary file actually presents - "Brooklyn" against a
+   * 2004 payroll, "Oklahoma City" against 2008 - and the first pass cannot
+   * see it, because in 2004 the Nets' name was New Jersey. So try each
+   * franchise's CURRENT name, still only for franchises that existed in the
+   * season asked about. Current name only, deliberately: matching every name
+   * a franchise has ever had would send "Charlotte 2004" to the old Hornets,
+   * who were in New Orleans by then, when the honest answer is that there
+   * was no Charlotte team in 2004 at all. */
+  const today = [];
+  for (const key of FRANCHISE_KEYS) {
+    if (!existedIn(key, y)) continue;
+    const id = identity(key, 9999);
+    const city = fold(id.city), nick = fold(id.nick);
+    const la = city === "los angeles" ? "la " + nick : null;
+    if (t === city + " " + nick || t === nick || t === city || (la && t === la) ||
+        t === fold(id.code)) today.push(key);
+  }
+  return today.length === 1 ? today[0] : null;
+}
+
+/**
+ * How a card names the team for a season, without ambiguity. Two franchises
+ * in one city that season - Los Angeles, or New York in 1976-77 - get the
+ * city and the nickname; everyone else gets the city, which is what the
+ * salary cards already print.
+ */
+export function displayCity(key, year) {
+  const id = identity(key, year);
+  if (!id) return null;
+  const y = parseInt(year, 10);
+  const shared = FRANCHISE_KEYS.some(k => k !== key && existedIn(k, y) &&
+    identity(k, y).city === id.city);
+  if (!shared) return id.city;
+  return (id.city === "Los Angeles" ? "LA" : id.city) + " " + id.nick;
 }
 
 /** "a Piston", "a Heat player". Every singular in the table starts with a
