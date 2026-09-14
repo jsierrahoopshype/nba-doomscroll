@@ -109,7 +109,12 @@
     daily:  { chip: "DAILY FIVE", cls: "t-quiz", tab: "foryou" },
     /* The other HoopsMatic games, as a card with a specific challenge on it
      * rather than a link to a homepage. */
-    game:   { chip: "PLAY", cls: "t-quiz", tab: "quiz" }
+    game:   { chip: "PLAY", cls: "t-quiz", tab: "quiz" },
+    /* The 73-9 idea at the size of a card: two players, one season, who scored
+     * more, with the salary shown and the scoring hidden. Built by
+     * tools/build_salary.mjs into its own pool; see tools/lib/capcall.mjs for
+     * why the Daily itself cannot be played in a card. */
+    capcall: { chip: "CAP CALL", cls: "t-quiz", tab: "quiz" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -730,7 +735,13 @@
     function opt(key, pl) {
       return '<button class="trivia-opt" data-action="trivia" data-pick="' + key + '">' +
         face(pl.img, pl.name) + '<span>' + esc(pl.name) + '</span>' +
-        '<span class="trivia-val mono" data-val="' + key + '">' + Number(pl.value).toLocaleString("en-US") + '</span>' +
+        /* Cap Call carries the salary here, shown from the start - it is the
+         * misdirection. Ordinary trivia cards have no sub and render as before. */
+        (pl.sub ? '<span class="trivia-sub mono">' + esc(pl.sub) + '</span>' : '') +
+        '<span class="trivia-val mono" data-val="' + key + '">' +
+          Number(pl.value).toLocaleString("en-US") +
+          (p.unit ? '<em class="trivia-unit">' + esc(p.unit) + '</em>' : '') +
+        '</span>' +
         '</button>';
     }
     return '<div class="trivia-q">' + esc(p.question) + '</div>' +
@@ -1200,7 +1211,7 @@
     daily: renderDaily, game: renderGame,
     quiz: renderQuiz, ballot: renderBallot, friv: renderBallot, salary: renderSalary,
     salaryrank: renderSalaryRank, otd: renderOtd,
-    race: renderRace, oddity: renderOddity, buzz: renderBuzz,
+    race: renderRace, oddity: renderOddity, buzz: renderBuzz, capcall: renderTrivia,
     tradetrend: renderTradeTrend, tradedigest: renderTradeDigest,
     traderank: renderTradeRank,
     mates: renderMates, compare: renderCompare, lean: renderLean
@@ -1287,6 +1298,8 @@
       /* The card exists to send you there, so its tap-through carries the
        * game's own call to action rather than a generic label. */
       case "game": return { url: c.payload.url, label: c.payload.cta || "Play" };
+      case "capcall": return c.payload.url
+        ? { url: c.payload.url, label: c.payload.cta || "Play the Daily 73-9" } : null;
       // The item lives somewhere else and that is the point: Buzz is a pointer
       // to the source, never a replacement for it.
       case "buzz":  return { url: c.payload.url, label: c.payload.cta || "Open" };

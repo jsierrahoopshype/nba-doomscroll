@@ -42,6 +42,7 @@ import {
   tallyTeamSeasons, joinPayrollWins, playoffYears, seasonField, rankInSeason, seasonEndYear
 } from "./lib/payroll_wins.mjs";
 import { franchiseOf, identity, displayCity } from "./lib/franchises.mjs";
+import { pickCapCalls } from "./lib/capcall.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -991,3 +992,80 @@ fs.writeFileSync(OUT, JSON.stringify({
   cards: kept
 }));
 console.log(`\nwrote ${path.relative(REPO, OUT)} (${Math.round(fs.statSync(OUT).size / 1024)}KB)`);
+
+/* ---------------- Cap Call: the game, at the size of a card ---------------- */
+
+/* A SEPARATE POOL FILE, deliberately. These are playable cards for the quiz
+ * tab, not salary stories for the vault, and they are built here only because
+ * this file already holds the one vetted set of player-seasons with a salary,
+ * a stat line and a headshot. Nothing above this line changes.
+ *
+ * What it is: two players from one season, one paid several times the other,
+ * and the question is who scored more. The salary shows, the scoring is
+ * hidden, and lib/capcall.mjs balances the pairs so the cheaper man wins as
+ * often as he loses - the money misleads exactly half the time. See that file
+ * for why the Daily 73-9 itself cannot be played inside a card. */
+const CAPCALL_OUT = path.join(path.dirname(OUT), "capcall-pool.json");
+const DAILY_739 = "https://hoopsmatic.com/73-9-game/daily";
+const eligible = seasons.filter(s => rateOk(s) && hasFace(s.player) && s.salary > 0);
+const pairs = pickCapCalls(eligible, { recency: y => recencyFactor(y, LATEST_SEASON) });
+
+const capcall = pairs.map(pr => {
+  const a = pr.cheapSide === "a" ? pr.cheap : pr.dear;
+  const b = pr.cheapSide === "a" ? pr.dear : pr.cheap;
+  const winner = pr.upset ? pr.cheap : pr.dear;
+  const loser = pr.upset ? pr.dear : pr.cheap;
+  const side = pl => ({
+    name: pl.player, img: faceFor(pl.player),
+    value: Number(pl.ppg.toFixed(1)),
+    sub: fmtMoney(pl.salary) + " \u00b7 " + pl.team
+  });
+  /* The reveal is where the money angle lands: what each point actually cost. */
+  const perPoint = pl => fmtRate(pl.salary / Math.max(1, pl.pts));
+  /* Each number sits next to its own name. "$3,001 a point against $103,745"
+   * made the reader work out which was whose. In a hold the dearer man scored
+   * more and usually still cost more per point, so both facts are stated and
+   * neither is dressed up. */
+  const ratio = (pr.dear.salary / pr.cheap.salary).toFixed(1);
+  const detail = pr.upset
+    ? `${winner.player} cost ${perPoint(winner)} a point that season. ` +
+      `${loser.player}, paid ${ratio}x as much, cost ${perPoint(loser)}.`
+    : `${winner.player} scored more, at ${perPoint(winner)} a point. ` +
+      `${loser.player} cost ${perPoint(loser)} a point on ${ratio}x less money.`;
+  return {
+    id: "capcall-" + pr.year + "-" + [pr.cheap.player, pr.dear.player].map(n =>
+      n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).join("-v-"),
+    type: "capcall",
+    tab: ["quiz", "foryou"],
+    tags: { content_type: "capcall", players: [a.player, b.player], teams: [a.team, b.team],
+            era: era(pr.year), category: "value" },
+    quality_score: Math.round(Math.min(1, 0.7 + pr.interest / 60) * 100) / 100,
+    story_family: "capcall:" + (pr.upset ? "upset" : "hold"),
+    story_key: ["capcall", String(pr.year), a.player, b.player].join("|"),
+    payload: {
+      question: `Who scored more per game in ${seasonLabel(pr.year)}?`,
+      season: seasonLabel(pr.year),
+      a: side(a), b: side(b),
+      answer: winner === a ? "a" : "b",
+      unit: "ppg",
+      detail,
+      url: DAILY_739,
+      cta: "Play today's Daily 73-9"
+    }
+  };
+});
+
+{
+  const upsets = capcall.filter(c => c.story_family.endsWith("upset")).length;
+  console.log(`\ncap call: ${eligible.length} eligible player-seasons -> ${capcall.length} pairs, ` +
+    `${upsets} where the cheaper man scored more, ${capcall.length - upsets} where he did not`);
+  const eras = new Map();
+  for (const c of capcall) eras.set(c.tags.era, (eras.get(c.tags.era) || 0) + 1);
+  console.log("  eras: " + [...eras.entries()].sort().map(([e, n]) => `${e} ${n}`).join("  "));
+  fs.writeFileSync(CAPCALL_OUT, JSON.stringify({
+    generated: new Date().toISOString().slice(0, 10),
+    source: "nba-player-data salaries + rsStats, pairs by tools/lib/capcall.mjs",
+    cards: capcall
+  }));
+  console.log(`wrote ${path.relative(REPO, CAPCALL_OUT)} (${Math.round(fs.statSync(CAPCALL_OUT).size / 1024)}KB)`);
+}

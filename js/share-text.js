@@ -41,6 +41,7 @@
       case "race":   return p.note || p.title || "An NBA bar chart race";
       case "quiz":
       case "trivia":
+      case "capcall":
       case "ballot": return p.question || p.prompt || "Can you get this one?";
       default:       return p.headline || p.story || p.note || p.player || "";
     }

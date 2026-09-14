@@ -28,7 +28,7 @@
    * actually happens rather than being recomputed forever. */
   var KEEP_DAYS = 30;
 
-  var SCORED = { quiz: 1, trivia: 1, ballot: 1 };
+  var SCORED = { quiz: 1, trivia: 1, ballot: 1, capcall: 1 };
 
   function today(d) {
     d = d || new Date();
