@@ -39,8 +39,9 @@ import { stripPhantomTeamRows, summariseSeason, MIN_PAYROLL_OF_CAP,
 import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, scheduleSpan, normalizeGames }
   from "./lib/games.mjs";
 import {
-  tallyTeamSeasons, joinPayrollWins, playoffYears, seasonField, rankInSeason
+  tallyTeamSeasons, joinPayrollWins, playoffYears, seasonField, rankInSeason, seasonEndYear
 } from "./lib/payroll_wins.mjs";
+import { franchiseOf, identity, displayCity } from "./lib/franchises.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -562,29 +563,77 @@ if (!GAMES_CSV) {
   console.log('    pass one with --games "C:\\path\\to\\game.csv"');
 } else {
   const raw = normalizeGames(parseCsv(fs.readFileSync(GAMES_CSV, "utf8")));
-  /* The SAME normaliser both sides. salaries.json says "Seattle" and the game
-   * log says "Seattle SuperSonics", so the city is what they agree on - and
-   * the city is the team as it was that season, which is what a payroll join
-   * needs. A franchise-id join would give Seattle's 1996 book to Oklahoma
-   * City. */
+
+  /* THE JOIN IS ON THE FRANCHISE, NOT ON A CODE EITHER SIDE MADE UP.
+   *
+   * The comment that used to sit here said salaries.json and the game log
+   * "agree on the city". They do not. The salary file keys old seasons by the
+   * franchise's CURRENT city - a 2004 New Jersey payroll arrives as Brooklyn,
+   * a 2008 Seattle payroll as Oklahoma City - while the log says what the team
+   * was called that night. Codes derived from each side's own string never
+   * met, so every pre-move season of every relocated franchise failed to join.
+   * Silently: the SuperSonics simply had no cost-per-win history, the New
+   * Jersey Nets never missed the playoffs expensively, and nothing said so.
+   *
+   * Both sides now resolve to a franchise through lib/franchises.mjs, which
+   * takes the year because "Charlotte" in 1998 and "Charlotte" in 2010 are
+   * two different franchises. The tally and the join are keyed by franchise;
+   * the card then gets the code and the city the team actually had that
+   * season, so a 2004 card says NJN and New Jersey, never BKN and Brooklyn.
+   *
+   * The shared `payrolls` array is not touched - sixty-odd other cards read it
+   * - this section works on a re-keyed copy. */
+  const unresolvedLog = new Map();      // name string -> rows, for years with payrolls
+  const firstPayrollYear = Math.min(...payrolls.map(p => p.year));
   const codeOf = (g, side) => {
+    const year = seasonEndYear(g.gameDate || g.gameDateTimeEst);
     const city = String(g[side + "teamCity"] || "").trim();
-    const full = (city + " " + String(g[side + "teamName"] || "")).trim();
-    /* The game-table schema folds the city into the name, so try the whole
-     * string's leading words when there is no separate city. */
-    if (city) return teamCode(city);
-    for (const cut of [3, 2, 1]) {
-      const head = full.split(/\s+/).slice(0, cut).join(" ");
-      const code = TEAM_CODE[head.toLowerCase()];
-      if (code) return code;
+    const name = String(g[side + "teamName"] || "").trim();
+    const text = city ? city : name;
+    const key = franchiseOf(text, year);
+    if (!key && year >= firstPayrollYear) {
+      const label = (city ? city + " / " : "") + name;
+      unresolvedLog.set(label, (unresolvedLog.get(label) || 0) + 1);
     }
-    return full ? teamCode(full.split(/\s+/).slice(0, -1).join(" ")) : null;
+    return key;
   };
 
   const tally = tallyTeamSeasons(raw.rows, codeOf);
   const poYears = playoffYears(tally);
-  const { joined, missing, winless, shortSchedule, noRegularSeason } =
-    joinPayrollWins(payrolls, tally);
+
+  const unresolvedPayroll = [];
+  const byFranchise = [];
+  for (const p of payrolls) {
+    const key = franchiseOf(p.team, p.year);
+    if (!key) { unresolvedPayroll.push(p); continue; }
+    byFranchise.push(Object.assign({}, p, { team: key, code: p.team }));
+  }
+  const { joined: joinedRaw, missing, winless, shortSchedule, noRegularSeason } =
+    joinPayrollWins(byFranchise, tally);
+
+  /* Back from the franchise to what the team was called that season. `team`
+   * is the era code (SEA, NJN, CHH) because it is printed beside the season
+   * and used as a tag; `key` stays for anything that needs the lineage. */
+  const joined = joinedRaw.map(j => {
+    const id = identity(j.team, j.year);
+    return Object.assign({}, j, {
+      key: j.team,
+      team: id ? id.code : j.code,
+      city: displayCity(j.team, j.year) || j.code
+    });
+  });
+
+  if (unresolvedLog.size) {
+    const list = [...unresolvedLog.entries()].sort((a, b) => b[1] - a[1]);
+    console.log(`  payroll-and-wins: ${list.length} team name(s) in the game log that ` +
+      `lib/franchises.mjs cannot place, in seasons that have payrolls - every row is dropped:`);
+    for (const [name, n] of list.slice(0, 10)) console.log(`    ${name}  x${n}`);
+  }
+  if (unresolvedPayroll.length) {
+    console.log(`  payroll-and-wins: ${unresolvedPayroll.length} payroll team code(s) that ` +
+      `lib/franchises.mjs cannot place: ` +
+      [...new Set(unresolvedPayroll.map(p => p.team))].join(", "));
+  }
   /* What every other team paid for a win that same season. A rate on its own
    * is inert - "$4.39M a win" means nothing until you know the median team
    * paid a fifth of that - and the league-wide claims are gated on the season
@@ -671,8 +720,11 @@ if (!GAMES_CSV) {
     POR: "Portland", SAC: "Sacramento", SAS: "San Antonio", TOR: "Toronto",
     UTA: "Utah", WAS: "Washington"
   };
-  const teamName = code => CITY[code] || String(code).toLowerCase()
-    .replace(/\b[a-z]/g, ch => ch.toUpperCase());
+  /* The city as it was THAT SEASON, from the franchise table, with the CITY
+   * map above kept as the fallback for anything the table does not place.
+   * The map alone would have called a 2004 Nets card "Brooklyn". */
+  const teamName = j => (j && j.city) || CITY[j && j.team] ||
+    String(j && j.team).toLowerCase().replace(/\b[a-z]/g, ch => ch.toUpperCase());
 
   const lead = j => (j.men && j.men[0]) || { player: "", amount: 0 };
   const head = j => ({ player: lead(j).player, img: faceFor(lead(j).player) });
@@ -709,7 +761,7 @@ if (!GAMES_CSV) {
   const FIELD_MIN_TEAMS = 20;
   const fieldRows = (f, j) => (f && f.teams >= FIELD_MIN_TEAMS)
     ? f.rows.map((r, i) => ({
-        rank: i + 1, name: teamName(r.team), sub: `${r.w}-${r.l}`,
+        rank: i + 1, name: teamName(r), sub: `${r.w}-${r.l}`,
         value: fmtMoney(r.costPerWin), me: r.team === j.team
       }))
     : null;
@@ -723,7 +775,7 @@ if (!GAMES_CSV) {
       : `Across the ${f.teams} teams whose payroll is on file for that season the median was ` +
         `${fmtMoney(f.median)} a win`;
     if (f.complete && best && best.team !== j.team) {
-      return `${where}, and ${teamName(best.team)} went ${best.w}-${best.l} at ` +
+      return `${where}, and ${teamName(best)} went ${best.w}-${best.l} at ` +
         `${fmtMoney(best.costPerWin)}.`;
     }
     return where + ".";
@@ -756,7 +808,7 @@ if (!GAMES_CSV) {
       : `the ${["", "second", "third", "fourth", "fifth", "sixth"][rank]}-cheapest rate in the file`;
     const f = field.get(j.year);
     add("cost-per-win-low", 0.78, tagsOf(j), Object.assign(head(j), {
-      headline: `A win cost ${teamName(j.team)} ${fmtMoney(j.costPerWin)} in ` +
+      headline: `A win cost ${teamName(j)} ${fmtMoney(j.costPerWin)} in ` +
         `${seasonLabel(j.year)}${placeIn(f, j, true)}`,
       team: j.team, season: seasonLabel(j.year),
       detail: `${j.w} wins on a ${fmtMoney(j.total)} book. ${fieldContext(f, j)}`,
@@ -772,7 +824,7 @@ if (!GAMES_CSV) {
   for (const j of wins.slice().sort((a, b) => b.capPerWin - a.capPerWin).slice(0, 6)) {
     const f = field.get(j.year);
     add("cost-per-win-high", 0.74, tagsOf(j), Object.assign(head(j), {
-      headline: `Every win cost ${teamName(j.team)} ${fmtMoney(j.costPerWin)} in ` +
+      headline: `Every win cost ${teamName(j)} ${fmtMoney(j.costPerWin)} in ` +
         `${seasonLabel(j.year)}${placeIn(f, j, false)}`,
       team: j.team, season: seasonLabel(j.year),
       detail: `${fmtMoney(j.total)} for ${j.w} wins. ${fieldContext(f, j)}`,
@@ -790,7 +842,7 @@ if (!GAMES_CSV) {
   const fifties = wins.filter(j => j.w >= 50);
   for (const j of fifties.slice().sort((a, b) => a.ofCap - b.ofCap).slice(0, 6)) {
     add("cheap-fifty", 0.8, tagsOf(j), Object.assign(head(j), {
-      headline: `${teamName(j.team)} won ${j.w} games on ${(j.ofCap * 100).toFixed(0)}% of the cap in ${seasonLabel(j.year)}`,
+      headline: `${teamName(j)} won ${j.w} games on ${(j.ofCap * 100).toFixed(0)}% of the cap in ${seasonLabel(j.year)}`,
       team: j.team, season: seasonLabel(j.year),
       detail: `${fmtMoney(j.total)} against a ${fmtMoney(j.cap)} cap, and ${j.w}-${j.l}. ` +
         `Top earner: ${j.men[0].player} at ${fmtMoney(j.men[0].amount)}.`,
@@ -806,7 +858,7 @@ if (!GAMES_CSV) {
   const misses = joined.filter(j => poYears.has(j.year) && !j.madePlayoffs && j.cap);
   for (const j of misses.slice().sort((a, b) => b.ofCap - a.ofCap).slice(0, 6)) {
     add("expensive-miss", 0.82, tagsOf(j), Object.assign(head(j), {
-      headline: `${teamName(j.team)} spent ${(j.ofCap * 100).toFixed(0)}% of the cap in ${seasonLabel(j.year)} and missed the playoffs`,
+      headline: `${teamName(j)} spent ${(j.ofCap * 100).toFixed(0)}% of the cap in ${seasonLabel(j.year)} and missed the playoffs`,
       team: j.team, season: seasonLabel(j.year),
       detail: `${j.w}-${j.l} on a ${fmtMoney(j.total)} payroll, ${fmtMoney(j.costPerWin)} per win. ` +
         `${fieldContext(field.get(j.year), j)}`,
