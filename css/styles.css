@@ -642,6 +642,11 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
   font-family:'JetBrains Mono',monospace;
 }
 .trivia-opts.revealed .trivia-val{ visibility:visible }
+/* Cap Call: the salary sits under the name from the start, the scoring
+   average appears with the answer. The unit is small so the number reads
+   as the number. */
+.trivia-sub{ font-size:.72rem; color:var(--text-secondary); margin-top:-.1rem }
+.trivia-unit{ font-style:normal; font-size:.65em; opacity:.7; margin-left:.2em }
 
 .quiz-diff{
   display:inline-block; font-family:'JetBrains Mono',monospace;

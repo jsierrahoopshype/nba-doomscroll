@@ -140,12 +140,14 @@
      * The quiz tab is left with no lazy pool of its own, which is fine: the
      * quiz, trivia and ballot pools are in EAGER_POOLS above and carry 1,538
      * cards tagged for that tab. */
-    quiz:   [],
+    /* Cap Call: the value-per-dollar game as a card, built alongside the
+     * salary pool. Playable, so it belongs here where the game cards did not. */
+    quiz:   ["data/capcall-pool.json"],
     foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json",
              "data/teammates-pool.json", "data/compare-pool.json",
              "data/ballotrace-pool.json", "data/lean-pool.json",
              "data/oddity-pool.json",
-             "data/salary-pool.json"]
+             "data/salary-pool.json", "data/capcall-pool.json"]
   };
 
   /* Pools that may legitimately not exist.
@@ -162,6 +164,8 @@
     "data/oddity-pool.json": 1,
     /* Built from nba-player-data plus the cap table by tools/build_salary.mjs. */
     "data/salary-pool.json": 1,
+    /* Same builder, second file. */
+    "data/capcall-pool.json": 1,
     /* Built from nba-player-data's awardVotes + rsStats by
      * tools/build_award_history.mjs. Absent until that has been run, which is
      * a normal state - and better than committing a placeholder, because an
@@ -291,7 +295,7 @@
     if (/^(vs|mates|compare)-/.test(id)) return TAB_POOLS.vs;
     if (/^lean-/.test(id)) return TAB_POOLS.vault;
     if (/^(salary|oddity|otd)-/.test(id)) return TAB_POOLS.vault;
-    if (/^friv-/.test(id)) return TAB_POOLS.quiz;
+    if (/^(friv|capcall)-/.test(id)) return TAB_POOLS.quiz;
     return [];
   }
 
@@ -1488,7 +1492,12 @@
     if (!correct) btn.classList.add("wrong");
     var res = cardEl.querySelector(".quiz-result");
     res.hidden = false;
-    res.textContent = correct ? "Correct." : "Nope.";
+    /* Cap Call carries a detail line - what each point actually cost - which
+     * is the payoff of the card and only makes sense once the numbers show.
+     * Ordinary trivia cards have none and read exactly as before. */
+    var detail = card.payload.detail;
+    res.innerHTML = '<span>' + (correct ? "Correct." : "Nope.") + '</span>' +
+      (detail ? '<span class="quiz-detail">' + esc(detail) + '</span>' : "");
     res.className = "quiz-result " + (correct ? "good" : "bad");
     var hintBox = cardEl.querySelector(".quiz-hints");
     E.quizAnswered(card, {
