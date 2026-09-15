@@ -55,6 +55,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { sweepUnreferenced, sweepLine } from "./lib/sweep.mjs";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -319,6 +320,27 @@ fs.writeFileSync(out, JSON.stringify({
   cards
 }));
 
+/* THE FILES THIS BUILD STOPPED REFERENCING HAVE TO GO.
+ *
+ * The draw is deterministic - the seed above never moves - but its INPUT does.
+ * nba-player-data gains an All-Star, the weekly job refreshes vs-pool.json and
+ * changes which pairings are already taken, and the 1,500 pairings come out
+ * different. The new row files were written; the old ones were left behind.
+ * data/compare had 2,465 files in it with 1,500 referenced: 965 dead ones, 9MB,
+ * committed, served by nothing. Every full build added another layer.
+ *
+ * A file here is dead when no card in the pool just written names it. Nothing
+ * else reads this folder - vs-pool.json references none of it, and the feed
+ * reaches a row file only through a card's payload.file - so referenced-by-the
+ * -pool is the whole test. --keep-orphans skips the sweep for a build whose
+ * output is not going to be committed.
+ */
+const sweep = sweepUnreferenced(
+  OUT_DIR,
+  cards.map(c => path.basename(c.payload.file)),
+  { dryRun: args.includes("--keep-orphans") }
+);
+
 const bytes = fs.readdirSync(OUT_DIR)
   .reduce((t, f) => t + fs.statSync(path.join(OUT_DIR, f)).size, 0);
 const rowsTotal = cards.reduce((t, c) => t + c.payload.metrics, 0);
@@ -327,6 +349,7 @@ console.log(`comparison: ${cards.length} matchups (${cards.length - cross} same-
 console.log(`  ${Math.round(rowsTotal / cards.length)} metrics per card on average, ` +
   `${(bytes / 1024).toFixed(0)}KB of row files, ${perPlayer.size} players appear`);
 console.log(`  rejected: ${rejTaken} already in the VS pool, ${rejThin} too thin, ${rejLopsided} lopsided`);
+if (sweepLine(sweep)) console.log(sweepLine(sweep));
 
 /* The promise this card makes is that its final score is the comparison tool's
  * score. Check it rather than trust it. */
