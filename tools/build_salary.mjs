@@ -605,6 +605,29 @@ if (!GAMES_CSV) {
       `${ranked[0].span.rows.toLocaleString()} rows, ${ranked[0].span.from || "?"} to ${ranked[0].span.to || "?"}`);
     if (ranked.length > 1) console.log(`    (${ranked.length} candidates. --games pins one.)`);
   }
+} else if (fs.existsSync(GAMES_CSV)) {
+  /* A PINNED PATH STILL HAS TO SAY WHAT IT IS.
+   *
+   * The search above ranks full schedules over playoffs-only files and prints
+   * what it picked. --games skipped both: the build went straight to the join
+   * counts, so nothing on screen named the file, and the one check that
+   * matters - is this a full schedule - was only ever applied to files nobody
+   * chose. Pinning the playoffs-only file would have turned every cost per win
+   * into a cost per playoff win without a word. */
+  const full = hasRegularSeason(GAMES_CSV);
+  const span = scheduleSpan(GAMES_CSV);
+  console.log(`  payroll-and-wins: using ${GAMES_CSV}`);
+  console.log(`    ${full ? "full schedule" : "PLAYOFFS ONLY"}, ` +
+    `${span.rows.toLocaleString()} rows, ${span.from || "?"} to ${span.to || "?"} (pinned with --games)`);
+  if (!full) {
+    console.log("    THIS FILE HAS NO REGULAR-SEASON ROWS. Every cost per win below would be");
+    console.log("    a cost per PLAYOFF win, so the cost-per-win cards are being skipped.");
+    console.log("    Point --games at a full schedule.");
+    GAMES_CSV = null;
+  }
+} else {
+  console.log(`  payroll-and-wins: --games names a file that is not there: ${GAMES_CSV}`);
+  GAMES_CSV = null;
 }
 
 if (!GAMES_CSV) {
