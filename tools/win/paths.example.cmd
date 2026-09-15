@@ -15,5 +15,12 @@ REM awards.json, not its parent.
 set "NPD=<full path>\nba-player-data"
 
 REM The salary cap table, a CSV that ships in the salary-season-finder repo.
-REM Optional: leave it unset and the salary cards are simply not rebuilt.
+REM Optional: unset, the builder searches for it and takes the newest it finds.
 set "CAP_CSV=<full path>\salary-season-finder\salary_cap_info.csv"
+
+REM The game log the cost-per-win cards divide payroll by: one row per game,
+REM with a result. Optional in the same way, and worth pinning for the same
+REM reason - a partial schedule silently costs those cards their seasons rather
+REM than failing. Use the merged file tools\topup_games.mjs writes, not the
+REM original it was built from.
+set "GAMES_CSV=<full path>\archive\csv\game_through_2025_26.csv"

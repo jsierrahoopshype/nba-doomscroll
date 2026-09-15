@@ -70,10 +70,24 @@ if errorlevel 1 exit /b 1
 
 echo.
 echo === salary stories ===
+REM PIN THE GAME LOG. The builder finds a schedule CSV by itself and takes the
+REM newest of whatever it finds - four candidates on this machine. Newest is a
+REM guess, and the wrong one costs the cost-per-win cards a third of their
+REM seasons without failing the build. GAMES_CSV in paths.cmd names the file;
+REM unset, the search still runs, which is the old behaviour.
+set "GAMES_ARG="
+if defined GAMES_CSV (
+  if exist "%GAMES_CSV%" (
+    set "GAMES_ARG=--games "%GAMES_CSV%""
+  ) else (
+    echo   GAMES_CSV is set but that file is not there, so the builder will search:
+    echo     "%GAMES_CSV%"
+  )
+)
 if defined CAP_CSV (
-  node tools\build_salary.mjs --local "%NPD%" "%CAP_CSV%"
+  node tools\build_salary.mjs --local "%NPD%" "%CAP_CSV%" %GAMES_ARG%
 ) else (
-  node tools\build_salary.mjs
+  node tools\build_salary.mjs %GAMES_ARG%
 )
 if errorlevel 1 (
   echo.
