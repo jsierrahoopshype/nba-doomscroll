@@ -60,8 +60,13 @@
 export const FRANCHISES = {
   hawks: {
     codes: ["ATL", "STL", "MLH", "TRI"],
+    /* The Tri-Cities era was missing, which is why a 1951 game resolved to
+       nothing and, worse, why identity() would have called that team the
+       Milwaukee Hawks by falling back to the oldest era it knew. Moline,
+       Davenport and Rock Island: three cities, one team, one name. */
     eras: [[1969, "Atlanta", "Hawks", "Hawk", "ATL"], [1956, "St. Louis", "Hawks", "Hawk", "STL"],
-           [1952, "Milwaukee", "Hawks", "Hawk", "MLH"]]
+           [1952, "Milwaukee", "Hawks", "Hawk", "MLH"],
+           [1950, "Tri-Cities", "Blackhawks", "Blackhawk", "TRI"]]
   },
   celtics: { codes: ["BOS"], eras: [[1947, "Boston", "Celtics", "Celtic", "BOS"]] },
   nets: {
@@ -221,8 +226,31 @@ export function currentCode(key) {
 
 /* ---------------- a name, in a season, to a franchise ---------------- */
 
-const fold = s => String(s == null ? "" : s).toLowerCase()
-  .replace(/[^a-z0-9]+/g, " ").trim();
+/* "FT. WAYNE" IS FORT WAYNE, AND THAT COST 665 ROWS.
+ *
+ * The loose pass needs the text to contain both the city and the nickname. The
+ * league's own game log spells the Pistons' first home "Ft. Wayne Zollner
+ * Pistons", and this table says "Fort Wayne", so the nickname matched and the
+ * city did not: 665 games of the Detroit franchise's own history resolved to
+ * nothing, which in the records builder means those seasons could not be judged
+ * at all. Abbreviations are expanded before matching rather than adding a
+ * second spelling of every era, because the next file will abbreviate something
+ * else the same way.
+ *
+ * THE WORD BOUNDARIES ARE LOAD-BEARING. Written once without them, /st/
+ * turned "pistons" into "pisaintons" and the nickname stopped matching
+ * anything: a fix for one franchise quietly breaking every other. Only a
+ * whole word is an abbreviation. */
+const ABBREV = [
+  [/\bft\b/g, "fort"],
+  [/\bst\b/g, "saint"],
+  [/\bmt\b/g, "mount"]
+];
+const fold = s => {
+  let t = String(s == null ? "" : s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  for (const [re, to] of ABBREV) t = t.replace(re, to);
+  return t;
+};
 
 /**
  * Which franchise is this text talking about, in this season?
