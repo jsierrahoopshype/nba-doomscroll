@@ -11,7 +11,7 @@
 
 import {
   seasonEndYear, tallyTeamSeasons, medianGpByYear, joinPayrollWins,
-  playoffYears, capCostPerWin, GP_SLACK, seasonField, rankInSeason
+  playoffYears, capCostPerWin, GP_SLACK, seasonField, rankInSeason, onePerSeason
 } from "./lib/payroll_wins.mjs";
 
 let fail = 0;
@@ -388,6 +388,46 @@ console.log("\nthe season's field, and what may be said about it");
      seasonField([{ team: "B", year: 2024, w: 0, l: 82, total: 80, costPerWin: Infinity }], tally)
        .size === 0);
 }
+
+
+console.log("\none card per season, keeping the rank it has");
+
+{
+  /* Sorted dearest-first, the way the cards claim. Three 1999 teams at the top
+   * is the real shape that caused this: all three would have carried the same
+   * season context and read as one card printed three times. */
+  const sorted = [
+    { team: "A", year: 1999 }, { team: "B", year: 1999 }, { team: "C", year: 1999 },
+    { team: "D", year: 2004 }, { team: "E", year: 2004 },
+    { team: "F", year: 2012 }, { team: "G", year: 2020 }
+  ];
+  const got = onePerSeason(sorted, 6);
+  ck("one per season", got.map(x => x.j.team).join(",") === "A,D,F,G",
+     got.map(x => x.j.team).join(","));
+  ck("no season appears twice",
+     new Set(got.map(x => x.j.year)).size === got.length);
+
+  /* THE POINT OF THE TEST. The card says "the fourth-cheapest rate in the
+   * file", so the rank has to be the position in the whole sorted list. If
+   * these came back 0,1,2,3 the second card would claim second place while two
+   * teams above it in the file were merely from a season already used. */
+  ck("the rank is the position in the file, not in the result",
+     got.map(x => x.rank).join(",") === "0,3,5,6", got.map(x => x.rank).join(","));
+
+  ck("the limit is respected", onePerSeason(sorted, 2).length === 2);
+  ck("a limit past the distinct seasons returns them all",
+     onePerSeason(sorted, 99).length === 4);
+  ck("order is preserved", onePerSeason(sorted, 4)[0].j.team === "A");
+}
+
+console.log("\nrubbish in");
+
+ck("no list, no picks", onePerSeason(undefined, 6).length === 0);
+ck("an empty list is not an error", onePerSeason([], 6).length === 0);
+ck("a limit of zero takes nothing", onePerSeason([{ year: 2020 }], 0).length === 0);
+ck("a row with no season is skipped, not counted",
+   onePerSeason([{ year: null }, { team: "X", year: 2020 }], 6)
+     .map(x => x.j.team).join(",") === "X");
 
 console.log(fail ? `\n${fail} failed` : "\n0 failed");
 console.log(fail ? "the join is not safe to ship" : "payroll and wins join without inventing a number");
