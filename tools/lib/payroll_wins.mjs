@@ -310,3 +310,35 @@ export function rankInSeason(field, rec) {
   const i = f.rows.findIndex(r => r.team === rec.team && r.year === rec.year);
   return i < 0 ? null : i + 1;
 }
+
+/**
+ * ONE PICK PER SEASON, KEEPING THE RANK IT ACTUALLY HAS.
+ *
+ * The dearest-wins family took the top six by rate and landed three 1998-99
+ * teams. Every one of those cards carries its season's whole field, so all
+ * three printed the same median and the same "San Antonio went 37-13 at..."
+ * line: three cards, one context, reading as one card printed three times.
+ *
+ * Deduping by season is the easy half. The half worth a test is the rank:
+ * these cards SAY where they sit ("the third-cheapest rate in the file"), and
+ * renumbering the survivors 1..6 would have the second card claim second place
+ * while two teams from an already-used season sit above it. So the index in the
+ * sorted list travels with each pick and only the season is deduped.
+ *
+ * @param {Array<{year:number}>} sorted  already in the order the cards claim
+ * @param {number} limit                 how many to take
+ * @returns {Array<{ j:object, rank:number }>}  rank is the 0-based position in
+ *          `sorted`, not the position in the result
+ */
+export function onePerSeason(sorted, limit) {
+  const seen = new Set(), out = [];
+  const list = Array.isArray(sorted) ? sorted : [];
+  const want = limit > 0 ? limit : 0;
+  for (let i = 0; i < list.length && out.length < want; i++) {
+    const j = list[i];
+    if (!j || j.year == null || seen.has(j.year)) continue;
+    seen.add(j.year);
+    out.push({ j, rank: i });
+  }
+  return out;
+}

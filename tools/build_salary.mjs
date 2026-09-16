@@ -39,10 +39,15 @@ import { stripPhantomTeamRows, summariseSeason, MIN_PAYROLL_OF_CAP,
 import { GAMES_COLUMNS, GAME_TABLE_COLUMNS, hasRegularSeason, scheduleSpan, normalizeGames }
   from "./lib/games.mjs";
 import {
-  tallyTeamSeasons, joinPayrollWins, playoffYears, seasonField, rankInSeason, seasonEndYear
+  tallyTeamSeasons, joinPayrollWins, playoffYears, seasonField, rankInSeason, seasonEndYear,
+  onePerSeason
 } from "./lib/payroll_wins.mjs";
 import { franchiseOf, identity, displayCity } from "./lib/franchises.mjs";
 import { pickCapCalls } from "./lib/capcall.mjs";
+/* Only for "the seventh-cheapest rate in the file": one card per season means
+ * the quoted rank can now run past sixth, which the old hand-written array of
+ * six words could not say. */
+import { ordWord } from "./lib/award_sentences.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
@@ -870,15 +875,29 @@ if (!GAMES_CSV) {
       ? `What a win cost all ${f.teams} teams in ${seasonLabel(j.year)}`
       : `What a win cost ${f.teams} of the ${f.leagueTeams} teams in ${seasonLabel(j.year)}`;
 
+  /* ONE CARD PER SEASON IN EACH OF THESE TWO FAMILIES.
+   *
+   * Taking the top six by rate put three 1998-99 teams in the dearest family,
+   * and every one of these cards carries its season's field - so all three
+   * recited the same median and the same "San Antonio went 37-13 at..."
+   * sentence. Three cards, one context, read as one card printed three times.
+   *
+   * The rank a card QUOTES stays its rank in the whole file. Renumbering the
+   * survivors 1..6 would have the second card claim to be the second-cheapest
+   * rate on record when two dearer-season teams sit above it. So the position
+   * in the sorted list travels with the pick, and only the season is deduped.
+   * onePerSeason lives in lib/payroll_wins.mjs so that half has a test.
+   */
+
   /* Cheapest wins, in cap terms. */
   /* RANK, not a superlative. The first version said "the cheapest rate on
    * record" in the detail line of all six of these, which is true of one of
    * them. Six cards each claiming to be the cheapest is the kind of quiet
    * wrongness a reader catches before a build does. */
   const lowRanked = wins.slice().sort((a, b) => a.capPerWin - b.capPerWin);
-  lowRanked.forEach((j, rank) => { if (rank >= 6) return;
+  onePerSeason(lowRanked, 6).forEach(({ j, rank }) => {
     const place = rank === 0 ? "the cheapest rate in the file"
-      : `the ${["", "second", "third", "fourth", "fifth", "sixth"][rank]}-cheapest rate in the file`;
+      : `the ${ordWord(rank + 1)}-cheapest rate in the file`;
     const f = field.get(j.year);
     add("cost-per-win-low", 0.78, tagsOf(j), Object.assign(head(j), {
       headline: `A win cost ${teamName(j)} ${fmtMoney(j.costPerWin)} in ` +
@@ -893,8 +912,8 @@ if (!GAMES_CSV) {
     }), j.team + "|" + j.year);
   });
 
-  /* Dearest wins. */
-  for (const j of wins.slice().sort((a, b) => b.capPerWin - a.capPerWin).slice(0, 6)) {
+  /* Dearest wins. One per season, for the reason above. */
+  for (const { j } of onePerSeason(wins.slice().sort((a, b) => b.capPerWin - a.capPerWin), 6)) {
     const f = field.get(j.year);
     add("cost-per-win-high", 0.74, tagsOf(j), Object.assign(head(j), {
       headline: `Every win cost ${teamName(j)} ${fmtMoney(j.costPerWin)} in ` +
