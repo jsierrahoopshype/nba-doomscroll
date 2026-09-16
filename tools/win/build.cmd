@@ -1,5 +1,8 @@
 @echo off
-REM Rebuild the two pools that come from repos outside this one.
+REM Rebuild every pool built from a source outside this repo. Six of them now:
+REM comparison cards, media lean, ballot oddities, award history, career
+REM oddities and records, plus the salary pool and Cap Call from one builder.
+REM (It said "the two pools" for a long time after it stopped being two.)
 REM
 REM   tools\win\build.cmd
 REM
@@ -68,6 +71,13 @@ echo === award history ===
 node tools\build_award_history.mjs --local "%NPD%"
 if errorlevel 1 exit /b 1
 
+REM Fatal like the award history above it, and for the same reason: it reads NPD,
+REM which this script has already checked, so a failure here is a real failure.
+echo.
+echo === career oddities ===
+node tools\build_career_oddities.mjs --local "%NPD%"
+if errorlevel 1 exit /b 1
+
 REM Reads the game log and nothing else. NOT fatal, for the same reason the
 REM salary section is not: the schedule is a file outside every repo here, so a
 REM machine without it should still get the four builds above rather than an
@@ -116,6 +126,6 @@ if errorlevel 1 (
 )
 
 echo.
-echo Both builds finished. The lean line should read 99 players and
+echo All builds finished. The lean line should read 99 players and
 echo "13 committed locally, 0 falling back to flagcdn". 92 means the wrong
 echo media-vote-tracker checkout is set in paths.cmd.

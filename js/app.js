@@ -116,7 +116,10 @@
               * below routes them here too and this line is again the whole
               * wiring. The vault needed content that is surprising rather than
               * dated: it was 82% on-this-day cards. */
-             "data/record-pool.json"],
+             "data/record-pool.json",
+             /* Careers the award voting remembers differently than anybody
+              * else does. Ids start "oddity-career-". */
+             "data/career-pool.json"],
     races:  ["data/race-pool.json", "data/ballotrace-pool.json"],
     /* FRIVOLITIES ARE OFF. Jorge's call, Sept 2026: the cards were weak.
      *
@@ -179,7 +182,9 @@
      * nothing. */
     "data/award-history-pool.json": 1,
     /* Built from the league game log by tools/build_records.mjs. */
-    "data/record-pool.json": 1
+    "data/record-pool.json": 1,
+    /* Built from awardVotes + rsStats by tools/build_career_oddities.mjs. */
+    "data/career-pool.json": 1
   };
   var poolPromises = {};
   // Set when a live source could not be reached, so the tab can say so instead
