@@ -116,17 +116,114 @@ console.log("\nsupply caps the promise");
 
 console.log("\nthe caps js/app.js passes to the sampler");
 
+const capTable = () => {
+  /* The shared table is a named constant now, because the VS tab needs a
+     different one and a literal at the call site could not be overridden. */
+  const m = /MIXED_CAPS\s*=\s*\{([^}]*)\}/.exec(APP);
+  return m ? m[1] : "";
+};
+
 {
-  const m = /cap:\s*\{([^}]*)\}/.exec(APP);
-  const caps = m ? m[1] : "";
+  const caps = capTable();
+  ck("the sampler is handed the shared table unless a tab overrides it",
+     /cap:\s*caps\s*\|\|\s*MIXED_CAPS/.test(APP));
   ck("the media-heavy types are still capped at one per batch",
      ["race", "mates", "compare", "lean"].every(t => new RegExp(t + "\\s*:\\s*1").test(caps)),
      caps.replace(/\s+/g, " ").trim());
-  /* Jorge: too many VS score cards in the VS tab, and the video comparisons
-   * are the better content there. */
+  /* Jorge: too many VS score cards, and the video comparisons are the better
+   * content. In the shared table vs is one type among a dozen, so one per
+   * batch is the right ceiling there. */
   ck("and vs joins them", /\bvs\s*:\s*1/.test(caps));
   ck("one in eight is roughly a fifth of an uncapped run",
      1 / BATCH < 0.2, (100 / BATCH).toFixed(0) + "% ceiling");
+}
+
+console.log("\nno tab may have all of its types capped");
+
+{
+  /* THE BUG THIS EXISTS TO CATCH.
+   *
+   * sampleMixed stops when every type has hit its cap: `if (!choices.length)
+   * break`. So a tab whose ENTIRE contents are capped types cannot fill a
+   * batch. Adding `vs: 1` to the shared table did exactly that to the VS tab -
+   * vs, compare and mates are all it holds and all three were capped, so a
+   * request for eight returned three, from a pool of 4,120 cards. Nothing
+   * errored; the scroll just got shorter and a third of it was the type the cap
+   * was meant to thin out.
+   *
+   * The types a tab holds are read from the pool files on disk, so a new pool
+   * with a capped type fails here rather than in somebody's thumb.
+   */
+  const tabPools = /TAB_POOLS\s*=\s*\{([\s\S]*?)\n  \};/.exec(APP);
+  const body = (tabPools ? tabPools[1] : "").replace(/\/\*[\s\S]*?\*\//g, "");
+  /* Which table each tab actually draws with. The call site reads
+       state.tab === "vs" ? VS_TAB_CAPS : null
+     so the override is discoverable from the source rather than restated
+     here - if somebody adds a second override this picks it up. */
+  const overrides = {};
+  const callSite = /drawFrom\(pool,[\s\S]{0,400}?\);/.exec(APP);
+  for (const m of ((callSite ? callSite[0] : "")
+        .matchAll(/state\.tab\s*===\s*"(\w+)"\s*\?\s*(\w+)/g))) {
+    const table = new RegExp(m[2] + "\\s*=\\s*\\{([^}]*)\\}").exec(APP);
+    if (table) overrides[m[1]] = table[1];
+  }
+  const cappedIn = table => new Set((table.match(/(\w+)\s*:\s*\d+/g) || [])
+    .map(x => x.split(":")[0].trim()));
+
+  const tabs = {};
+  for (const line of body.split("\n")) {
+    const m = /^\s*(\w+)\s*:\s*\[([\s\S]*)/.exec(line);
+    if (m) tabs[m[1]] = [];
+    const key = Object.keys(tabs).pop();
+    if (!key) continue;
+    for (const f of (line.match(/data\/[\w-]+\.json/g) || [])) tabs[key].push(f);
+  }
+
+  const typesOf = files => {
+    const out = new Set();
+    for (const f of files) {
+      const full = path.join(REPO, f);
+      if (!fs.existsSync(full)) continue;
+      const raw = JSON.parse(fs.readFileSync(full, "utf8"));
+      for (const c of (Array.isArray(raw) ? raw : (raw.cards || []))) {
+        out.add((c.tags && c.tags.content_type) || c.type || "other");
+      }
+    }
+    return out;
+  };
+
+  let checked = 0;
+  for (const [tab, files] of Object.entries(tabs)) {
+    const types = typesOf(files);
+    if (types.size === 0) continue;
+    checked++;
+    /* One type means the pool is not mixed at all, so hasMixedTypes() sends it
+     * to the plain sampler and caps never apply. */
+    if (types.size < 2) continue;
+    const capped = cappedIn(overrides[tab] || capTable());
+    const free = [...types].filter(t => !capped.has(t));
+    ck(`the ${tab} tab has an uncapped type to fill a batch with`,
+       free.length > 0, [...types].join(", ") +
+       (overrides[tab] ? " | own table" : " | shared table") +
+       " | free: " + (free.join(", ") || "NONE"));
+  }
+  ck("and some tabs were actually checked", checked > 0, checked + " tabs");
+
+  /* The VS tab is the one that needs its own table, and the point of that table
+   * is that the video comparisons are NOT capped. */
+  const vsCaps = /VS_TAB_CAPS\s*=\s*\{([^}]*)\}/.exec(APP);
+  const vsBody = vsCaps ? vsCaps[1] : "";
+  ck("the VS tab has its own cap table", !!vsCaps, vsBody.replace(/\s+/g, " ").trim());
+  ck("it caps the score cards", /\bvs\s*:\s*[1-9]/.test(vsBody));
+  ck("and leaves the video comparisons to carry the tab",
+     !/\bcompare\s*:/.test(vsBody) && !/\bmates\s*:/.test(vsBody));
+  const vsCap = parseInt((/\bvs\s*:\s*(\d+)/.exec(vsBody) || [])[1], 10);
+  ck("its ceiling is about a fifth of a batch, not a third",
+     vsCap / BATCH <= 0.26, vsCap + " of " + BATCH + " = " + Math.round(100 * vsCap / BATCH) + "%");
+  /* Three types capped at one each is what produced three-card batches. */
+  ck("and it does not cap every type the tab holds",
+     (vsBody.match(/\w+\s*:/g) || []).length < 3,
+     (vsBody.match(/\w+\s*:/g) || []).length + " capped");
 }
 
 console.log("\nfrivolities are off, without anything being deleted");
