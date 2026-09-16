@@ -68,6 +68,24 @@ echo === award history ===
 node tools\build_award_history.mjs --local "%NPD%"
 if errorlevel 1 exit /b 1
 
+REM Reads the game log and nothing else. NOT fatal, for the same reason the
+REM salary section is not: the schedule is a file outside every repo here, so a
+REM machine without it should still get the four builds above rather than an
+REM aborted run. It says so instead of passing quietly.
+echo.
+echo === records that stood ===
+if defined GAMES_CSV (
+  node tools\build_records.mjs --games "%GAMES_CSV%"
+) else (
+  node tools\build_records.mjs
+)
+if errorlevel 1 (
+  echo.
+  echo   Record cards were NOT rebuilt. The existing ones are untouched.
+  echo   Set GAMES_CSV in tools\win\paths.cmd to point at a full schedule.
+  echo.
+)
+
 echo.
 echo === salary stories ===
 REM PIN THE GAME LOG. The builder finds a schedule CSV by itself and takes the
