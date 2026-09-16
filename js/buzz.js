@@ -356,7 +356,24 @@
         handle: handle,
         profile: handle ? "https://bsky.app/profile/" + handle : item.url,
         text: String(item.body_excerpt || item.title || "").replace(/[ \t]+\n/g, "\n").trim(),
-        media: item.media || null
+        media: item.media || null,
+        /* THE INDEX NOW CARRIES WHAT THE APPVIEW USED TO BE ASKED FOR.
+         *
+         * media has come from here for a while, which is why a video card can
+         * play without a round trip. Content Stream publishes the other three
+         * as of Sept 2026 - the avatar, the facets that turn Bluesky's
+         * display-shortened links back into real ones, and the quoted post -
+         * so for a post written since then there is nothing left to fetch.
+         *
+         * `enriched` is the poller's own marker and the only reliable signal:
+         * a post with no links and a post polled before facets were published
+         * both arrive with no facets, and only one of them needs a request to
+         * find out which. An item without the marker predates the change and
+         * still gets enriched below. */
+        avatar: item.avatar || null,
+        facets: item.facets || null,
+        quote: item.quote || null,
+        complete: !!item.enriched
       };
     }
     return {
@@ -472,15 +489,29 @@
   function enrichBluesky(cards, cfg) {
     if (cfg.enrich_bluesky === false) return Promise.resolve(cards);
     var base = cfg.bluesky_appview || "https://public.api.bsky.app";
-    var byUri = {}, uris = [];
+    var byUri = {}, uris = [], complete = 0;
     cards.forEach(function (c) {
       if (!c.payload.post) return;
+      /* Already whole. Content Stream publishes the avatar, the facets and the
+       * quoted post now, so asking the AppView about this post would be a
+       * request for what is already on screen. */
+      if (c.payload.post.complete) { complete++; return; }
       var u = atUri(c.payload.source_id);
       if (!u || byUri[u]) return;
       byUri[u] = c;
       uris.push(u);
     });
-    if (!uris.length) return Promise.resolve(cards);
+    if (!uris.length) {
+      if (complete) {
+        console.info("[doomscroll] bluesky: " + complete + " posts came whole from the index, " +
+          "no appview call");
+      }
+      return Promise.resolve(cards);
+    }
+    if (complete) {
+      console.info("[doomscroll] bluesky: " + complete + " posts came whole from the index, " +
+        uris.length + " older ones still need the appview");
+    }
 
     var chunks = [];
     for (var i = 0; i < uris.length; i += 25) chunks.push(uris.slice(i, i + 25));
