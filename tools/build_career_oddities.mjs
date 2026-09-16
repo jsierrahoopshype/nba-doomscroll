@@ -13,7 +13,7 @@
  * thought at the time, and what it thought is frequently not what the player is
  * remembered for.
  *
- *   perennial      votes across many seasons, never won anything
+ *   perennial      votes across many seasons, won none of these awards
  *   one-top-five   one top-five finish in a whole career
  *   cliff          votes, then out of the league within a couple of seasons
  *   one-shot       won an award, never drew another vote for anything
@@ -62,6 +62,18 @@ const SAY = {
   Clutch: "Clutch Player of the Year", Hustle: "Hustle Award"
 };
 const say = a => SAY[a] || a;
+
+/* WHICH FINISH IS THE BEST ONE, when a career has several.
+ *
+ * Sorting by placing alone said "his best finish was second for Most Improved
+ * Player" about men with top-five MVP seasons, because 2 is less than 5. The
+ * order below is league knowledge and lives here rather than in the library:
+ * MVP first, then the two that decide a season's best defender and best rookie,
+ * then the rest. */
+const PRESTIGE = new Map([
+  ["MVP", 0], ["DPOY", 1], ["ROY", 2], ["MIP", 3], ["Sixth Man", 4],
+  ["Clutch", 5], ["Hustle", 6]
+]);
 const withArticle = n => (/^(MVP|MIP)\b/.test(n) ? "an " : "a ") + n;
 
 const votes = readJson("awardVotes.json").map(r => Object.assign({}, r, {
@@ -92,7 +104,8 @@ for (const [award, s] of [...spans.entries()].sort()) {
   console.log(`  ${award.padEnd(10)} ${String(s.seasons.size).padStart(2)} seasons ${s.from}-${s.to}`);
 }
 
-const facts = careerOddities(votes, lastSeason, { dataTo, awardSpan: spans });
+const facts = careerOddities(votes, lastSeason,
+  { dataTo, awardSpan: spans, prestige: PRESTIGE });
 const byKind = {};
 for (const f of facts) byKind[f.kind] = (byKind[f.kind] || 0) + 1;
 console.log(`\n${facts.length} candidate facts: ` +
@@ -105,14 +118,25 @@ const surname = n => displaySurname(n) || n;
 
 function sentence(f) {
   if (f.kind === "perennial") {
+    /* "NEVER WON ANYTHING" WAS THE WRONG SENTENCE, and it survived into a real
+     * build before anybody read it: the first eight cards said it about John
+     * Stockton, Scottie Pippen, Isiah Thomas and Dwyane Wade. Every one of them
+     * is a Hall of Famer, most have rings, and one has a Finals MVP. What the
+     * file can prove is that they never won one of ITS seven awards, so that is
+     * what the card says. The scope is the whole point of the fact, not a
+     * caveat to be trimmed for rhythm. */
     const best = f.best
-      ? `His best finish was ${ordWord(f.best.rnk)} for ${say(f.best.award)}, in ${seasonLabel(f.best.year)}.`
+      ? ` His best was ${ordWord(f.best.rnk)} for ${say(f.best.award)}, in ${seasonLabel(f.best.year)}.`
       : "";
+    const many = f.awards.length > 1;
     return {
-      head: `${f.player} drew votes in ${f.seasons} different seasons and never won anything`,
+      head: many
+        ? `${f.player} drew votes for ${f.awards.length} different awards across ` +
+          `${f.seasons} seasons, and won none of them`
+        : `${f.player} drew ${say(f.awards[0])} votes in ${f.seasons} different seasons ` +
+          `and never finished first`,
       detail: `${f.votes} ballot appearances between ${seasonLabel(f.from)} and ` +
-        `${seasonLabel(f.to)}, across ${f.awards.length === 1 ? "one award" : f.awards.length + " awards"}. ` +
-        best
+        `${seasonLabel(f.to)}.` + best
     };
   }
   if (f.kind === "one-top-five") {

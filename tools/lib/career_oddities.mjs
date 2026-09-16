@@ -7,8 +7,11 @@
  * at the time, and what it thought is often not what the player is remembered
  * for. Four shapes, each of which reads as a small biography:
  *
- *   perennial   drew votes across many seasons and never won anything. The
- *               career that was always nearly enough.
+ *   perennial   drew votes across many seasons and won none of THESE awards.
+ *               The career that was always nearly enough. The scope matters:
+ *               the first real build said "never won anything" about John
+ *               Stockton and Dwyane Wade, which is false about their careers
+ *               and true only about the seven awards in this file.
  *   one-top-five one top-five finish in a career and never another. A single
  *               season that stands up out of the rest of it.
  *   cliff       drew votes, then was out of the league within a few seasons.
@@ -22,8 +25,8 @@
  * not play - and the amount of clear air is a named constant rather than a
  * feeling.
  *
- * "Never won anything" is a claim about every award, so it can only be made
- * across the awards the file actually covers. A file holding Clutch Player of
+ * "Won none of them" is a claim about awards, so it can only be made across the
+ * awards the file actually covers. A file holding Clutch Player of
  * the Year for four seasons cannot support "never won anything" about a career
  * that ended in 1999, and it does not have to: the claim is about the awards
  * whose history spans the career.
@@ -45,12 +48,22 @@ export const TOP = 5;
  * @param {Array} votes  awardVotes rows: { PLAYER, AWARD, RNK, YEAR }
  * @param {Map} lastSeason  player -> the last season he appears in rsStats
  * @param {object} opts  { dataTo: the last season the data covers,
- *                         awardSpan: Map award -> {from, to} }
+ *                         awardSpan: Map award -> {from, to},
+ *                         prestige: Map award -> rank, lower being the more
+ *                           prestigious. Without it "best finish" is decided by
+ *                           the placing alone, which makes second in Most
+ *                           Improved beat fifth in MVP - true arithmetic and
+ *                           the wrong sentence. The order is league knowledge,
+ *                           so the caller owns it and this file does not
+ *                           pretend to. }
  * @returns {Array} facts, each { kind, player, ... }, unordered
  */
 export function careerOddities(votes, lastSeason, opts) {
   const o = Object.assign({ goneAfter: GONE_AFTER,
                             perennialMin: PERENNIAL_MIN_SEASONS }, opts || {});
+  const prestige = o.prestige && o.prestige.get
+    ? (a => (o.prestige.has(a) ? o.prestige.get(a) : 99))
+    : (() => 0);
   const dataTo = o.dataTo || 0;
   const awardSpan = o.awardSpan || new Map();
 
@@ -97,7 +110,12 @@ export function careerOddities(votes, lastSeason, opts) {
         kind: "perennial", player: p.player, seasons, votes: p.votes,
         from: p.first, to: p.last, awards: [...p.awards].sort(),
         coverable: coverable.length,
-        best: p.topFives.slice().sort((a, b) => a.rnk - b.rnk)[0] || null
+        /* Most prestigious award he made a top five in, then his best placing
+         * inside it. Sorting on the placing alone is what produced "his best
+         * finish was second for Most Improved Player" for a man with top-five
+         * MVP seasons. */
+        best: p.topFives.slice().sort((a, b) =>
+          (prestige(a.award) - prestige(b.award)) || (a.rnk - b.rnk))[0] || null
       });
     }
 
