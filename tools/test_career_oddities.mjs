@@ -72,6 +72,40 @@ console.log("\nthe career that was always nearly enough");
      !kinds(facts, "Modern").includes("perennial"));
 }
 
+console.log("\nwhich finish counts as the best one");
+
+{
+  /* THE SENTENCE THIS FIXES. Sorting the top fives by placing alone said "his
+   * best finish was second for Most Improved Player" about a man with a
+   * top-five MVP season, because 2 is less than 5. */
+  const PRESTIGE = new Map([["MVP", 0], ["DPOY", 1], ["MIP", 3], ["Sixth Man", 4]]);
+  const votes = [];
+  for (let y = 2000; y < 2010; y++) votes.push(v("Both", "MVP", y, y === 2004 ? 5 : 9));
+  votes.push(v("Both", "MIP", 2001, 2));
+  const withOrder = careerOddities(votes, new Map(),
+    { dataTo: 2026, awardSpan: SPANS, prestige: PRESTIGE });
+  const f = one(withOrder, "Both", "perennial");
+  ck("the more prestigious award wins over the better placing",
+     f && f.best.award === "MVP" && f.best.rnk === 5,
+     f && f.best.award + " " + f.best.rnk);
+
+  /* Without an order the library does not invent one: it falls back to the
+   * placing, which is the old behaviour and still what a caller with no view
+   * on prestige should get. */
+  const without = one(careerOddities(votes, new Map(), { dataTo: 2026, awardSpan: SPANS }),
+    "Both", "perennial");
+  ck("with no order given, the placing decides",
+     without && without.best.award === "MIP" && without.best.rnk === 2,
+     without && without.best.award + " " + without.best.rnk);
+
+  /* An award the order does not mention sorts last rather than first. */
+  const partial = new Map([["MVP", 0]]);
+  const f2 = one(careerOddities(votes, new Map(),
+    { dataTo: 2026, awardSpan: SPANS, prestige: partial }), "Both", "perennial");
+  ck("an unranked award does not outrank a ranked one",
+     f2 && f2.best.award === "MVP", f2 && f2.best.award);
+}
+
 console.log("\none season that stands up out of a career");
 
 {
