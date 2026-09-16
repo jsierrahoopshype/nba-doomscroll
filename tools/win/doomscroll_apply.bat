@@ -290,6 +290,22 @@ REM  Called once per candidate, newest first, and stops at the first one that
 REM  fits. Nothing is applied here - `--check` reports and changes nothing.
 REM ===========================================================================
 :trypatch
+REM  ALREADY APPLIED IS NOT APPLICABLE.
+REM
+REM  This check has to come first. `git apply --3way --check` SUCCEEDS on a
+REM  patch whose changes are already in the tree - there is nothing left to do,
+REM  which is not an error - so without this the script accepts a patch it
+REM  already has, git am says "No changes -- Patch already applied", and the run
+REM  prints the previous commit's diffstat as though something had landed. It
+REM  cost a full run: the patch that was actually waiting was older by date, so
+REM  newest-first never reached it. Reversing a patch cleanly is the test for
+REM  "the tree already contains this".
+git apply --reverse --check "%~1" >nul 2>&1
+if not errorlevel 1 (
+  echo    skipping %~nx1 - already applied
+  if defined SKIPPED (set "SKIPPED=!SKIPPED! %~nx1") else (set "SKIPPED=%~nx1")
+  goto :eof
+)
 git apply --check "%~1" >nul 2>&1
 if not errorlevel 1 (
   set "PATCHFILE=%~1"
