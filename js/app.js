@@ -110,7 +110,13 @@
              /* Franchise droughts from 71 seasons of official award voting.
               * Its ids start "oddity-hist-" so the prefix table below already
               * routes them here - this line is the whole wiring. */
-             "data/award-history-pool.json"],
+             "data/award-history-pool.json",
+             /* Records that stood and the seasons that ended them, from the
+              * league schedule. Ids start "oddity-rec-", so the prefix table
+              * below routes them here too and this line is again the whole
+              * wiring. The vault needed content that is surprising rather than
+              * dated: it was 82% on-this-day cards. */
+             "data/record-pool.json"],
     races:  ["data/race-pool.json", "data/ballotrace-pool.json"],
     /* FRIVOLITIES ARE OFF. Jorge's call, Sept 2026: the cards were weak.
      *
@@ -171,7 +177,9 @@
      * a normal state - and better than committing a placeholder, because an
      * empty pool that exists is indistinguishable from a build that produced
      * nothing. */
-    "data/award-history-pool.json": 1
+    "data/award-history-pool.json": 1,
+    /* Built from the league game log by tools/build_records.mjs. */
+    "data/record-pool.json": 1
   };
   var poolPromises = {};
   // Set when a live source could not be reached, so the tab can say so instead
