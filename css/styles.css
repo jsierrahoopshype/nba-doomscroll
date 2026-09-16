@@ -154,6 +154,17 @@ a:hover{ text-decoration:underline }
   padding:1.1rem 1rem .9rem; font-size:.7rem; opacity:.75;
   border-top:1px solid var(--border);
 }
+/* Where cards used to be, before trimFeed() reclaimed them. It keeps the exact
+   height it replaced so nothing moves under the reader's thumb, which means a
+   long session leaves a tall empty region up there. The label is sticky so it
+   is visible wherever in that region somebody stops, rather than sitting at the
+   top of twenty thousand pixels of nothing and reading as a broken feed. */
+.card-trimmed{ position:relative; overflow:hidden }
+.card-trimmed span{
+  position:sticky; top:45vh; display:block; text-align:center;
+  font-family:'JetBrains Mono',monospace; font-size:.68rem;
+  color:var(--text-secondary); opacity:.6;
+}
 .card{
   background:var(--surface); border:1px solid var(--border); border-radius:12px;
   padding:.8rem .9rem; transition:.15s; position:relative;

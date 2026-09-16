@@ -944,7 +944,31 @@
    * mode keeps the end note it has always had.
    */
 
-  function drawFrom(pool, avoid, newestFirst) {
+  /* The media-heavy types, one per batch each, everywhere.
+   *
+   * These exist for For You, where a run of autoplaying clips stacked in one
+   * batch is visually noisy and the one thing here that costs real data. */
+  var MIXED_CAPS = { race: 1, mates: 1, compare: 1, lean: 1, vs: 1 };
+
+  /* THE VS TAB NEEDS ITS OWN, AND THIS IS WHY.
+   *
+   * A cap table shared by every tab is fine until a tab's ENTIRE contents are
+   * capped types. The VS tab holds exactly three - vs, compare, mates - and
+   * MIXED_CAPS caps all three at one, so sampleMixed ran out of eligible types
+   * after three picks and broke out of its loop. Batches of three, in a tab
+   * asking for eight, from a pool of 4,120 cards. Nothing failed: the reader
+   * just got a shorter scroll and a third of it was score cards, when the point
+   * of adding `vs` to that table was to make score cards a fifth.
+   *
+   * So the VS tab caps the one type Jorge wanted less of and leaves the video
+   * comparisons uncapped to carry the tab. Two of eight is a quarter, which is
+   * the closest a whole number of cards gets to a fifth; the learned weights
+   * push it below that for a reader who skips them, and the cap stops it going
+   * above for one who does not.
+   */
+  var VS_TAB_CAPS = { vs: 2 };
+
+  function drawFrom(pool, avoid, newestFirst, caps) {
     if (!pool.length) return [];
     // Any pool holding more than one card type gets the type-balanced draw.
     // Vault is the reason: its ~8 on-this-day cards for the current date would
@@ -959,12 +983,12 @@
       // How big that share is now depends on the reader and on how much fresh
       // Buzz there actually is - see buzzShare().
       //
-      // `vs` joins the per-batch caps. Those score cards were crowding the VS
-      // tab and Jorge wants the video comparisons carrying it instead; one per
-      // batch of eight is the bluntest version of "much less often" available
-      // here, and it is roughly a fifth of what the tab was showing.
+      // `vs` is in MIXED_CAPS because those score cards were crowding the feed
+      // and Jorge wants the video comparisons carrying that content instead.
+      // The VS tab passes its own table - see VS_TAB_CAPS for why a shared one
+      // cannot serve a tab whose every type is capped.
       ? E.sampleMixed(pool, BATCH, {
-          cap: { race: 1, mates: 1, compare: 1, lean: 1, vs: 1 },
+          cap: caps || MIXED_CAPS,
           share: { buzz: buzzShare(pool) },
           avoid: avoid
         })
@@ -1034,7 +1058,11 @@
        * batch does not repeat it. Twelve cards is roughly a screen and a half on
        * a phone: long enough that a repeat would be noticed, short enough that a
        * favourite player is still allowed to come back. */
-      batch = drawFrom(pool, recentlyShown(), own && state.tab === "buzz");
+      /* The VS tab's own caps apply only while it is drawing its OWN section.
+       * A spilled or looped batch is the whole app, where vs is one type among
+       * a dozen and MIXED_CAPS is the right table. */
+      batch = drawFrom(pool, recentlyShown(), own && state.tab === "buzz",
+                       own && state.tab === "vs" ? VS_TAB_CAPS : null);
       if (!batch.length && !advancePhase()) break;
     }
 
@@ -1081,7 +1109,90 @@
       feedEl.appendChild(node);
     }
     insertDaily();
+    trimFeed();
     state.loading = false;
+  }
+
+  /* ---------------- keeping the DOM finite ----------------
+   *
+   * The feed used to end, and the end was also the cap: a few hundred cards and
+   * the reader ran out. Then it started spilling and looping, which was the
+   * right call and removed the only thing bounding the DOM. A long session now
+   * accumulates cards without limit - each one carrying a headshot, some an
+   * <img>, a few a canvas or a video element - and the phone gets slower the
+   * longer somebody enjoys the app.
+   *
+   * WHY SPACERS RATHER THAN JUST REMOVING THEM
+   *
+   * .feed is a grid, so every card is a row and removing one shortens the page.
+   * The browser keeps scrollTop, so the content under the reader's thumb would
+   * jump by however much was removed. Chrome and Firefox have scroll anchoring
+   * that compensates; Safari does not, and a phone is where this matters. So a
+   * trimmed region leaves a spacer of exactly the height it replaced, and
+   * nothing moves. Contiguous spacers merge into one, absorbing the grid gap
+   * each removed row also took, so the DOM is genuinely bounded rather than
+   * trading a card for a div.
+   *
+   * WHAT IS NEVER TRIMMED
+   *
+   *   the Daily Five      insertDaily() guards on the element being in the DOM,
+   *                       so trimming it would make it reappear ten cards down
+   *   its five questions  they are nested .card elements inside it, which is
+   *                       also why this only ever touches direct children
+   *   anything near the   three screens of margin, on top of the card count,
+   *   viewport            because a reader scrolling back up a screen or two is
+   *                       ordinary and finding a hole there is not
+   *
+   * The reader who scrolls a long way back up does reach the region, and it
+   * says what happened rather than looking broken.
+   */
+  var KEEP_CARDS = 60;        // live cards behind the reader before trimming
+  var TRIM_SCREENS = 3;       // and none within this many screens of the view
+
+  function trimFeed() {
+    var cards = feedEl.querySelectorAll(".card");
+    var over = cards.length - KEEP_CARDS;
+    if (over <= 0) return;
+
+    var gap = parseFloat(getComputedStyle(feedEl).rowGap) || 0;
+    var edge = -(window.innerHeight * TRIM_SCREENS);
+
+    for (var i = 0; i < over; i++) {
+      var el = cards[i];
+      /* Direct children only: the Daily Five's questions are nested cards and
+       * removing one would gut the card that holds them. */
+      if (!el || el.parentNode !== feedEl) continue;
+      if (/^daily-/.test(el.dataset.id || "")) continue;
+
+      var rect = el.getBoundingClientRect();
+      /* Document order, so once one card is inside the live zone every card
+       * after it is too. */
+      if (rect.bottom > edge) break;
+
+      /* A race holds a requestAnimationFrame loop and a resize listener, and a
+       * playing video keeps streaming, so both outlive the node unless asked
+       * not to. Same three calls clearFeed() makes, scoped to one card. */
+      destroyRaces(el);
+      if (root.BskyVideo) BskyVideo.releaseAll(el);
+      if (root.YtVideo) YtVideo.releaseAll(el);
+      skimObserver.unobserve(el);
+      visTimes.delete(el);
+
+      var height = Math.round(rect.height);
+      var prev = el.previousElementSibling;
+      if (prev && prev.classList.contains("card-trimmed")) {
+        /* Merge. The removed row took a grid gap with it, so the spacer has to
+         * absorb that too or the feed creeps upward by 0.6rem a card. */
+        prev.style.height = (parseFloat(prev.style.height) || 0) + height + gap + "px";
+        feedEl.removeChild(el);
+      } else {
+        var sp = document.createElement("div");
+        sp.className = "card-trimmed";
+        sp.style.height = height + "px";
+        sp.innerHTML = '<span>Earlier cards were cleared to keep scrolling smooth.</span>';
+        feedEl.replaceChild(sp, el);
+      }
+    }
   }
 
   function decorate(cardEl) {
