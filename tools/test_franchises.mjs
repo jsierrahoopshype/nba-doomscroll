@@ -93,10 +93,15 @@ ck("Philadelphia was Syracuse in 1960", identity("sixers", 1960).nick === "Natio
 ck("a Syracuse player gets no singular", identity("sixers", 1960).sing === null);
 ck("a 76er does", identity("sixers", 2026).sing === "Sixer");
 /* A season earlier than the table's earliest entry falls back to the OLDEST
- * identity. The table's first era may predate what it records; a 1950 season
- * in the Hawks lineage should read Milwaukee, never Atlanta. */
+ * identity, never the newest: a 1949 season in the Hawks lineage must not read
+ * Atlanta. The example used to be 1950 reading Milwaukee, from when the table
+ * had no Tri-Cities era - the Blackhawks really did play in Moline in 1950, so
+ * the table is now right and the fallback needs a year that predates even that. */
 ck("a year before the first era falls back to the oldest identity",
-   identity("hawks", 1950).city === "Milwaukee", identity("hawks", 1950).city);
+   identity("hawks", 1949).city === "Tri-Cities", identity("hawks", 1949).city);
+ck("and the era it actually played in wins over the fallback",
+   identity("hawks", 1951).city === "Tri-Cities" && identity("hawks", 1955).city === "Milwaukee",
+   identity("hawks", 1951).city + " / " + identity("hawks", 1955).city);
 ck("and does not throw", !!identity("raptors", 1970));
 ck("an unknown key yields nothing", identity("sonics", 1990) === null);
 
@@ -236,7 +241,24 @@ const CASES = [
 
 /* What must be refused: guessing here puts a payroll on the wrong record. */
 ck("bare Los Angeles is ambiguous and refused", franchiseOf("Los Angeles", 2010) === null);
-ck("a team that is not in the table is refused", franchiseOf("Tri-Cities Blackhawks", 1950) === null);
+/* A franchise with no descendant. The Stags, the Capitols, the Bombers and the
+ * original Baltimore Bullets all folded, so there is nothing for a card to
+ * name and a guess would put their games on a living team's record. Tri-Cities
+ * used to be the example here, which was only true because the table was
+ * missing an era of a franchise that is still playing. */
+ck("a franchise that folded is refused", franchiseOf("Chicago Stags", 1950) === null);
+ck("so is another", franchiseOf("Washington Capitols", 1950) === null);
+ck("but a defunct NAME of a living franchise is not",
+   franchiseOf("Tri-Cities Blackhawks", 1951) === "hawks",
+   String(franchiseOf("Tri-Cities Blackhawks", 1951)));
+/* The abbreviation the league's own game log uses for the Pistons' first home.
+ * 665 rows resolved to nothing until fold() expanded it. */
+ck("Ft. Wayne is Fort Wayne", franchiseOf("Ft. Wayne Zollner Pistons", 1955) === "pistons",
+   String(franchiseOf("Ft. Wayne Zollner Pistons", 1955)));
+ck("and St. Louis still is Saint Louis", franchiseOf("St. Louis Hawks", 1960) === "hawks");
+ck("expanding one abbreviation did not break a nickname containing it",
+   franchiseOf("Detroit Pistons", 2020) === "pistons" &&
+   franchiseOf("Boston Celtics", 1960) === "celtics");
 ck("a franchise before it existed is refused", franchiseOf("Toronto Raptors", 1990) === null);
 /* No Charlotte team played in 2003-04. Matching every name a franchise has
  * ever had would hand this to the old Hornets, by then in New Orleans. */
