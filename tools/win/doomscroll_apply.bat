@@ -171,24 +171,33 @@ echo.
 REM --- Test -----------------------------------------------------------------
 REM  Every test in the repo, every time. They take seconds and they are the
 REM  only thing standing between a patch that applies and a patch that works.
+REM
+REM  AND A GATE THAT HIDES ITS EVIDENCE IS HALF A GATE.
+REM
+REM  This loop used to run every test with >nul 2>&1 and keep nothing but the
+REM  exit code. test_freshness then failed twice in a row here and passed
+REM  twenty times out of twenty on its own a few minutes later, and there was
+REM  no way to tell what had happened because the output was gone. Both runs
+REM  were seconds after git am wrote three new files, which is when Defender
+REM  locks them, and a node process that trips over that exits non-zero with
+REM  nothing printed.
+REM
+REM  So: keep each test's output, retry once before believing a failure, and
+REM  print the tail of the log for whatever still fails. A transient no longer
+REM  blocks a good patch, and a real failure arrives with its reason attached.
 echo  running tests...
 set "FAILED="
-for %%t in (tools\test_*.mjs) do (
-  node "%%t" >nul 2>&1
-  if errorlevel 1 (
-    echo    FAIL  %%~nt
-    set "FAILED=1"
-  ) else (
-    echo    ok    %%~nt
-  )
-)
+set "TESTLOGS=%TEMP%\doomscroll-tests"
+if not exist "%TESTLOGS%" mkdir "%TESTLOGS%"
+for %%t in (tools\test_*.mjs) do call :runtest "%%t" "%%~nt"
 echo.
 
 if defined FAILED (
   echo  ============================================================
-  echo   A TEST FAILED. The commit is here locally but do not push.
-  echo   Run the failing one on its own to see why:
-  echo       node tools\test_^<name^>.mjs
+  echo   A TEST FAILED TWICE. The commit is here locally but do not push.
+  echo   The last lines of each failure are above, and the full logs are in:
+  echo       %TESTLOGS%
+  echo   Run one on its own with:      node tools\test_^<name^>.mjs
   echo   To undo the commit entirely:  git reset --hard HEAD~1
   echo  ============================================================
   echo.
@@ -241,6 +250,38 @@ if errorlevel 1 (
 echo.
 pause
 exit /b 0
+
+REM ===========================================================================
+REM  One test: run it, retry once, and show why if it still fails.
+REM
+REM  %1 is the path, %2 the bare name. The retry is what makes a Defender lock
+REM  or any other one-off stop blocking a patch, and the log tail is what makes
+REM  a real failure readable without asking anyone to run it again by hand.
+REM ===========================================================================
+:runtest
+set "LOG=%TESTLOGS%\%~2.txt"
+node "%~1" >"%LOG%" 2>&1
+set "RC=%errorlevel%"
+if "%RC%"=="0" (
+  echo    ok    %~2
+  goto :eof
+)
+REM  The retry writes its own log. Overwriting the first one would destroy the
+REM  only record of a transient, which is the thing that was missing the day
+REM  this was written.
+node "%~1" >"%LOG%.retry.txt" 2>&1
+set "RC2=%errorlevel%"
+if "%RC2%"=="0" (
+  echo    ok    %~2   ^(first run exited %RC%, passed on the retry^)
+  echo          the failed run is kept at %LOG%
+  goto :eof
+)
+echo    FAIL  %~2   ^(exit %RC2%, twice^)
+set "FAILED=1"
+echo    ------------------------------------------------------------
+powershell -NoProfile -Command "Get-Content -Tail 15 -LiteralPath '%LOG%.retry.txt' | ForEach-Object { '      ' + $_ }" 2>nul
+echo    ------------------------------------------------------------
+goto :eof
 
 REM ===========================================================================
 REM  Does this patch apply to THIS repo?
