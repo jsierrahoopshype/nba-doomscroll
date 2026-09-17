@@ -8,7 +8,7 @@
  * gone, the data stops. Most of these check that kind of restraint.
  */
 
-import { careerOddities, awardSpans, GONE_AFTER, PERENNIAL_MIN_SEASONS }
+import { careerOddities, awardSpans, GONE_AFTER, PERENNIAL_MIN_SEASONS, AFTER_MAX }
   from "./lib/career_oddities.mjs";
 
 let fail = 0;
@@ -167,6 +167,99 @@ console.log("\nthe cliff, and the reason it is usually not one");
   ck("votes a decade before retirement is not a cliff",
      !kinds(facts, "Long Career").includes("cliff"));
 }
+
+{
+  /* THE CARDS THAT WERE NOT A FALL. At an unnamed 2 this admitted Bernard King
+   * drawing a Most Improved vote at 34, playing two more seasons and retiring,
+   * which is a career ending on time rather than a man falling off anything. */
+  const twoMore = careerOddities([v("Wound Down", "MVP", 2010, 9)],
+    new Map([["Wound Down", 2012]]), { dataTo: 2026, awardSpan: SPANS });
+  ck("two more seasons after the last ballot is not a cliff",
+     !twoMore.some(f => f.kind === "cliff"));
+
+  const oneMore = careerOddities([v("Fell Off Fast", "MVP", 2010, 9)],
+    new Map([["Fell Off Fast", 2011]]), { dataTo: 2026, awardSpan: SPANS });
+  ck("one more season still is", oneMore.some(f => f.kind === "cliff"));
+  ck("and the bar is a named constant", AFTER_MAX === 1, String(AFTER_MAX));
+
+  /* A caller who wants the wider net can still ask for it, so the number is a
+   * default rather than a rule baked into the branch. */
+  ck("the caller can widen it",
+     careerOddities([v("Wound Down", "MVP", 2010, 9)],
+       new Map([["Wound Down", 2012]]),
+       { dataTo: 2026, awardSpan: SPANS, afterMax: 2 }).some(f => f.kind === "cliff"));
+}
+
+console.log("\nwhat the last ballots were actually for");
+
+{
+  /* THE AWARD THE CARD USED TO NAME BY LUCK. When the final season was not a
+   * top five, the fact fell back to the first award anywhere in the career, in
+   * row order. Here that is ROY, from a rookie season eleven years earlier,
+   * and the vote he actually drew on the way out was for Sixth Man. */
+  const votes = [
+    v("Late Bloomer", "ROY", 2010, 8),
+    v("Late Bloomer", "MVP", 2015, 11),
+    v("Late Bloomer", "Sixth Man", 2021, 9)
+  ];
+  const f = one(careerOddities(votes, new Map([["Late Bloomer", 2021]]),
+    { dataTo: 2026, awardSpan: SPANS }), "Late Bloomer", "cliff");
+  ck("the award is the one from his final season", f && f.award === "Sixth Man",
+     f && f.award);
+  ck("a down-ballot finish is neither a win nor a top five",
+     f && f.won === false && f.topFive === false);
+}
+
+{
+  /* A win in the final season. The card that said "Bill Walton drew a Sixth Man
+   * of the Year vote in 1985-86" about the man who won it. */
+  const votes = [v("Went Out On Top", "Sixth Man", 2014, 1),
+                 v("Went Out On Top", "MVP", 2009, 14)];
+  const f = one(careerOddities(votes, new Map([["Went Out On Top", 2014]]),
+    { dataTo: 2026, awardSpan: SPANS }), "Went Out On Top", "cliff");
+  ck("a win in the last season is flagged as a win", f && f.won === true);
+  ck("and it names the award he won, not the one he polled 14th for",
+     f && f.award === "Sixth Man", f && f.award);
+  ck("a win is not also reported as a top five", f && f.topFive === false);
+}
+
+{
+  /* A top-five finish in the final season: the Bill Russell shape. Still one of
+   * the best players the voters could name, and then gone. */
+  const f = one(careerOddities([v("Walked Away", "MVP", 2012, 4)],
+    new Map([["Walked Away", 2012]]), { dataTo: 2026, awardSpan: SPANS }),
+    "Walked Away", "cliff");
+  ck("a top-five finish in the last season is flagged", f && f.topFive === true);
+  ck("it keeps the placing", f && f.rnk === 4);
+  ck("and nothing after it", f && f.after === 0);
+}
+
+{
+  /* A win beats a better placing when both land in the same final season,
+   * because winning is the fact and 2 < 1 is arithmetic. */
+  const PRESTIGE = new Map([["MVP", 0], ["Sixth Man", 4]]);
+  const f = one(careerOddities(
+    [v("Both In One Year", "MVP", 2012, 2), v("Both In One Year", "Sixth Man", 2012, 1)],
+    new Map([["Both In One Year", 2012]]),
+    { dataTo: 2026, awardSpan: SPANS, prestige: PRESTIGE }), "Both In One Year", "cliff");
+  ck("the award he won outranks the award he nearly won",
+     f && f.award === "Sixth Man" && f.won === true, f && f.award);
+}
+
+{
+  /* Sorting is the caller's job, but the fields it needs are not optional.
+   * Cliff facts had no `seasons`, so the builder's comparator fell through to
+   * the player's name and published the alphabet. */
+  const f = one(careerOddities(
+    [v("Has Seasons", "MVP", 2009, 9), v("Has Seasons", "MVP", 2010, 9)],
+    new Map([["Has Seasons", 2011]]), { dataTo: 2026, awardSpan: SPANS }),
+    "Has Seasons", "cliff");
+  ck("a cliff carries the fields a caller has to rank it by",
+     f && f.seasons === 2 && f.votes === 2 && typeof f.rnk !== "undefined",
+     f && `seasons ${f.seasons} votes ${f.votes}`);
+}
+
+console.log("\nthe cliff, continued");
 
 {
   /* No stats row at all: nothing is known about when he stopped, so nothing is
