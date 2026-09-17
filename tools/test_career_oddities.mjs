@@ -8,7 +8,8 @@
  * gone, the data stops. Most of these check that kind of restraint.
  */
 
-import { careerOddities, awardSpans, GONE_AFTER, PERENNIAL_MIN_SEASONS, AFTER_MAX }
+import { careerOddities, awardSpans, suspectSpans, contestedWins,
+         GONE_AFTER, PERENNIAL_MIN_SEASONS, AFTER_MAX, AFTER_MIN, MAX_CAREER_SPAN }
   from "./lib/career_oddities.mjs";
 
 let fail = 0;
@@ -202,7 +203,7 @@ console.log("\nwhat the last ballots were actually for");
     v("Late Bloomer", "MVP", 2015, 11),
     v("Late Bloomer", "Sixth Man", 2021, 9)
   ];
-  const f = one(careerOddities(votes, new Map([["Late Bloomer", 2021]]),
+  const f = one(careerOddities(votes, new Map([["Late Bloomer", 2022]]),
     { dataTo: 2026, awardSpan: SPANS }), "Late Bloomer", "cliff");
   ck("the award is the one from his final season", f && f.award === "Sixth Man",
      f && f.award);
@@ -215,7 +216,7 @@ console.log("\nwhat the last ballots were actually for");
    * of the Year vote in 1985-86" about the man who won it. */
   const votes = [v("Went Out On Top", "Sixth Man", 2014, 1),
                  v("Went Out On Top", "MVP", 2009, 14)];
-  const f = one(careerOddities(votes, new Map([["Went Out On Top", 2014]]),
+  const f = one(careerOddities(votes, new Map([["Went Out On Top", 2015]]),
     { dataTo: 2026, awardSpan: SPANS }), "Went Out On Top", "cliff");
   ck("a win in the last season is flagged as a win", f && f.won === true);
   ck("and it names the award he won, not the one he polled 14th for",
@@ -224,14 +225,145 @@ console.log("\nwhat the last ballots were actually for");
 }
 
 {
-  /* A top-five finish in the final season: the Bill Russell shape. Still one of
-   * the best players the voters could name, and then gone. */
+  /* A top-five finish with a season still to play after it. The placing and the
+   * flag both survive; what does not survive is the version with NOTHING after
+   * it, which is the next block. */
   const f = one(careerOddities([v("Walked Away", "MVP", 2012, 4)],
-    new Map([["Walked Away", 2012]]), { dataTo: 2026, awardSpan: SPANS }),
+    new Map([["Walked Away", 2013]]), { dataTo: 2026, awardSpan: SPANS }),
     "Walked Away", "cliff");
-  ck("a top-five finish in the last season is flagged", f && f.topFive === true);
+  ck("a top-five finish before the end is flagged", f && f.topFive === true);
   ck("it keeps the placing", f && f.rnk === 4);
-  ck("and nothing after it", f && f.after === 0);
+  ck("and counts the season after it", f && f.after === 1);
+}
+
+console.log("\nthe careers this file must not explain");
+
+{
+  /* MAURICE STOKES. Fifth in the 1957-58 MVP voting and never played again: a
+   * head injury in March 1958 left him permanently paralysed. The card read
+   * "The voters still had him among the best in the league in the last season
+   * he played", which is true, and a curiosity made out of a catastrophe.
+   *
+   * An excellent season followed immediately by nothing IS the shape of a
+   * career ended by injury. The file holds ballots and games played and cannot
+   * tell that from a man choosing to stop, so it no longer tries. */
+  const instant = careerOddities([v("Stopped At Once", "MVP", 1958, 5)],
+    new Map([["Stopped At Once", 1958]]), { dataTo: 2026, awardSpan: SPANS });
+  ck("a great season and then nothing at all is not a card",
+     !instant.some(f => f.kind === "cliff"),
+     instant.map(f => f.kind).join(",") || "(no facts)");
+
+  /* The same gate costs Wilt Chamberlain and Bill Russell, which is the price
+   * and is recorded here so nobody removes it thinking it was free. */
+  const wilt = careerOddities([v("Fourth And Gone", "MVP", 1973, 4)],
+    new Map([["Fourth And Gone", 1973]]), { dataTo: 2026, awardSpan: SPANS });
+  ck("and neither is the same shape about a man who chose to stop",
+     !wilt.some(f => f.kind === "cliff"));
+
+  ck("the floor is a named constant", AFTER_MIN === 1, String(AFTER_MIN));
+  ck("a caller who wants those careers back can lower it",
+     careerOddities([v("Stopped At Once", "MVP", 1958, 5)],
+       new Map([["Stopped At Once", 1958]]),
+       { dataTo: 2026, awardSpan: SPANS, afterMin: 0 }).some(f => f.kind === "cliff"));
+}
+
+console.log("\nthe career that is not over yet");
+
+{
+  /* COOPER FLAGG. Won Rookie of the Year in 2025-26 and starts his second
+   * season next month. "Never drew another vote for anything" was said about
+   * him, because one-shot was the only shape with no gate at all. */
+  const rookie = careerOddities([v("Reigning Rookie", "ROY", 2026, 1)],
+    new Map([["Reigning Rookie", 2026]]), { dataTo: 2026, awardSpan: SPANS });
+  ck("the reigning Rookie of the Year is not a one-shot",
+     !rookie.some(f => f.kind === "one-shot"),
+     rookie.map(f => f.kind).join(",") || "(no facts)");
+
+  const retired = careerOddities([v("Long Retired", "ROY", 2010, 1)],
+    new Map([["Long Retired", 2012]]), { dataTo: 2026, awardSpan: SPANS });
+  ck("a man fourteen seasons gone is", retired.some(f => f.kind === "one-shot"));
+
+  /* No stats row at all means nothing is known about whether he finished. */
+  ck("a winner with no last season is not a one-shot either",
+     !careerOddities([v("Unknown End", "ROY", 2010, 1)], new Map(),
+       { dataTo: 2026, awardSpan: SPANS }).some(f => f.kind === "one-shot"));
+}
+
+console.log("\ntwo people under one name");
+
+{
+  /* TIM HARDAWAY AND TIM HARDAWAY JR. Twelve ballot appearances "between
+   * 1990-91 and 2023-24" was published as one man's career. */
+  const votes = [];
+  for (const y of [1991, 1992, 1997, 1998, 2014, 2019, 2024]) {
+    votes.push(v("Father And Son", "MVP", y, 8));
+  }
+  const facts = careerOddities(votes, new Map([["Father And Son", 2024]]),
+    { dataTo: 2026, awardSpan: SPANS });
+  ck("a 33-season span produces no cards at all", facts.length === 0,
+     facts.map(f => f.kind).join(",") || "(none)");
+
+  /* The bar has to clear the longest real career. LeBron James debuted in
+   * 2003-04 and was still drawing votes in 2025-26: a span of 22. */
+  const long = [];
+  for (const y of [2004, 2007, 2010, 2013, 2016, 2019, 2022, 2026]) {
+    long.push(v("Very Long Career", "MVP", y, 3));
+  }
+  ck("a 22-season career still gets its card",
+     careerOddities(long, new Map([["Very Long Career", 2026]]),
+       { dataTo: 2026, awardSpan: SPANS }).length > 0);
+  ck("and the bar sits above it", MAX_CAREER_SPAN > 22, String(MAX_CAREER_SPAN));
+
+  /* Dropping them silently is how it got published, so they are nameable. */
+  const named = suspectSpans(votes);
+  ck("the dropped name is reported, not just dropped",
+     named.length === 1 && named[0].player === "Father And Son" && named[0].span === 33,
+     named.map(s => `${s.player} ${s.span}`).join(", ") || "(none reported)");
+  ck("a real career is not reported", suspectSpans(long).length === 0);
+}
+
+console.log("\nrows that cannot both be true");
+
+{
+  /* MARVIN BARNES "won MVP in 1974-75". Bob McAdoo won it; Barnes was ABA
+   * Rookie of the Year, in another league. One of those rows is wrong and this
+   * file cannot tell which, so it says so instead of choosing. Co-winners are
+   * real, which is why this reports rather than drops. */
+  const two = contestedWins([
+    v("Real Winner", "MVP", 1975, 1), v("Stray Row", "MVP", 1975, 1),
+    v("Somebody", "MVP", 1975, 4)
+  ]);
+  ck("two first places in one award-season is reported",
+     two.length === 1 && two[0].players.length === 2, JSON.stringify(two));
+  ck("one first place is not", contestedWins([v("Alone", "MVP", 1975, 1)]).length === 0);
+
+  /* Reporting it is not enough. The first build published BOTH men as the
+   * winner of the same MVP, so no card may call either of them that. */
+  const votes = [
+    v("Real Winner", "MVP", 1975, 1), v("Stray Row", "MVP", 1975, 1)
+  ];
+  const last = new Map([["Real Winner", 1976], ["Stray Row", 1976]]);
+  const facts = careerOddities(votes, last, { dataTo: 2026, awardSpan: SPANS });
+  ck("a disputed first place is not a win",
+     !facts.some(f => f.won), JSON.stringify(facts.filter(f => f.won)));
+  ck("and not a one-shot either, since the win is its whole premise",
+     !facts.some(f => f.kind === "one-shot"),
+     facts.map(f => f.kind).join(",") || "(none)");
+  ck("the man keeps his ballot appearance, so the cliff survives",
+     facts.some(f => f.kind === "cliff" && f.award === "MVP"));
+  ck("and it is not ranked as though the first place were real",
+     facts.filter(f => f.kind === "cliff").every(f => f.rnk === null),
+     JSON.stringify(facts.filter(f => f.kind === "cliff").map(f => f.rnk)));
+
+  /* An undisputed win in the same shape still works, so the gate is about the
+   * dispute and not about winning. */
+  const clean = careerOddities([v("Sole Winner", "MVP", 1975, 1)],
+    new Map([["Sole Winner", 1976]]), { dataTo: 2026, awardSpan: SPANS });
+  ck("an uncontested first place is still a win",
+     clean.some(f => f.kind === "cliff" && f.won === true));
+  ck("and neither is an empty file", contestedWins([]).length === 0);
+  ck("undefined does not throw", contestedWins(undefined).length === 0);
+  ck("nor does it for spans", suspectSpans(undefined).length === 0);
 }
 
 {
@@ -240,7 +372,7 @@ console.log("\nwhat the last ballots were actually for");
   const PRESTIGE = new Map([["MVP", 0], ["Sixth Man", 4]]);
   const f = one(careerOddities(
     [v("Both In One Year", "MVP", 2012, 2), v("Both In One Year", "Sixth Man", 2012, 1)],
-    new Map([["Both In One Year", 2012]]),
+    new Map([["Both In One Year", 2013]]),
     { dataTo: 2026, awardSpan: SPANS, prestige: PRESTIGE }), "Both In One Year", "cliff");
   ck("the award he won outranks the award he nearly won",
      f && f.award === "Sixth Man" && f.won === true, f && f.award);
@@ -276,7 +408,7 @@ console.log("\nthe cliff, continued");
 console.log("\nthe one-shot");
 
 {
-  const facts = careerOddities([v("One Shot", "Sixth Man", 2014, 1)], new Map(),
+  const facts = careerOddities([v("One Shot", "Sixth Man", 2014, 1)], new Map([["One Shot", 2016]]),
     { dataTo: 2026, awardSpan: SPANS });
   const f = one(facts, "One Shot", "one-shot");
   ck("a single win and no other vote, ever, is a card", !!f);
@@ -285,7 +417,7 @@ console.log("\nthe one-shot");
 
 {
   const facts = careerOddities([v("More", "Sixth Man", 2014, 1), v("More", "MVP", 2016, 9)],
-    new Map(), { dataTo: 2026, awardSpan: SPANS });
+    new Map([["More", 2018]]), { dataTo: 2026, awardSpan: SPANS });
   ck("a winner who drew other votes is not a one-shot",
      !kinds(facts, "More").includes("one-shot"));
 }

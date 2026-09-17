@@ -32,7 +32,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { resolveSource } from "./lib/find.mjs";
-import { careerOddities, awardSpans } from "./lib/career_oddities.mjs";
+import { careerOddities, awardSpans, suspectSpans, contestedWins }
+  from "./lib/career_oddities.mjs";
 import { ordWord, displaySurname } from "./lib/award_sentences.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -75,6 +76,12 @@ const PRESTIGE = new Map([
   ["Clutch", 5], ["Hustle", 6]
 ]);
 const withArticle = n => (/^(MVP|MIP)\b/.test(n) ? "an " : "a ") + n;
+
+/* "won Hustle Award" and "finished fourth for Hustle Award". Every other award
+ * in SAY is a title that reads correctly bare - MVP, Rookie of the Year, Sixth
+ * Man of the Year - and the Hustle Award is a noun that needs its article. */
+const NEEDS_THE = new Set(["Hustle"]);
+const named = a => (NEEDS_THE.has(a) ? "the " : "") + say(a);
 
 const votes = readJson("awardVotes.json").map(r => Object.assign({}, r, {
   AWARD: AWARD_FIX[String(r.AWARD || "").trim()] || String(r.AWARD || "").trim()
@@ -125,6 +132,30 @@ if (dataTo > newestVote) {
 }
 for (const [award, s] of [...spans.entries()].sort()) {
   console.log(`  ${award.padEnd(10)} ${String(s.seasons.size).padStart(2)} seasons ${s.from}-${s.to}`);
+}
+
+/* WHAT THE FILE GOT WRONG, said out loud. Both of these are upstream data
+ * problems that no gate in here can repair, and both produced a published card
+ * before anybody read the output. Silence is how they got published. */
+const suspects = suspectSpans(votes);
+if (suspects.length) {
+  console.log(`\n${suspects.length} name(s) span more seasons than a career, so the rows are ` +
+    `more than one player. Dropped:`);
+  for (const s of suspects) {
+    console.log(`  ${s.player} - ${s.span} seasons, YEAR ${s.from} to ${s.to}`);
+  }
+  console.log(`  Years are the raw YEAR values, to grep awardVotes.json with. Fix by`);
+  console.log(`  suffixing the younger one, e.g. "Jr.".`);
+}
+
+const contested = contestedWins(votes);
+if (contested.length) {
+  console.log(`\n${contested.length} award-season(s) with more than one first place. No card ` +
+    `calls any of these men the winner, because one of two is wrong either way:`);
+  for (const c of contested) {
+    console.log(`  ${c.award} YEAR ${c.year}: ${c.players.join(", ")}`);
+  }
+  console.log(`  They keep their ballot appearance. Fix the bad row and they get their cards.`);
 }
 
 const facts = careerOddities(votes, lastSeason,
@@ -194,48 +225,41 @@ function sentence(f) {
      * not said. */
     const gone = seasonLabel(f.lastPlayed + 1);
     const more = f.after === 1 ? "one more season" : f.after + " more seasons";
-    const ballots = `${f.votes} ballot appearance${f.votes === 1 ? "" : "s"}`;
 
+    /* OUT OF THE NBA, not out of basketball. The dataset is NBA-only, and this
+     * used to say "the last season he ever played" about Juan Carlos Navarro,
+     * who played one season in Memphis in 2007-08 and then went back to
+     * Barcelona until 2018. Every card here is scoped to the league the file
+     * covers.
+     *
+     * There is no branch for a man with nothing after his last ballot any more.
+     * AFTER_MIN is 1, so `after` is always at least one, and the sentences that
+     * used to cover zero are gone rather than left unreachable - an unreachable
+     * branch in this same function is how "After the ballots of 2009-10,
+     * 2009-10 was his last season in the league" sat unread. */
     if (f.won) {
-      return f.after === 0 ? {
-        head: `${f.player} won ${say(f.award)} in ${seasonLabel(f.voteYear)} and never played ` +
-          `another NBA season`,
-        detail: `He retired holding it. ${ballots} across a career that ended the year it ` +
-          `peaked, in ${seasonLabel(f.voteYear)}.`
-      } : {
-        head: `${f.player} won ${say(f.award)} in ${seasonLabel(f.voteYear)} and was out of the ` +
-          `league by ${gone}`,
+      return {
+        head: `${f.player} won ${named(f.award)} in ${seasonLabel(f.voteYear)} and was out of ` +
+          `the NBA by ${gone}`,
         detail: `He played ${more} after winning it, and never drew another vote for anything.`
       };
     }
-
     if (f.topFive) {
-      return f.after === 0 ? {
-        head: `${f.player} finished ${ordWord(f.rnk)} for ${say(f.award)} in ` +
-          `${seasonLabel(f.voteYear)}, and never played another NBA season`,
-        detail: `The voters still had him among the best in the league in the last season ` +
-          `he played. ${ballots} in all.`
-      } : {
-        head: `${f.player} finished ${ordWord(f.rnk)} for ${say(f.award)} in ` +
-          `${seasonLabel(f.voteYear)}. He was out of the league by ${gone}`,
+      return {
+        head: `${f.player} finished ${ordWord(f.rnk)} for ${named(f.award)} in ` +
+          `${seasonLabel(f.voteYear)}. He was out of the NBA by ${gone}`,
         detail: `He played ${more} after that finish, and never drew another vote.`
       };
     }
-
-    return f.after === 0 ? {
-      head: `${f.player} drew ${withArticle(say(f.award))} vote in ${seasonLabel(f.voteYear)}, ` +
-        `the last season he ever played`,
-      detail: `Those were the final ballots of his career. ${ballots} in all, and then ` +
-        `nothing.`
-    } : {
+    return {
       head: `${f.player} drew ${withArticle(say(f.award))} vote in ${seasonLabel(f.voteYear)}. ` +
-        `He was out of the league by ${gone}`,
+        `He was out of the NBA by ${gone}`,
       detail: `He played ${more} after those ballots, and never drew another vote.`
     };
   }
   /* one-shot */
   return {
-    head: `${f.player} won ${say(f.award)} in ${seasonLabel(f.year)} and never drew another ` +
+    head: `${f.player} won ${named(f.award)} in ${seasonLabel(f.year)} and never drew another ` +
       `vote for anything`,
     detail: `One award, one appearance on any ballot, in a career the voters looked at ` +
       `exactly once.`
