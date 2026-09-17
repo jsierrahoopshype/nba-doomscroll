@@ -89,17 +89,40 @@ for (const r of statRows) {
   const name = r.PLAYER;
   const year = parseInt(String(r.YEAR || "").slice(0, 4), 10);
   if (!name || !isFinite(year)) continue;
-  /* rsStats YEAR is the season's start ("2025" for 2025-26); the votes use the
-   * ending year, so the two are put in the same units here rather than in four
-   * places downstream. */
-  const end = year + 1;
+  /* rsStats YEAR IS ALREADY THE SEASON'S ENDING YEAR, and this line used to add
+   * one on a comment that said otherwise. The comment was wrong. Aaron Gordon's
+   * YEAR "2026" row carries 36 games played, and the 2026-27 season had not
+   * started when that was read, so "2026" is 2025-26; his YEAR "2025" row
+   * carries the 51 games he played in 2024-25. The game log agrees from the
+   * other side: it ends 2026-06-13, the 2025-26 Finals.
+   *
+   * The shift cancelled out of the cliff GATE, because dataTo moved with it, so
+   * the wrong cards were not the symptom. The SENTENCES were: every cliff card
+   * named a departure one season late and credited the player with one more
+   * season after his last vote than he played. Fourteen cards, all published.
+   *
+   * Everything else in this repo already treats rsStats YEAR as the ending year
+   * (build_salary, build_vault, build_compare, lib/payroll_wins), so this file
+   * was the only one out of step. */
+  const end = year;
   if (end > (lastSeason.get(name) || 0)) lastSeason.set(name, end);
   if (end > dataTo) dataTo = end;
 }
 const spans = awardSpans(votes);
 
+/* THE INVARIANT THAT WOULD HAVE CAUGHT THE OFF-BY-ONE. Stats and ballots are
+ * now in the same units, so the newest season in each should agree. A stats
+ * file running past the last award season means either mid-season data (fine,
+ * the awards are not voted yet) or a units bug (not fine). It cannot tell which,
+ * so it says so rather than failing a build over a legitimate October. */
+const newestVote = Math.max(...[...spans.values()].map(s => s.to));
 console.log(`${votes.length} vote rows, ${lastSeason.size} players in the stats, ` +
-  `data runs to ${dataTo}`);
+  `data runs to ${dataTo}, newest award season ${newestVote}`);
+if (dataTo > newestVote) {
+  console.log(`  NOTE: the stats run ${dataTo - newestVote} season(s) past the newest ballot.`);
+  console.log(`  That is normal in-season. If it is the off-season, rsStats YEAR has`);
+  console.log(`  changed units and every "out of the league by" year is wrong.`);
+}
 for (const [award, s] of [...spans.entries()].sort()) {
   console.log(`  ${award.padEnd(10)} ${String(s.seasons.size).padStart(2)} seasons ${s.from}-${s.to}`);
 }
@@ -149,13 +172,21 @@ function sentence(f) {
     };
   }
   if (f.kind === "cliff") {
-    const played = f.after === 0
-      ? `${seasonLabel(f.voteYear)} was his last season in the league`
-      : `he played ${f.after === 1 ? "one more season" : f.after + " more seasons"} and was gone`;
+    /* Two branches, and the first one had never run. While rsStats YEAR was
+     * being read a season late, `after` was always at least one, so a man who
+     * drew votes in his final season came out as having played one more. The
+     * sentence it produced when the arithmetic was fixed read "After the
+     * ballots of 2009-10, 2009-10 was his last season in the league", which
+     * names the season twice and says nothing the headline had not. */
+    const detail = f.after === 0
+      ? `Those were the last votes of his career, and ${seasonLabel(f.voteYear)} was his ` +
+        `last season in the league.`
+      : `He played ${f.after === 1 ? "one more season" : f.after + " more seasons"} after those ` +
+        `ballots, and never drew another vote.`;
     return {
       head: `${f.player} drew ${withArticle(say(f.award))} vote in ${seasonLabel(f.voteYear)}. ` +
         `He was out of the league by ${seasonLabel(f.lastPlayed + 1)}`,
-      detail: `After the ballots of ${seasonLabel(f.voteYear)}, ${played}.`
+      detail
     };
   }
   /* one-shot */
