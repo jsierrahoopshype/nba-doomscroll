@@ -171,7 +171,18 @@ export function careerOddities(votes, lastSeason, opts) {
     p.first = Math.min(p.first, year);
     p.last = Math.max(p.last, year);
     const bad = rnk === 1 && disputed(award, year);
-    if (rnk === 1 && !bad) p.wins.push({ award, year });
+    /* A DISPUTED FIRST PLACE IS STILL A WIN HERE, and the first version of this
+     * line dropped it, which produced "Grant Hill drew votes for 4 different
+     * awards across 10 seasons, and won none of them" about a man who won
+     * Rookie of the Year. He shared it with Jason Kidd, and three ROY seasons
+     * in this file are genuinely shared (Cowens and Petrie in 1970-71, Hill and
+     * Kidd in 1994-95, Brand and Francis in 1999-2000), so a second first place
+     * is not automatically a bad row.
+     *
+     * The perennial shape asks "did he ever win one of these", and a shared
+     * award answers yes. So the win stays and carries the flag; what the flag
+     * suppresses is any sentence that names one man as THE winner. */
+    if (rnk === 1) p.wins.push({ award, year, disputed: bad });
     if (isFinite(rnk) && rnk <= TOP && !bad) p.topFives.push({ award, year, rnk });
     /* EVERY vote, not just the good ones. The cliff needs to know what the
      * final season's ballots were actually for, and a man's last ballot is
@@ -276,7 +287,8 @@ export function careerOddities(votes, lastSeason, opts) {
      * The first real build said it about Cooper Flagg, who won it in 2025-26
      * and starts his second season next month. Every new ROY is a one-shot on
      * the day he wins, and stops being one the moment he draws a vote again. */
-    if (p.wins.length === 1 && p.votes === p.wins.length && finished) {
+    if (p.wins.length === 1 && p.votes === p.wins.length && finished &&
+        !p.wins[0].disputed) {
       facts.push({
         kind: "one-shot", player: p.player,
         award: p.wins[0].award, year: p.wins[0].year,
