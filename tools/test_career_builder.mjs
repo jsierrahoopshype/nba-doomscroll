@@ -49,8 +49,11 @@ const votes = [];
  * exists to check the season arithmetic in the plainest wording. */
 votes.push({ PLAYER: "Cliff Test", AWARD: "MVP", YEAR: "2015", RNK: "9" });
 
-/* Same Season: a down-ballot vote in his final season. Nothing after it. */
-votes.push({ PLAYER: "Same Season", AWARD: "DPOY", YEAR: "2010", RNK: "11" });
+/* Stopped At Once: a vote in his final season and nothing after it. No card at
+ * all now. AFTER_MIN is 1, because a strong season followed immediately by
+ * nothing is the shape of a career ended by injury and this file cannot tell
+ * that from a man choosing to stop. Maurice Stokes is why. */
+votes.push({ PLAYER: "Stopped At Once", AWARD: "DPOY", YEAR: "2010", RNK: "11" });
 
 /* Fifth Then One More: a top-five finish with a season still to play after it,
  * which is the fourth corner of the won/topFive by after/no-after grid. */
@@ -64,9 +67,25 @@ votes.push({ PLAYER: "Still Here", AWARD: "MVP", YEAR: "2026", RNK: "5" });
  * more season, gone. The card must say he WON it. */
 votes.push({ PLAYER: "Won And Left", AWARD: "Sixth Man", YEAR: "1986", RNK: "1" });
 
-/* Fourth And Done: the Bill Russell shape. Fourth for MVP in 1968-69 and never
- * played again. The card must not read as a man who fell apart. */
+/* Fourth And Done: the Bill Russell and Wilt Chamberlain shape, fourth for MVP
+ * and then gone. This is the cost of the gate above, recorded so nobody removes
+ * it believing it was free. No card. */
 votes.push({ PLAYER: "Fourth And Done", AWARD: "MVP", YEAR: "1969", RNK: "4" });
+
+/* Reigning Rookie: won Rookie of the Year in the newest season in the file and
+ * is still playing. "Never drew another vote for anything" was published about
+ * Cooper Flagg, who starts his second season next month. */
+votes.push({ PLAYER: "Reigning Rookie", AWARD: "ROY", YEAR: "2026", RNK: "1" });
+
+/* Hustled Out: won the Hustle Award, which is the one award in SAY that needs
+ * its article. "won Hustle Award" shipped. */
+votes.push({ PLAYER: "Hustled Out", AWARD: "Hustle", YEAR: "2018", RNK: "1" });
+
+/* Father And Son: two people under one name, thirty-three seasons apart. Tim
+ * Hardaway and Tim Hardaway Jr. were published as one career. */
+for (const y of [1991, 1997, 2014, 2024]) {
+  votes.push({ PLAYER: "Father And Son", AWARD: "MVP", YEAR: String(y), RNK: "8" });
+}
 
 /* Wound Down: drew a down-ballot vote and then played TWO more seasons. Not a
  * cliff any more - that is a career ending on schedule. */
@@ -77,6 +96,7 @@ votes.push({ PLAYER: "Wound Down", AWARD: "MVP", YEAR: "2000", RNK: "11" });
  * which is merely the first award in his rows. */
 votes.push({ PLAYER: "Late Ballot", AWARD: "ROY", YEAR: "1996", RNK: "8" });
 votes.push({ PLAYER: "Late Ballot", AWARD: "Sixth Man", YEAR: "2006", RNK: "9" });
+/* He plays one more season after those ballots, so the card exists at all. */
 
 /* Filler, so the award spans look like a real file and "won none of them" has
  * enough covered awards to be sayable. */
@@ -87,7 +107,7 @@ for (let y = 1986; y <= 2026; y++) votes.push({ PLAYER: "Filler C", AWARD: "MIP"
 const rsStats = [
   { PLAYER: "Cliff Test", YEAR: "2015", GP: "70" },
   { PLAYER: "Cliff Test", YEAR: "2016", GP: "41" },   // the one more season
-  { PLAYER: "Same Season", YEAR: "2010", GP: "66" },  // and no further row
+  { PLAYER: "Stopped At Once", YEAR: "2010", GP: "66" },  // and no further row
   { PLAYER: "Still Here", YEAR: "2026", GP: "36" },   // sets the end of the data
   { PLAYER: "Filler A", YEAR: "2026", GP: "80" },
   { PLAYER: "Won And Left", YEAR: "1986", GP: "80" },
@@ -98,6 +118,11 @@ const rsStats = [
   { PLAYER: "Wound Down", YEAR: "2002", GP: "44" },    // two more: not a cliff
   { PLAYER: "Late Ballot", YEAR: "1996", GP: "75" },
   { PLAYER: "Late Ballot", YEAR: "2006", GP: "62" },
+  { PLAYER: "Late Ballot", YEAR: "2007", GP: "40" },   // one more after the ballots
+  { PLAYER: "Reigning Rookie", YEAR: "2026", GP: "74" },  // still playing
+  { PLAYER: "Hustled Out", YEAR: "2018", GP: "66" },
+  { PLAYER: "Hustled Out", YEAR: "2019", GP: "22" },   // one more, then gone
+  { PLAYER: "Father And Son", YEAR: "2024", GP: "60" },
   { PLAYER: "Fifth Then One More", YEAR: "2004", GP: "78" },
   { PLAYER: "Fifth Then One More", YEAR: "2005", GP: "31" }
 ];
@@ -138,7 +163,7 @@ console.log("\nthe cliff, whose truth is in the fixture above");
      fam("Cliff Test"));
   /* Voted 2014-15. Played 2015-16. First season missed: 2016-17. */
   ck("it names the first season he was gone, not the second",
-     !!c && /out of the league by 2016-17\b/.test(c.payload.headline),
+     !!c && /out of the NBA by 2016-17\b/.test(c.payload.headline),
      c && c.payload.headline);
   /* The count, not the sentence around it. An earlier version of this check
    * pinned the whole clause and broke the moment the prose was tightened,
@@ -152,25 +177,26 @@ console.log("\nthe cliff, whose truth is in the fixture above");
 }
 
 {
-  const c = card("Same Season");
-  ck("a vote in a man's last season is a cliff", !!c && c.story_family === "career:cliff",
-     fam("Same Season"));
-  /* Voted 2009-10, played nothing after. The zero branch has to fire here; it
-   * was unreachable while every count was inflated by one. It does not claim a
-   * departure season, because there is nothing between the ballots and the end
-   * to put one in. */
-  ck("it says that season was the last one he played",
-     !!c && /2009-10, the last season he ever played/.test(c.payload.headline),
-     c && c.payload.headline);
-  ck("and does not count a season that is not there",
-     !!c && !/more season/.test(c.payload.detail), c && c.payload.detail);
+  /* MAURICE STOKES, and the price of keeping him out. A vote in a man's final
+   * season with nothing after it is no longer a card in any wording, because an
+   * excellent season followed at once by nothing is what a career ended by
+   * injury looks like and the file cannot tell that from a retirement. */
+  ck("a vote in a man's last season is no longer a cliff",
+     fam("Stopped At Once") !== "career:cliff", fam("Stopped At Once"));
+  ck("and neither is a top-five finish in one",
+     fam("Fourth And Done") !== "career:cliff", fam("Fourth And Done"));
+  ck("no card claims a season that was never played after the ballots",
+     !cards.some(c => /never played another NBA season|the last season he ever played/
+       .test(c.payload.headline)),
+     cards.filter(c => /never played another/.test(c.payload.headline))
+       .map(c => c.payload.headline).join(" | ") || "(none)");
 }
 
 {
   const c = card("Fifth Then One More");
   ck("a top five with a season left to play names both",
      !!c && /finished fifth for MVP in 2003-04/.test(c.payload.headline) &&
-     /out of the league by 2005-06\b/.test(c.payload.headline),
+     /out of the NBA by 2005-06\b/.test(c.payload.headline),
      c && c.payload.headline);
   ck("and counts the one season after the finish",
      !!c && /\bone more season\b/.test(c.payload.detail), c && c.payload.detail);
@@ -194,18 +220,33 @@ console.log("\nthe three endings, which are not the same story");
   ck("a man who won the award is not described as drawing a vote for it",
      !!c && !/drew a/.test(c.payload.headline), c && c.payload.headline);
   ck("it says he won it", !!c && /won Sixth Man of the Year in 1985-86/.test(c.payload.headline));
-  ck("and when he left", !!c && /out of the league by 1987-88\b/.test(c.payload.headline));
+  ck("and when he left", !!c && /out of the NBA by 1987-88\b/.test(c.payload.headline));
 }
 
 {
-  /* THE BILL RUSSELL CARD. Fourth for MVP in his final season. "Out of the
-   * league by" reads as collapse about a man who chose to stop. */
-  const c = card("Fourth And Done");
-  ck("a top-five finish in a final season is not called being out of the league",
-     !!c && !/out of the league/.test(c.payload.headline), c && c.payload.headline);
-  ck("it names the finish", !!c && /finished fourth for MVP in 1968-69/.test(c.payload.headline));
-  ck("and says he stopped rather than that he was dropped",
-     !!c && /never played another NBA season/.test(c.payload.headline));
+  /* COOPER FLAGG. One-shot was the only shape with no gate at all, so every
+   * reigning Rookie of the Year was one on the day he won it. */
+  ck("the reigning Rookie of the Year gets no card",
+     !card("Reigning Rookie"), fam("Reigning Rookie"));
+}
+
+{
+  /* "won Hustle Award". Every other award in SAY reads correctly bare. */
+  const c = card("Hustled Out");
+  ck("the Hustle Award keeps its article",
+     !!c && /won the Hustle Award in 2017-18/.test(c.payload.headline),
+     c && c.payload.headline);
+}
+
+{
+  /* TIM HARDAWAY AND TIM HARDAWAY JR. */
+  ck("a name spanning more seasons than a career gets no card",
+     !card("Father And Son"), fam("Father And Son"));
+  /* Dropping them silently is how the composite got published in the first
+   * place, so the build has to name them. */
+  const said = /Father And Son - 33 seasons/.test(log);
+  ck("and the build says whose rows it dropped", said,
+     said ? "" : "the span report did not mention it");
 }
 
 {
@@ -226,10 +267,10 @@ console.log("\nthe fourteen published are the best fourteen, not the first fourt
    * belonging to a player whose name sorts last of the four. */
   const order = cards.filter(c => c.story_family === "career:cliff")
     .map(c => (c.payload.subjects || [])[0]);
-  ck("a win sorts above a fourth, a fifth, two ninths and an eleventh",
-     order[0] === "Won And Left", order.join(" | "));
-  ck("and the fourth above the fifth",
-     order[1] === "Fourth And Done" && order[2] === "Fifth Then One More",
+  ck("a win sorts above a fifth and two ninths",
+     order[0] === "Won And Left" || order[0] === "Hustled Out", order.join(" | "));
+  ck("and a fifth above a ninth",
+     order.indexOf("Fifth Then One More") < order.indexOf("Cliff Test"),
      order.join(" | "));
   ck("and the order is not the players' names",
      order.join("|") !== order.slice().sort().join("|"), order.join(" | "));
