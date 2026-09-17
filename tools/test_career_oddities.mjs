@@ -355,6 +355,20 @@ console.log("\nrows that cannot both be true");
      facts.filter(f => f.kind === "cliff").every(f => f.rnk === null),
      JSON.stringify(facts.filter(f => f.kind === "cliff").map(f => f.rnk)));
 
+  /* THE REGRESSION THIS CAUGHT. Grant Hill and Jason Kidd shared the 1994-95
+   * Rookie of the Year, and three ROY seasons in the real file are genuinely
+   * shared, so a second first place is not automatically a bad row. Pulling
+   * disputed wins out of p.wins made co-winners pass the "never won" test and
+   * published "Grant Hill drew votes for 4 different awards across 10 seasons,
+   * and won none of them". A shared award is a win. */
+  const shared = [];
+  for (let y = 1995; y < 2005; y++) shared.push(v("Co Winner", "MVP", y, 6));
+  shared.push(v("Co Winner", "ROY", 1995, 1), v("The Other One", "ROY", 1995, 1));
+  const coFacts = careerOddities(shared, new Map(), { dataTo: 2026, awardSpan: SPANS });
+  ck("a man who shared an award has not won none of them",
+     !coFacts.some(f => f.kind === "perennial" && f.player === "Co Winner"),
+     coFacts.filter(f => f.player === "Co Winner").map(f => f.kind).join(",") || "(none)");
+
   /* An undisputed win in the same shape still works, so the gate is about the
    * dispute and not about winning. */
   const clean = careerOddities([v("Sole Winner", "MVP", 1975, 1)],
