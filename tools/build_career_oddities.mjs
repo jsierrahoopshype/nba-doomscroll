@@ -172,21 +172,65 @@ function sentence(f) {
     };
   }
   if (f.kind === "cliff") {
-    /* Two branches, and the first one had never run. While rsStats YEAR was
-     * being read a season late, `after` was always at least one, so a man who
-     * drew votes in his final season came out as having played one more. The
-     * sentence it produced when the arithmetic was fixed read "After the
-     * ballots of 2009-10, 2009-10 was his last season in the league", which
-     * names the season twice and says nothing the headline had not. */
-    const detail = f.after === 0
-      ? `Those were the last votes of his career, and ${seasonLabel(f.voteYear)} was his ` +
-        `last season in the league.`
-      : `He played ${f.after === 1 ? "one more season" : f.after + " more seasons"} after those ` +
-        `ballots, and never drew another vote.`;
-    return {
+    /* THREE ENDINGS, BECAUSE THEY ARE NOT THE SAME STORY.
+     *
+     * One sentence covered all of them and it produced, from real data:
+     *
+     *   "Bill Walton drew a Sixth Man of the Year vote in 1985-86"
+     *      about the man who WON Sixth Man of the Year in 1985-86.
+     *   "Bill Russell drew an MVP vote in 1968-69. He was out of the league
+     *    by 1969-70"
+     *      about a player-coach who retired holding the championship.
+     *
+     * Both true. A first-place finish is a vote, and leaving the league does
+     * put you out of it. Both were the wrong sentence: the first buries the
+     * only fact that matters, the second reads as a washout. So the three
+     * cases the data can already tell apart get three sentences.
+     *
+     * The zero-seasons-after branch had also never run until the season
+     * arithmetic above it was fixed, so its prose reached real output for the
+     * first time reading "After the ballots of 2009-10, 2009-10 was his last
+     * season in the league" - the season twice, and nothing the headline had
+     * not said. */
+    const gone = seasonLabel(f.lastPlayed + 1);
+    const more = f.after === 1 ? "one more season" : f.after + " more seasons";
+    const ballots = `${f.votes} ballot appearance${f.votes === 1 ? "" : "s"}`;
+
+    if (f.won) {
+      return f.after === 0 ? {
+        head: `${f.player} won ${say(f.award)} in ${seasonLabel(f.voteYear)} and never played ` +
+          `another NBA season`,
+        detail: `He retired holding it. ${ballots} across a career that ended the year it ` +
+          `peaked, in ${seasonLabel(f.voteYear)}.`
+      } : {
+        head: `${f.player} won ${say(f.award)} in ${seasonLabel(f.voteYear)} and was out of the ` +
+          `league by ${gone}`,
+        detail: `He played ${more} after winning it, and never drew another vote for anything.`
+      };
+    }
+
+    if (f.topFive) {
+      return f.after === 0 ? {
+        head: `${f.player} finished ${ordWord(f.rnk)} for ${say(f.award)} in ` +
+          `${seasonLabel(f.voteYear)}, and never played another NBA season`,
+        detail: `The voters still had him among the best in the league in the last season ` +
+          `he played. ${ballots} in all.`
+      } : {
+        head: `${f.player} finished ${ordWord(f.rnk)} for ${say(f.award)} in ` +
+          `${seasonLabel(f.voteYear)}. He was out of the league by ${gone}`,
+        detail: `He played ${more} after that finish, and never drew another vote.`
+      };
+    }
+
+    return f.after === 0 ? {
+      head: `${f.player} drew ${withArticle(say(f.award))} vote in ${seasonLabel(f.voteYear)}, ` +
+        `the last season he ever played`,
+      detail: `Those were the final ballots of his career. ${ballots} in all, and then ` +
+        `nothing.`
+    } : {
       head: `${f.player} drew ${withArticle(say(f.award))} vote in ${seasonLabel(f.voteYear)}. ` +
-        `He was out of the league by ${seasonLabel(f.lastPlayed + 1)}`,
-      detail
+        `He was out of the league by ${gone}`,
+      detail: `He played ${more} after those ballots, and never drew another vote.`
     };
   }
   /* one-shot */
@@ -204,8 +248,45 @@ function sentence(f) {
  * cliff beats a one-top-five because the ending is the surprise; a perennial
  * beats both because it is the whole career rather than one season of it. */
 const RANK = { perennial: 0, cliff: 1, "one-shot": 2, "one-top-five": 3 };
+
+/* WHICH FOURTEEN OF EACH SHAPE GET PUBLISHED.
+ *
+ * One comparator used to serve all four: kind, then `seasons` descending, then
+ * the player's name. Cliff and one-shot facts carried no `seasons`, so for half
+ * the families that middle term was 0 minus 0 every time and the NAME decided.
+ * Out of 128 cliff candidates the fourteen that shipped were Al Harrington,
+ * Alaa Abdelnaby, Alonzo Mourning, Amir Johnson, Andray Blatche, Andrew Bynum,
+ * Anthony Mason, Anthony Morrow, Antoine Walker, Ben Wallace, Bernard King,
+ * Bill Russell, Bill Walton, Bob Love. An alphabetical prefix, presented as the
+ * fourteen most interesting careers in seventy years of voting. The one-shots
+ * were Aaron McKie and Alan Henderson, for the same reason.
+ *
+ * Each shape now states what best means for it, because they do not agree.
+ * Lower sorts first. */
+const QUALITY = {
+  /* The whole career is the story, so the longer the near miss ran the better,
+   * and more ballots inside the same span means a closer near miss. */
+  perennial: f => [-f.seasons, -f.votes],
+  /* A high finish and then nothing is the surprise. A down-ballot vote and then
+   * nothing is a man aging out, which happens to a dozen players every June.
+   * Then the shorter gap, then the longer voting history behind it. */
+  cliff: f => [f.rnk || 99, f.after, -f.votes],
+  /* Winning the thing and never being mentioned again is stranger the bigger
+   * the thing was, and more legible to a reader the nearer it is. */
+  "one-shot": f => [PRESTIGE.has(f.award) ? PRESTIGE.get(f.award) : 99, -f.year],
+  /* One season standing out of a long career, and the higher it stood. */
+  "one-top-five": f => [-f.seasons, f.rnk]
+};
+const byVector = (a, b) => {
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const d = (a[i] || 0) - (b[i] || 0);
+    if (d) return d;
+  }
+  return 0;
+};
 facts.sort((a, b) => (RANK[a.kind] - RANK[b.kind]) ||
-  ((b.seasons || 0) - (a.seasons || 0)) || String(a.player).localeCompare(b.player));
+  byVector(QUALITY[a.kind](a), QUALITY[b.kind](b)) ||
+  String(a.player).localeCompare(b.player));
 
 const MAX_PER_KIND = 14;
 const perKind = {}, seenPlayer = new Set(), cards = [];

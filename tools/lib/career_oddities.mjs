@@ -38,6 +38,23 @@
 /** Seasons a player must be absent from the data before he is "out of it". */
 export const GONE_AFTER = 3;
 
+/**
+ * Seasons a player may still play AFTER his last ballot and have it read as a
+ * cliff.
+ *
+ * This was an unnamed 2 for a day, and the day it was 2 is the day the off-by-one
+ * above it was fixed, which is how it got read at last. At 2 the family filled up
+ * with Bernard King drawing a Most Improved vote at 34, playing two more seasons
+ * and retiring, and Ben Wallace doing the same at 35. Those are careers ending on
+ * schedule. The card promises a fall, and three seasons from a ballot to the exit
+ * is not one.
+ *
+ * At 1 the vote came in his final season or the one before it, which is the only
+ * gap short enough for "and then he was gone" to be the story rather than the
+ * arithmetic.
+ */
+export const AFTER_MAX = 1;
+
 /** Vote-drawing seasons before "always nearly" is a career and not a run. */
 export const PERENNIAL_MIN_SEASONS = 8;
 
@@ -60,7 +77,8 @@ export const TOP = 5;
  */
 export function careerOddities(votes, lastSeason, opts) {
   const o = Object.assign({ goneAfter: GONE_AFTER,
-                            perennialMin: PERENNIAL_MIN_SEASONS }, opts || {});
+                            perennialMin: PERENNIAL_MIN_SEASONS,
+                            afterMax: AFTER_MAX }, opts || {});
   const prestige = o.prestige && o.prestige.get
     ? (a => (o.prestige.has(a) ? o.prestige.get(a) : 99))
     : (() => 0);
@@ -79,7 +97,7 @@ export function careerOddities(votes, lastSeason, opts) {
     if (!players.has(name)) {
       players.set(name, {
         player: name, seasons: new Set(), awards: new Set(),
-        wins: [], topFives: [], votes: 0, first: year, last: year
+        wins: [], topFives: [], all: [], votes: 0, first: year, last: year
       });
     }
     const p = players.get(name);
@@ -90,7 +108,20 @@ export function careerOddities(votes, lastSeason, opts) {
     p.last = Math.max(p.last, year);
     if (rnk === 1) p.wins.push({ award, year });
     if (isFinite(rnk) && rnk <= TOP) p.topFives.push({ award, year, rnk });
+    /* EVERY vote, not just the good ones. The cliff needs to know what the
+     * final season's ballots were actually for, and a man's last ballot is
+     * usually a long way down it. */
+    p.all.push({ award, year, rnk: isFinite(rnk) ? rnk : null });
   }
+
+  /* The most notable thing on one season's ballots. A win beats any placing;
+   * among placings the more prestigious award beats the better number, which is
+   * the lesson from "his best finish was second for Most Improved Player" said
+   * about men with top-five MVP seasons. */
+  const notable = (a, b) =>
+    ((a.rnk === 1 ? 0 : 1) - (b.rnk === 1 ? 0 : 1)) ||
+    (prestige(a.award) - prestige(b.award)) ||
+    ((a.rnk || 99) - (b.rnk || 99));
 
   const facts = [];
   for (const p of players.values()) {
@@ -132,13 +163,26 @@ export function careerOddities(votes, lastSeason, opts) {
      * whose career ends at the edge of the file has not fallen off anything. */
     if (gone && dataTo && (dataTo - gone) >= o.goneAfter) {
       const after = gone - p.last;
-      if (after >= 0 && after <= 2) {
+      if (after >= 0 && after <= o.afterMax) {
+        /* WHICH AWARD THE LAST BALLOTS WERE FOR. This read the top-five list
+         * and, when the final season was not a top five, fell back to
+         * `[...p.awards][0]`: the first award anywhere in the career, in
+         * whatever order the rows arrived. For a man who drew votes for four
+         * different awards that names the right one by luck. p.all holds every
+         * vote, so the final season can be asked directly.
+         *
+         * `won` and `topFive` travel with the fact because the sentence differs
+         * by all three cases and the caller should not have to re-derive them
+         * from a number. Winning an award and leaving is not drawing a vote and
+         * leaving, and neither is finishing fifth and leaving. */
+        const last = p.all.filter(t => t.year === p.last).sort(notable)[0] || null;
         facts.push({
-          kind: "cliff", player: p.player, votes: p.votes,
+          kind: "cliff", player: p.player, votes: p.votes, seasons,
           voteYear: p.last, lastPlayed: gone, after,
-          award: (p.topFives.find(t => t.year === p.last) || {}).award ||
-                 [...p.awards][0] || "",
-          rnk: (p.topFives.find(t => t.year === p.last) || {}).rnk || null
+          award: last ? last.award : "",
+          rnk: last ? last.rnk : null,
+          won: !!(last && last.rnk === 1),
+          topFive: !!(last && last.rnk && last.rnk > 1 && last.rnk <= TOP)
         });
       }
     }
