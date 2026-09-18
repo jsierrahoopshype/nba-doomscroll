@@ -54,6 +54,14 @@ for (const [t, y] of [["BOS", 2005], ["LAL", 2009], ["MIA", 2013]]) {
 }
 add("Cup Of Coffee", "CHI", 2016, 4);
 
+/* Sonics Only: played in Seattle and nowhere else for that franchise. The
+ * Thunder badge says Oklahoma City, so it may appear on his card neither as a
+ * team he played for - the crest is another city's - nor as one he did not,
+ * because he played for the franchise. It simply is not there. */
+for (const [t2, y] of [["SEA", 2004], ["BOS", 2010], ["LAL", 2013], ["CHI", 2016]]) {
+  for (let k = 0; k < 3; k++) add("Sonics Only", t2, y + k, 70);
+}
+
 /* Brief Guy: three stints, 120 games in all. Under the career-games gate, so
  * no card: a question about a man nobody can place is not a hard question. */
 add("Brief Guy", "BOS", 2015, 40);
@@ -119,8 +127,24 @@ console.log("\nthe wrong answer is wrong about him");
   const c = card("Sonic Man");
   ck("Seattle counts as Oklahoma City", !!c && !/Thunder/.test(answer(c).name),
      c && answer(c).name);
+  /* He also played in Oklahoma City AFTER the move, so the badge is honest for
+   * him and the Thunder stay. The distinction is the city, not the franchise. */
   ck("and the Thunder are on the board as a team he DID play for",
      !!c && names(c).some(n => /Thunder/.test(n)), c && names(c).join(", "));
+}
+
+{
+  /* THE BADGE FROM ANOTHER CITY. This is the Robert Parish case, which shipped:
+   * his 1994-96 Charlotte Hornets are today's New Orleans Pelicans, and a
+   * Pelicans badge offered as a team he played for has no right answer. */
+  const c = card("Sonics Only");
+  ck("a Seattle-only career does not show the Thunder", !!c &&
+     !names(c).some(n => /Thunder/.test(n)), c && names(c).join(", "));
+  ck("and is not asked about them either", !!c && !/Thunder/.test(answer(c).name),
+     c && answer(c).name);
+  ck("the build says how many stints that hides",
+     /\d+ real stint\(s\) are hidden because the badge would be another city's/.test(log),
+     (log.match(/\d+ real stint\(s\) are hidden[^\n]*/) || ["(not printed)"])[0]);
 }
 
 {
