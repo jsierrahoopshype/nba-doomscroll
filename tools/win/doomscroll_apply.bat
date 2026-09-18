@@ -45,16 +45,63 @@ echo.
 REM --- Refuse to start on a dirty tree -------------------------------------
 REM  Applying a patch over uncommitted edits is how a patch fails to apply and
 REM  leaves a half-changed working copy. Better to stop and say so.
-for /f "delims=" %%s in ('git status --porcelain') do (
-  echo  There are uncommitted changes here already:
-  echo.
-  git status --short
-  echo.
-  echo  Commit or discard them first, then run this again.
-  echo.
-  pause
-  exit /b 1
-)
+REM
+REM  EXCEPT FOR THE POOLS, which are build output. data\*-pool.json is written
+REM  by whichever builder owns it, from sources outside this repo, and running a
+REM  builder is the normal way to read what a change did. So the loop was:
+REM
+REM    run a builder to read the cards  ->  pool file now modified
+REM    run this bat to apply the next patch  ->  refused
+REM    git checkout the pool by hand  ->  run the bat again
+REM
+REM  four times in one session, on a file that the very next build overwrites
+REM  anyway. The gate was protecting nothing and costing two commands a turn.
+REM
+REM  Now: if the ONLY modified things are pool files, this discards them itself
+REM  and says so. Anything else dirty still stops the run, because anything else
+REM  might be work.
+REM  findstr on the porcelain output rather than a git exclude pathspec:
+REM  ":(exclude)..." contains parentheses, and CMD mis-parses those inside a
+REM  for /f command string. Every generated pool ends in -pool.json and nothing
+REM  else in the repo does, so a literal substring is enough and needs no regex.
+git status --porcelain | findstr /v /c:"-pool.json" > "%TEMP%\doomscroll_other.txt"
+for %%A in ("%TEMP%\doomscroll_other.txt") do if %%~zA GTR 0 goto :dirty
+del "%TEMP%\doomscroll_other.txt" >nul 2>&1
+
+REM  `git diff HEAD` rather than `git diff`, so a pool that was staged as well
+REM  as rebuilt is caught: git am refuses a dirty index too, and the plain form
+REM  only sees unstaged work. An UNTRACKED pool is deliberately not listed here,
+REM  because nothing can be reverted to and it blocks nothing.
+git diff HEAD --name-only -- "data/*-pool.json" > "%TEMP%\doomscroll_pools.txt"
+for %%A in ("%TEMP%\doomscroll_pools.txt") do if %%~zA GTR 0 call :drop_pools
+del "%TEMP%\doomscroll_pools.txt" >nul 2>&1
+goto :tree_ok
+
+:drop_pools
+echo  Rebuilt pool files, reverted so the patch can apply:
+git diff HEAD --name-only -- "data/*-pool.json"
+git checkout HEAD -- "data/*-pool.json"
+echo.
+echo  Run tools\win\build.cmd after this to rebuild them from the patched
+echo  builders, which is what you want anyway - the old ones were built by
+echo  the code this patch is replacing.
+echo.
+exit /b 0
+
+:dirty
+del "%TEMP%\doomscroll_other.txt" >nul 2>&1
+echo  There are uncommitted changes here already:
+echo.
+git status --short
+echo.
+echo  Commit or discard them first, then run this again.
+echo  Rebuilt data\*-pool.json files are handled automatically, so this is
+echo  something else.
+echo.
+pause
+exit /b 1
+
+:tree_ok
 
 REM --- Newest patch in Downloads THAT BELONGS TO THIS REPO ------------------
 REM
