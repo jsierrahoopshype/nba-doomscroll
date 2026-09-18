@@ -49,12 +49,20 @@ export const OPTIONS = 4;
  * Season rows to per-franchise stints.
  *
  * @param {Array} rows  rsStats-shaped: { PLAYER, TEAM, YEAR, GP }
- * @param {object} opts { franchiseOf(code, year) -> key|null }
- * @returns {Map} player -> Map(franchiseKey -> { games, seasons, from, to })
+ * @param {object} opts {
+ *   franchiseOf(code, year) -> key|null
+ *   sameCityNow(key, year) -> bool, whether the franchise was in the city it
+ *     is in today, that season. See `homeGames` below.
+ * }
+ * @returns {Map} player -> Map(franchiseKey -> { games, homeGames, seasons, from, to })
  */
 export function careerStints(rows, opts) {
   const o = opts || {};
   const resolve = o.franchiseOf || (() => null);
+  /* Absent, every season counts as current - which is what a caller with no
+   * view on relocations should get, and what every test of the old behaviour
+   * expects. */
+  const sameCity = o.sameCityNow || (() => true);
   const out = new Map();
   for (const r of (rows || [])) {
     const name = r && r.PLAYER;
@@ -69,9 +77,30 @@ export function careerStints(rows, opts) {
 
     if (!out.has(name)) out.set(name, new Map());
     const byKey = out.get(name);
-    if (!byKey.has(key)) byKey.set(key, { key, games: 0, seasons: 0, from: year, to: year });
+    if (!byKey.has(key)) {
+      byKey.set(key, { key, games: 0, homeGames: 0, seasons: 0, from: year, to: year });
+    }
     const s = byKey.get(key);
     s.games += games;
+    /* GAMES UNDER THE BADGE THE CARD WILL SHOW.
+     *
+     * The card draws one crest per franchise, the current one, because that is
+     * the only logo that exists. For most stints that is harmless. For a
+     * franchise that MOVED it is not: Robert Parish played for the Charlotte
+     * Hornets in 1994-96, that franchise is now the New Orleans Pelicans, and a
+     * card offering him a Pelicans badge as a team he played for is
+     * unanswerable - every reader picks it as the odd one out and is told they
+     * are wrong.
+     *
+     * The distinction is the CITY, not the nickname. Chris Paul's New Orleans
+     * Hornets years are fine, because the city on the badge is still New
+     * Orleans. Parish's Charlotte years are not. Seattle and Oklahoma City are
+     * the same franchise and not the same answer.
+     *
+     * So the full `games` still decides the wrong answer - any appearance at
+     * all, under any name, disqualifies a team from being one - and `homeGames`
+     * decides what may be SHOWN. */
+    if (sameCity(key, year)) s.homeGames += games;
     s.seasons++;
     s.from = Math.min(s.from, year);
     s.to = Math.max(s.to, year);
@@ -123,7 +152,7 @@ export function careerMapQuestions(stints, opts) {
      * card can put a badge on. Ties break on the name so a rebuild does not
      * reorder them. */
     const shown = all
-      .filter(s => s.games >= o.minGames && eligible.includes(s.key))
+      .filter(s => s.homeGames >= o.minGames && eligible.includes(s.key))
       .sort((a, b) => (b.games - a.games) || a.key.localeCompare(b.key))
       .slice(0, o.minFranchises);
     if (shown.length < o.minFranchises) continue;
@@ -143,7 +172,11 @@ export function careerMapQuestions(stints, opts) {
       /* How many of his stints were too thin to show. Not a gate, a number the
        * builder can report: a high count across the pool would mean MIN_GAMES
        * is throwing away good questions. */
-      thinStints: all.filter(s => s.games < o.minGames).length
+      thinStints: all.filter(s => s.games < o.minGames).length,
+      /* Real stints the card cannot show because the badge would be another
+       * city's. Reported so the size of that effect is visible rather than
+       * inferred. */
+      movedStints: all.filter(s => s.games >= o.minGames && s.homeGames < o.minGames).length
     });
   }
   return out;

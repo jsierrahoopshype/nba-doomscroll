@@ -88,7 +88,23 @@ if (ELIGIBLE.length < 30) {
 
 /* ---------------- stints ---------------- */
 
-const stints = careerStints(statRows, { franchiseOf });
+/* WHICH SEASONS THE CURRENT BADGE HONESTLY COVERS.
+ *
+ * The card can only draw a franchise's present-day crest. For a stint played in
+ * another city that crest is a lie the reader cannot see past: Robert Parish's
+ * 1994-96 Charlotte Hornets are today's New Orleans Pelicans, and a Pelicans
+ * badge offered as a team he played for is a question with no right answer.
+ *
+ * The city decides, not the nickname. New Orleans Hornets to New Orleans
+ * Pelicans is the same badge and the same city. Charlotte to New Orleans,
+ * New Jersey to Brooklyn and Seattle to Oklahoma City are not. */
+const NOW = 2026;
+const sameCityNow = (key, year) => {
+  const then = identity(key, year), now = identity(key, NOW);
+  return !!(then && now && then.city === now.city);
+};
+
+const stints = careerStints(statRows, { franchiseOf, sameCityNow });
 console.log(`${stints.size} players with at least one resolvable team`);
 
 const all = careerMapQuestions(stints, { eligible: ELIGIBLE, existedIn });
@@ -99,7 +115,9 @@ console.log(`${all.length} careers clear the gates ` +
 const known = all.filter(q => q.games >= MIN_CAREER_GAMES);
 console.log(`${known.length} of those reach ${MIN_CAREER_GAMES} career games`);
 const thin = all.reduce((n, q) => n + q.thinStints, 0);
+const moved = all.reduce((n, q) => n + q.movedStints, 0);
 console.log(`${thin} stint(s) across the pool were too short to show as a right answer`);
+console.log(`${moved} real stint(s) are hidden because the badge would be another city's`);
 
 /* Longest careers first: more teams and more games means a man more readers
  * can place, and the cap has to cut somewhere. Ties on the name so a rebuild

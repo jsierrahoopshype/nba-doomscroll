@@ -141,6 +141,77 @@ console.log("\nthe one he did not, which is where this can lie");
      !one(rows, "Only Old Teams", { eligible: ["celtics", "lakers", "bulls"] }));
 }
 
+console.log("\nthe franchise that moved, which is a different problem");
+
+{
+  /* ROBERT PARISH AND THE PELICANS. He played for the Charlotte Hornets in
+   * 1994-96. That franchise is today the New Orleans Pelicans, so the only
+   * badge the card can draw for it says New Orleans - and offered as a team he
+   * played for, nobody can answer it. The stint is real; the crest is not.
+   *
+   * The wrong answer still has to respect the lineage, so the franchise is
+   * disqualified from being the distractor too. It simply does not appear. */
+  const sameCityNow = (key, year) =>
+    key === "pelicans" ? year >= 2003 : key === "thunder" ? year >= 2009 : true;
+  const rows = [
+    row("Parish Like", "BOS", 1990, 80), row("Parish Like", "LAL", 1993, 70),
+    row("Parish Like", "CHI", 1996, 60),
+    row("Parish Like", "MIA", 1995, 55)
+  ];
+  /* MIA stands in for the moved franchise here: give it a key whose city
+   * changed and the stint should stop being showable. */
+  const movedKeys = Object.assign({}, KEYS, { MIA: "pelicans" });
+  const stints = careerStints(rows, { franchiseOf: c => movedKeys[c] || null, sameCityNow });
+  const q = careerMapQuestions(stints, { eligible: ELIGIBLE, existedIn })
+    .find(x => x.player === "Parish Like");
+  ck("a stint played in another city is not shown", !!q &&
+     !q.played.some(s => s.key === "pelicans"), q && q.played.map(s => s.key).join(","));
+  ck("and it is still not the wrong answer either", !!q && q.never !== "pelicans",
+     q && q.never);
+  ck("the stint is counted as real, just unshowable",
+     !!q && q.movedStints === 1, q && String(q.movedStints));
+
+  /* CHRIS PAUL AND THE SAME PELICANS. His New Orleans Hornets years are in the
+   * same city the badge names, so nothing is hidden. */
+  const cp3 = [
+    row("Paul Like", "MIA", 2008, 78), row("Paul Like", "BOS", 2012, 70),
+    row("Paul Like", "LAL", 2015, 60), row("Paul Like", "CHI", 2018, 60)
+  ];
+  const s2 = careerStints(cp3, { franchiseOf: c => movedKeys[c] || null, sameCityNow });
+  ck("a stint in the city the badge still names is shown",
+     s2.get("Paul Like").get("pelicans").homeGames === 78,
+     String(s2.get("Paul Like").get("pelicans").homeGames));
+}
+
+{
+  /* SEATTLE, WHICH IS THE SAME SHAPE. A man who played only in Seattle has a
+   * real Thunder stint that the Thunder badge misrepresents, so the Thunder
+   * appear on his card not at all: not as a right answer, because the crest is
+   * Oklahoma City's, and not as the wrong one, because he did play for the
+   * franchise. */
+  const sameCityNow = (key, year) => key === "thunder" ? year >= 2009 : true;
+  const rows = [
+    row("Sonics Only", "SEA", 2005, 80), row("Sonics Only", "BOS", 2010, 70),
+    row("Sonics Only", "LAL", 2012, 60), row("Sonics Only", "CHI", 2014, 55)
+  ];
+  const q = careerMapQuestions(careerStints(rows, { franchiseOf, sameCityNow }),
+    { eligible: ELIGIBLE, existedIn }).find(x => x.player === "Sonics Only");
+  ck("a Seattle-only career never shows the Thunder",
+     !!q && !q.played.some(s => s.key === "thunder"), q && q.played.map(s => s.key).join(","));
+  ck("nor offers them as a team he did not play for", !!q && q.never !== "thunder",
+     q && q.never);
+
+  /* A man who played in Oklahoma City after the move keeps them. */
+  const after = [
+    row("OKC Era", "OKC", 2012, 80), row("OKC Era", "BOS", 2016, 70),
+    row("OKC Era", "LAL", 2018, 60)
+  ];
+  const q2 = careerMapQuestions(careerStints(after, { franchiseOf, sameCityNow }),
+    { eligible: ELIGIBLE, existedIn }).find(x => x.player === "OKC Era");
+  ck("but a career that began after the move does",
+     !!q2 && q2.played.some(s => s.key === "thunder"), q2 && q2.played.map(s => s.key).join(","));
+}
+
 console.log("\nthe board");
 
 {
