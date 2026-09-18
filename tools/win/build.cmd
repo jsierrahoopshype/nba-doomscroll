@@ -78,6 +78,14 @@ echo === career oddities ===
 node tools\build_career_oddities.mjs --local "%NPD%"
 if errorlevel 1 exit /b 1
 
+REM Fatal like the two above it: it reads NPD, already checked. It also reads
+REM data\vault-pool.json from this repo for the team badges, which is committed,
+REM so a failure here is a real failure rather than a missing machine path.
+echo.
+echo === career map ===
+node tools\build_career_map.mjs --local "%NPD%"
+if errorlevel 1 exit /b 1
+
 REM Reads the game log and nothing else. NOT fatal, for the same reason the
 REM salary section is not: the schedule is a file outside every repo here, so a
 REM machine without it should still get the four builds above rather than an

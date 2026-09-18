@@ -151,7 +151,7 @@
      * cards tagged for that tab. */
     /* Cap Call: the value-per-dollar game as a card, built alongside the
      * salary pool. Playable, so it belongs here where the game cards did not. */
-    quiz:   ["data/capcall-pool.json"],
+    quiz:   ["data/capcall-pool.json", "data/careermap-pool.json"],
     foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json",
              "data/teammates-pool.json", "data/compare-pool.json",
              "data/ballotrace-pool.json", "data/lean-pool.json",
@@ -175,6 +175,10 @@
     "data/salary-pool.json": 1,
     /* Same builder, second file. */
     "data/capcall-pool.json": 1,
+    /* Built from nba-player-data's rsStats by tools/build_career_map.mjs, with
+     * the team badges read out of data/vault-pool.json. Absent until that has
+     * been run, which is a normal state. */
+    "data/careermap-pool.json": 1,
     /* Built from nba-player-data's awardVotes + rsStats by
      * tools/build_award_history.mjs. Absent until that has been run, which is
      * a normal state - and better than committing a placeholder, because an
@@ -308,7 +312,7 @@
     if (/^(vs|mates|compare)-/.test(id)) return TAB_POOLS.vs;
     if (/^lean-/.test(id)) return TAB_POOLS.vault;
     if (/^(salary|oddity|otd)-/.test(id)) return TAB_POOLS.vault;
-    if (/^(friv|capcall)-/.test(id)) return TAB_POOLS.quiz;
+    if (/^(friv|capcall|careermap)-/.test(id)) return TAB_POOLS.quiz;
     return [];
   }
 
@@ -828,6 +832,16 @@
    * or deleted on disk. */
   function usableCard(c) {
     if (c && c.type === "ballot" && (c.payload.options || []).length < 4) return false;
+    /* A Career Map card with a missing option or an answer off the end of the
+     * board would render four buttons and mark every one of them wrong. The
+     * builder refuses to write such a card; this refuses to draw one that
+     * reached a reader's cache before it did. */
+    if (c && c.type === "careermap") {
+      var o = (c.payload && c.payload.options) || [];
+      var i = c.payload && c.payload.answer_idx;
+      if (o.length !== 4) return false;
+      if (!(typeof i === "number" && i >= 0 && i < o.length)) return false;
+    }
     return true;
   }
 
@@ -2028,6 +2042,7 @@
       case "trivia": return p.question;
       case "quiz": return "Guess the player (" + p.difficulty + ")";
       case "ballot": return p.question;
+      case "careermap": return p.question;
       case "salary": return p.player + ", " + (p.season || p.year);
       case "oddity": return p.headline;
       case "otd": return p.away + " @ " + p.home + ", " + p.year;
