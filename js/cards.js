@@ -114,7 +114,13 @@
      * more, with the salary shown and the scoring hidden. Built by
      * tools/build_salary.mjs into its own pool; see tools/lib/capcall.mjs for
      * why the Daily itself cannot be played in a card. */
-    capcall: { chip: "CAP CALL", cls: "t-quiz", tab: "quiz" }
+    capcall: { chip: "CAP CALL", cls: "t-quiz", tab: "quiz" },
+    /* The Career Map's own question, at the size of a card: four badges, one of
+     * which he never wore. Built by tools/build_career_map.mjs. The link under
+     * it is what you tap for the whole career, not what you tap to find out
+     * whether you were right - which is the difference between this and the
+     * three promo cards for the same game that it replaces. */
+    careermap: { chip: "CAREER MAP", cls: "t-quiz", tab: "quiz" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -817,6 +823,34 @@
         : "");
   }
 
+  /* Four team badges, one of which the named player never wore.
+   *
+   * REUSES THE BALLOT MECHANIC ON PURPOSE. Same .quiz-opts wrapper, same
+   * data-answer-idx, same data-action="ballot" - so answerQuiz() in app.js
+   * handles it with no change at all, including the result line, the correct
+   * and wrong classes and the engagement logging. What differs is only what is
+   * inside the buttons, and that is a stylesheet's problem.
+   *
+   * The name is under the badge rather than hidden behind it. A logo quiz that
+   * is really a logo-recognition quiz asks a different question than the one on
+   * the card, and gets a reader who knows the answer but not the crest. */
+  function renderCareerMap(c) {
+    var p = c.payload;
+    var opts = (p.options || []).map(function (o, i) {
+      return '<button class="quiz-opt cm-opt" data-action="ballot" data-pick="' + i + '">' +
+        logo(o.logo, o.name, "cm-logo") +
+        '<span class="cm-team">' + esc(o.name) + '</span>' +
+        '</button>';
+    }).join("");
+    return '<div class="trivia-q">' + esc(p.question) + '</div>' +
+      /* .quiz-opts and nothing else. The two-column grid it already carries is
+       * exactly the two-by-two that four badges want, and a second class with
+       * no rule behind it is a hook for a change nobody has asked for. */
+      '<div class="quiz-opts" data-answer-idx="' + escAttr(p.answer_idx) + '">' +
+      opts + '</div>' +
+      '<div class="quiz-result" hidden></div>';
+  }
+
   /* A ranked salary card: five rows, a value and a qualifier each. */
   function renderSalaryRank(c) {
     var p = c.payload;
@@ -1216,7 +1250,8 @@
     race: renderRace, oddity: renderOddity, buzz: renderBuzz, capcall: renderTrivia,
     tradetrend: renderTradeTrend, tradedigest: renderTradeDigest,
     traderank: renderTradeRank,
-    mates: renderMates, compare: renderCompare, lean: renderLean
+    mates: renderMates, compare: renderCompare, lean: renderLean,
+    careermap: renderCareerMap
   };
 
   /* ---------------- card frame ---------------- */
@@ -1300,6 +1335,7 @@
       /* The card exists to send you there, so its tap-through carries the
        * game's own call to action rather than a generic label. */
       case "game": return { url: c.payload.url, label: c.payload.cta || "Play" };
+      case "careermap": return { url: c.payload.url, label: c.payload.cta || "Open the map" };
       case "capcall": return c.payload.url
         ? { url: c.payload.url, label: c.payload.cta || "Play the Daily 73-9" } : null;
       // The item lives somewhere else and that is the point: Buzz is a pointer

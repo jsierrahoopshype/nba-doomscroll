@@ -750,6 +750,21 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
 .quiz-opt.correct,.trivia-opt.correct{ border-color:var(--green); background:var(--green-dim); color:var(--green) }
 .quiz-opt.wrong,.trivia-opt.wrong{ border-color:var(--red); background:var(--red-dim); color:var(--red) }
 
+/* Career Map: four badges in the two-by-two the quiz grid already gives, with
+ * the crest above the name rather than instead of it. Naming the team under
+ * every badge is deliberate - a logo quiz that hides the names is testing crest
+ * recognition, which is not the question the card is asking. */
+.cm-opt{
+  display:flex; flex-direction:column; align-items:center; gap:.35rem;
+  padding:.6rem .4rem; text-align:center;
+}
+.cm-logo{ width:40px; height:40px; object-fit:contain; flex:0 0 auto }
+.cm-team{ font-size:.72rem; line-height:1.15; font-weight:600 }
+/* The crest keeps its own colours when an answer lands; only the frame and the
+ * name take the green or the red. An SVG tinted by a parent's `color` would
+ * come out wrong on the half of the badges that use it. */
+.cm-opt.correct .cm-logo,.cm-opt.wrong .cm-logo{ opacity:1 }
+
 .quiz-result{ margin-top:.5rem; font-weight:700; font-size:.85rem }
 .quiz-result.good{ color:var(--green) }
 .quiz-result.bad{ color:var(--red) }
