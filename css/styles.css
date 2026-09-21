@@ -765,6 +765,48 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
  * come out wrong on the half of the badges that use it. */
 .cm-opt.correct .cm-logo,.cm-opt.wrong .cm-logo{ opacity:1 }
 
+/* ---- Beat the Dream Team ----
+ *
+ * Two fives. Each panel is a whole squad, so the two-column grid .quiz-opts
+ * carries is too narrow for them on a phone: five names at half width wrap
+ * into mush. Stacked by default, side by side only once there is room.
+ *
+ * THE REVEAL IS HERE AND NOWHERE ELSE. Every scoring average is in the markup
+ * from the start, hidden, and answerQuiz() in js/app.js sets data-done on the
+ * wrapper when the reader picks. That one attribute is what un-hides the ten
+ * numbers and the two totals, which is why this card needs no interaction
+ * code of its own. Change the selector and the card still answers, still
+ * scores, and silently never shows its arithmetic - so
+ * tools/test_dreamteam_markup.mjs asserts the pairing rather than trusting it.
+ */
+.dt-opts{ grid-template-columns:1fr }
+@media (min-width:30rem){ .dt-opts{ grid-template-columns:1fr 1fr } }
+.dt-opt{ display:flex; flex-direction:column; gap:.3rem; text-align:left }
+.dt-label{
+  font-size:.7rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  opacity:.75;
+}
+.dt-five{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.15rem }
+.dt-man{
+  display:grid; grid-template-columns:1fr auto auto; gap:.4rem; align-items:baseline;
+  font-size:.78rem; font-weight:500;
+}
+.dt-name{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.dt-season{ font-size:.68rem; opacity:.6; font-variant-numeric:tabular-nums }
+/* Hidden until answered. `visibility` rather than `display` so the rows do not
+ * shift under the reader's finger the moment they tap: the column is already
+ * the width of the number it will hold. */
+.dt-ppg{
+  visibility:hidden; font-size:.72rem; font-weight:700;
+  font-variant-numeric:tabular-nums; min-width:2.2em; text-align:right;
+}
+.dt-total{
+  visibility:hidden; margin-top:.15rem; padding-top:.25rem;
+  border-top:1px solid var(--border);
+  font-size:.74rem; font-weight:800; font-variant-numeric:tabular-nums;
+}
+.quiz-opts[data-done] .dt-ppg,.quiz-opts[data-done] .dt-total{ visibility:visible }
+
 .quiz-result{ margin-top:.5rem; font-weight:700; font-size:.85rem }
 .quiz-result.good{ color:var(--green) }
 .quiz-result.bad{ color:var(--red) }
