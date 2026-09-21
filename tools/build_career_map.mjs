@@ -169,7 +169,11 @@ for (const q of known.slice(0, MAX_CARDS)) {
       answer_idx: board.answerIdx,
       detail: `${q.player} played for ${q.franchises} franchise${q.franchises === 1 ? "" : "s"} ` +
         `between ${seasonLabel(q.from)} and ${seasonLabel(q.to)}, ${q.games} games in all.`,
-      url: "https://jsierrahoopshype.github.io/nba-career-map/",
+      /* The Career Map is served on both hosts. This is the HoopsMatic one,
+       * because that is the site this feed belongs to and the one whose
+       * traffic counts. js/cards.js rewrites the Pages URL at render time for
+       * cards built before this line changed; new cards carry it correctly. */
+      url: "https://hoopsmatic.com/nba-career-map/",
       cta: "See every team he played for"
     }
   });

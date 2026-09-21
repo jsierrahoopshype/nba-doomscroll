@@ -67,7 +67,9 @@ if (PD) {
 }
 
 const readJson = p => JSON.parse(fs.readFileSync(p, "utf8"));
-const TRACKER = "https://jsierrahoopshype.github.io/media-vote-tracker/";
+/* HoopsMatic's copy of the tracker, not the GitHub Pages one. See the same
+ * constant in tools/build_lean.mjs. */
+const TRACKER = "https://hoopsmatic.com/award-voting/";
 
 const AWARD_LABEL = {
   MVP: "MVP", DPOY: "Defensive Player of the Year", ROY: "Rookie of the Year",

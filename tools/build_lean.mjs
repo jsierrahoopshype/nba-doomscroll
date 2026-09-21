@@ -135,7 +135,11 @@ const ISO = {
 };
 const isoOf = c => (!c || c === "n/a") ? null : (c.length === 2 ? c.toLowerCase() : ISO[c] || null);
 
-const PLAYER_URL = "https://jsierrahoopshype.github.io/media-vote-tracker/player.html?p=";
+/* The Media Vote Tracker on HoopsMatic, not the GitHub Pages copy. Both are
+ * live; only one of them is the site this feed belongs to. js/cards.js still
+ * rewrites the Pages prefix at render time, which is what carries the pools
+ * built before this line changed. */
+const PLAYER_URL = "https://hoopsmatic.com/award-voting/player.html?p=";
 
 const readJson = p => JSON.parse(fs.readFileSync(p, "utf8"));
 const faces = (() => {

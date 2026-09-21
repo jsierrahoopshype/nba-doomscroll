@@ -55,7 +55,7 @@ const card = {
     ],
     answer_idx: 2,
     detail: "Test Man played for 3 franchises between 2004-05 and 2015-16, 840 games in all.",
-    url: "https://jsierrahoopshype.github.io/nba-career-map/",
+    url: "https://hoopsmatic.com/nba-career-map/",
     cta: "See every team he played for"
   }
 };

@@ -63,8 +63,10 @@
     {
       "id": "content-stream",
       "url": "https://jsierrahoopshype.github.io/nba-content-stream/",
-      "used_by": "index.html footer credit",
-      "kind": "page"
+      "used_by": "nothing navigates here - see note",
+      "kind": "page",
+      "probe": false,
+      "note": "NOT a destination any more. It was the footer credit in index.html; that credit is gone and no source file links here. The three buzz-* entries below are what the feed actually uses from nba-content-stream, and those are data fetches rather than somewhere a reader is sent. Kept as a record, not probed, and deliberately NOT rewritten to hoopsmatic.com: whether that tool has a hoopsmatic route is an open question for Jorge, and guessing one is how the Career Map CTA ended up pointing at GitHub Pages for a week. Delete this entry, or give it a real hoopsmatic URL, once that is answered."
     },
     {
       "id": "buzz-trending",
@@ -262,11 +264,18 @@
       "note": "Proxied from aderoa/BoxScoreLab by the main router Worker."
     },
     {
+      "id": "dream-team-game",
+      "url": "https://hoopsmatic.com/dream-team-game",
+      "used_by": "data/careermap-pool.json sibling - the Beat the Dream Team card, once built",
+      "kind": "page",
+      "note": "Registered ahead of the card that will use it, because the card was blocked on having a real address to point at. Nothing links here yet."
+    },
+    {
       "id": "game-career-map",
-      "url": "https://jsierrahoopshype.github.io/nba-career-map/",
+      "url": "https://hoopsmatic.com/nba-career-map/",
       "used_by": "data/games.json - the Career Map cards",
       "kind": "page",
-      "note": "GitHub Pages. ?view=quiz and teams.html are the other two entry points the cards use."
+      "note": "Served on BOTH hosts; this is the HoopsMatic route, which is the one the cards must use. The other two entry points the cards reach are ?view=quiz and teams.html under the same prefix - Jorge confirmed the directory root, the two sub-paths are inferred from it and this probe is what will say if that inference is wrong. js/cards.js HM_ROUTES rewrites the old GitHub Pages prefix at render time for pools built before the builders changed."
     }
   ],
   "probe_false_note": "An entry with probe:false is registered for coverage but never fetched. Used where there is no stable URL to check - a preconnect host that serves font binaries at hashed paths has nothing a test could meaningfully assert about.",
