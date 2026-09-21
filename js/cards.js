@@ -1256,6 +1256,46 @@
 
   /* ---------------- card frame ---------------- */
 
+  /* HOOPSMATIC CONTENT OPENS ON HOOPSMATIC.
+   *
+   * Several of these tools are served from two addresses: a GitHub Pages URL
+   * and a hoopsmatic.com route. Both work and look identical. Only one of them
+   * is the site this feed belongs to, and sending a reader to the other costs
+   * the visit and tells Google to index the wrong host.
+   *
+   * Rewritten HERE rather than in the pools, for the same reason the teammates
+   * slug is: it applies to every card already deployed without rebuilding
+   * anything. The builders write the hoopsmatic.com form too, so a rebuild
+   * does not need this - it is the net under the pools that predate them.
+   *
+   * ONE ROW PER TOOL. Prefix in, prefix out, everything after it carried
+   * across, so a deep link keeps its path and query. First match wins; a URL
+   * the table does not name is returned untouched, which is what every
+   * third-party destination in the feed relies on.
+   *
+   * ONLY READER DESTINATIONS BELONG HERE. Asset hosts must not be added:
+   * headshots, team logos and the published JSON indexes are fetched from
+   * GitHub Pages on purpose, and "routing" one of those to hoopsmatic.com is a
+   * broken image rather than a recovered visit.
+   *
+   * Both are exported so tools/test_hoopsmatic_routes.mjs checks the shipped
+   * table and the shipped wiring instead of a copy that could go stale. */
+  var HM_ROUTES = [
+    ["https://jsierrahoopshype.github.io/media-vote-tracker/",
+     "https://hoopsmatic.com/award-voting/"],
+    ["https://jsierrahoopshype.github.io/nba-career-map/",
+     "https://hoopsmatic.com/nba-career-map/"]
+  ];
+
+  function onHoopsmatic(url) {
+    var s = String(url || "");
+    for (var i = 0; i < HM_ROUTES.length; i++) {
+      var from = HM_ROUTES[i][0];
+      if (s.indexOf(from) === 0) return HM_ROUTES[i][1] + s.slice(from.length);
+    }
+    return s;
+  }
+
   function tapTarget(c) {
     // Where tap-through goes, per type. Dummy-safe defaults for step 2.
     switch (c.type) {
@@ -1283,26 +1323,6 @@
         return c.payload.url
           ? { url: c.payload.url, label: c.payload.cta || "See full salary history" }
           : { url: "https://hoopsmatic.com/salary-season-finder", label: "Salary Season Finder" };
-      /* HoopsMatic content belongs on HoopsMatic.
-   *
-   * The ballot pools were built when the tracker only existed on GitHub Pages,
-   * so several hundred cards carry a jsierrahoopshype.github.io URL baked into
-   * their payload. The tracker now lives at hoopsmatic.com/award-voting/, and
-   * sending a reader of a HoopsMatic feed to a github.io page is a seam they
-   * should never see.
-   *
-   * Rewritten HERE rather than in the pools, for the same reason the teammates
-   * slug is: it applies to every card already deployed without rebuilding
-   * anything. A URL that is already on hoopsmatic.com, or anywhere else, is
-   * left exactly as it is. */
-  function onHoopsmatic(url) {
-    var s = String(url || "");
-    return s.indexOf("https://jsierrahoopshype.github.io/media-vote-tracker/") === 0
-      ? "https://hoopsmatic.com/award-voting/" +
-        s.slice("https://jsierrahoopshype.github.io/media-vote-tracker/".length)
-      : s;
-  }
-
   /* Deep-linked to the player or the voter the card is about, rather than
        * the tracker's front page. "Media Vote Tracker" as a destination made
        * the reader find the thing again themselves. There is no award/season
@@ -1328,14 +1348,15 @@
       case "compare": return { url: c.payload.compare_url, label: "Full comparison" };
       // The tracker holds every ballot behind these six rows, which is more
       // than a card can carry and exactly what someone who cares will want.
-      case "lean":  return { url: c.payload.url, label: "Every ballot" };
+      case "lean":  return { url: onHoopsmatic(c.payload.url), label: "Every ballot" };
       /* No tap-through. The Daily Five IS the destination, and a button
        * sending someone off it mid-run is the opposite of what it wants. */
       case "daily": return null;
       /* The card exists to send you there, so its tap-through carries the
        * game's own call to action rather than a generic label. */
-      case "game": return { url: c.payload.url, label: c.payload.cta || "Play" };
-      case "careermap": return { url: c.payload.url, label: c.payload.cta || "Open the map" };
+      case "game": return { url: onHoopsmatic(c.payload.url), label: c.payload.cta || "Play" };
+      case "careermap": return { url: onHoopsmatic(c.payload.url),
+                                 label: c.payload.cta || "Open the map" };
       case "capcall": return c.payload.url
         ? { url: c.payload.url, label: c.payload.cta || "Play the Daily 73-9" } : null;
       // The item lives somewhere else and that is the point: Buzz is a pointer
@@ -1384,6 +1405,11 @@
   /* rumorSpan is exported so tools/rumor_field_shape.mjs can ask the SHIPPED
    * function how often it finds a span in the live archive, rather than a copy
    * of it that might answer differently. */
+  /* HM_ROUTES and onHoopsmatic are exported so tools/test_hoopsmatic_routes.mjs
+   * can check the pools against the SHIPPED table, rather than against a copy
+   * of it in the test that would go stale the moment a tool gains a
+   * hoopsmatic.com route. */
   root.DoomCards = {
-    ent: ent, render: render, esc: esc, TEAM_NAME: TEAM_NAME, rumorSpan: rumorSpan };
+    ent: ent, render: render, esc: esc, TEAM_NAME: TEAM_NAME, rumorSpan: rumorSpan,
+    HM_ROUTES: HM_ROUTES, onHoopsmatic: onHoopsmatic, tapTarget: tapTarget };
 })(window);
