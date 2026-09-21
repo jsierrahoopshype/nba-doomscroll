@@ -61,6 +61,14 @@
       "note": "Not a destination. This is the prefix hundreds of already-deployed ballot cards carry in their payload, which onHoopsmatic swaps for hoopsmatic.com/award-voting/ at render time. Registered because the coverage check reads URLs out of the source and would otherwise report it as an unregistered destination every run - and a coverage check people learn to ignore is worse than none. Not probed: whether the old GitHub Pages site still answers has no bearing on this feed, since nothing here sends anyone there any more. Delete this entry when the pools are next rebuilt with the new prefix baked in, and the rewrite with it."
     },
     {
+      "id": "career-map-old",
+      "url": "https://jsierrahoopshype.github.io/nba-career-map",
+      "used_by": "js/cards.js HM_ROUTES - matched and REWRITTEN, never navigated to",
+      "kind": "page",
+      "probe": false,
+      "note": "Not a destination. Same case as media-vote-tracker-old directly above: this is the prefix the 60 Career Map cards in data/careermap-pool.json carry in their payload, which onHoopsmatic swaps for hoopsmatic.com/nba-career-map/ at render time. Registered so the coverage check does not report a rewrite SOURCE as an unregistered destination - it reads URLs out of js/cards.js and cannot tell the two apart. Not probed: whether the Pages copy still answers has no bearing on this feed. tools/build_career_map.mjs already writes the hoopsmatic.com form, so rebuilding that pool retires this entry and its HM_ROUTES row together."
+    },
+    {
       "id": "content-stream",
       "url": "https://jsierrahoopshype.github.io/nba-content-stream/",
       "used_by": "nothing navigates here - see note",
