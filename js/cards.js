@@ -120,7 +120,8 @@
      * it is what you tap for the whole career, not what you tap to find out
      * whether you were right - which is the difference between this and the
      * three promo cards for the same game that it replaces. */
-    careermap: { chip: "CAREER MAP", cls: "t-quiz", tab: "quiz" }
+    careermap: { chip: "CAREER MAP", cls: "t-quiz", tab: "quiz" },
+    dreamteam: { chip: "DREAM TEAM", cls: "t-quiz", tab: "quiz" }
   };
 
   /* ---------------- renderers ---------------- */
@@ -851,6 +852,40 @@
       '<div class="quiz-result" hidden></div>';
   }
 
+  /* Beat the Dream Team, at the size of a card.
+   *
+   * Two fives, one tappable panel each. Every man's scoring average is IN the
+   * markup from the start but hidden, and revealed by the stylesheet once
+   * answerQuiz() has set data-done on the wrapper. That is the whole reason
+   * this card needs no interaction code of its own: the reader guesses, then
+   * sees the ten numbers they were guessing about, and the sum they add to.
+   *
+   * Hiding them in CSS rather than injecting them on answer is deliberate. A
+   * reader who opens the inspector can find them, which is a fair trade
+   * against a second code path that could disagree with the first about what
+   * the numbers are. */
+  function renderDreamTeam(c) {
+    var p = c.payload;
+    var one = function (s, i) {
+      var men = (s.players || []).map(function (m) {
+        return '<li class="dt-man">' +
+          '<span class="dt-name">' + esc(m.name) + '</span>' +
+          '<span class="dt-season">' + esc(m.season) + '</span>' +
+          '<span class="dt-ppg">' + esc(Number(m.ppg).toFixed(1)) + '</span>' +
+          '</li>';
+      }).join("");
+      return '<button class="quiz-opt dt-opt" data-action="ballot" data-pick="' + i + '">' +
+        '<span class="dt-label">' + esc(s.label) + '</span>' +
+        '<ol class="dt-five">' + men + '</ol>' +
+        '<span class="dt-total">' + esc(Number(s.total).toFixed(1)) + ' a game</span>' +
+        '</button>';
+    };
+    return '<div class="trivia-q">' + esc(p.question) + '</div>' +
+      '<div class="quiz-opts dt-opts" data-answer-idx="' + escAttr(p.answer_idx) + '">' +
+      (p.squads || []).map(one).join("") + '</div>' +
+      '<div class="quiz-result" hidden></div>';
+  }
+
   /* A ranked salary card: five rows, a value and a qualifier each. */
   function renderSalaryRank(c) {
     var p = c.payload;
@@ -1251,7 +1286,7 @@
     tradetrend: renderTradeTrend, tradedigest: renderTradeDigest,
     traderank: renderTradeRank,
     mates: renderMates, compare: renderCompare, lean: renderLean,
-    careermap: renderCareerMap
+    careermap: renderCareerMap, dreamteam: renderDreamTeam
   };
 
   /* ---------------- card frame ---------------- */
@@ -1357,6 +1392,11 @@
       case "game": return { url: onHoopsmatic(c.payload.url), label: c.payload.cta || "Play" };
       case "careermap": return { url: onHoopsmatic(c.payload.url),
                                  label: c.payload.cta || "Open the map" };
+      /* The card is the judgement; the game is the build. The link is where
+       * you go to assemble one, not where you go to find out if you were
+       * right - the reveal already told you that. */
+      case "dreamteam": return { url: onHoopsmatic(c.payload.url),
+                                 label: c.payload.cta || "Play Beat the Dream Team" };
       case "capcall": return c.payload.url
         ? { url: c.payload.url, label: c.payload.cta || "Play the Daily 73-9" } : null;
       // The item lives somewhere else and that is the point: Buzz is a pointer

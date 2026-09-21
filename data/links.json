@@ -274,9 +274,9 @@
     {
       "id": "dream-team-game",
       "url": "https://hoopsmatic.com/dream-team-game",
-      "used_by": "data/careermap-pool.json sibling - the Beat the Dream Team card, once built",
+      "used_by": "tools/build_dream_team.mjs GAME_URL - every Beat the Dream Team card",
       "kind": "page",
-      "note": "Registered ahead of the card that will use it, because the card was blocked on having a real address to point at. Nothing links here yet."
+      "note": "The game the dreamteam cards send a reader to. The card asks the judgement the game is built on (which five scored more) and the link is where you go to assemble one yourself, so it is a tap-through for someone who has already answered rather than a way to find out if they were right."
     },
     {
       "id": "game-career-map",
