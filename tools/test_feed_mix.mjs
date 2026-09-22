@@ -154,8 +154,6 @@ console.log("\nno tab may have all of its types capped");
    * The types a tab holds are read from the pool files on disk, so a new pool
    * with a capped type fails here rather than in somebody's thumb.
    */
-  const tabPools = /TAB_POOLS\s*=\s*\{([\s\S]*?)\n  \};/.exec(APP);
-  const body = (tabPools ? tabPools[1] : "").replace(/\/\*[\s\S]*?\*\//g, "");
   /* Which table each tab actually draws with. The call site reads
        state.tab === "vs" ? VS_TAB_CAPS : null
      so the override is discoverable from the source rather than restated
@@ -170,14 +168,26 @@ console.log("\nno tab may have all of its types capped");
   const cappedIn = table => new Set((table.match(/(\w+)\s*:\s*\d+/g) || [])
     .map(x => x.split(":")[0].trim()));
 
-  const tabs = {};
-  for (const line of body.split("\n")) {
-    const m = /^\s*(\w+)\s*:\s*\[([\s\S]*)/.exec(line);
-    if (m) tabs[m[1]] = [];
-    const key = Object.keys(tabs).pop();
-    if (!key) continue;
-    for (const f of (line.match(/data\/[\w-]+\.json/g) || [])) tabs[key].push(f);
-  }
+  /* TAB_POOLS is DERIVED now, from the POOLS registry that replaced the
+   * hand-written lists (§12-13 of the feed-mix brief). It used to be an object
+   * literal this read line by line; that parse returned nothing against an
+   * IIFE, and the "some tabs were actually checked" guard below is what caught
+   * it rather than this suite quietly passing on zero tabs.
+   *
+   * Reading the registry instead keeps the property being tested identical: a
+   * tab's types come from the pools that tab draws on. tools/test_app_pools.mjs
+   * owns the registry's own shape. */
+  const tabs = (() => {
+    const lit = /var POOLS = (\[[\s\S]*?\n  \]);/.exec(APP);
+    if (!lit) return {};
+    const POOLS = Function('"use strict";return (' + lit[1] + ")")();
+    const out = { foryou: [] };
+    for (const p of POOLS) {
+      for (const t of (p.tabs || [])) (out[t] = out[t] || []).push(p.url);
+      if (p.foryou !== false && (p.tabs || []).length) out.foryou.push(p.url);
+    }
+    return out;
+  })();
 
   const typesOf = files => {
     const out = new Set();
