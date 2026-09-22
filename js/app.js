@@ -13,16 +13,37 @@
   var C = window.DoomCards;
   var esc = C.esc;
 
+  /* RUMORS ARE OFF. Jorge's call, Sept 2026, §4 of the feed-mix brief:
+   * "Remove Rumors entirely from For You and live-serving logic."
+   *
+   * One flag, not a deletion. js/rumors.js, the ten sample cards in
+   * data/dummy-cards.json, the tab's blurb and its empty state are all left
+   * exactly where they are, so turning rumors back on is setting this to true.
+   *
+   * It governs four things, each marked RUMORS_ON below: the tab is not
+   * offered, LiveRumors is never asked to load, rumor cards are refused at
+   * addCards so none can reach ANY pool, and the rumors empty state is
+   * unreachable rather than deleted.
+   *
+   * WHY THE TAB GOES TOO, WHICH IS MORE THAN THE BRIEF ASKED FOR. The only
+   * rumor cards this repo ships are the ten marked `dummy`, and the existing
+   * comment on swapInLive says why they must never be shown on their own: an
+   * invented rumor is a fake NBA report sitting next to HoopsHype, and a
+   * screenshot loses the SAMPLE label. Stop fetching the real ones and a
+   * Rumors tab can only show those ten. So it is off, not empty. */
+  var RUMORS_ON = false;
+
   var TABS = [
     { key: "foryou", label: "For You" },
     { key: "buzz", label: "Buzz" },
     { key: "trades", label: "Trades" },
+    /* RUMORS_ON */
     { key: "rumors", label: "Rumors" },
     { key: "vs", label: "VS" },
     { key: "quiz", label: "Quiz" },
     { key: "vault", label: "History" },
     { key: "races", label: "Races" }
-  ];
+  ].filter(function (t) { return RUMORS_ON || t.key !== "rumors"; });
   var BATCH = 8;
   // Share of every mixed batch reserved for live Content Stream items.
   /* HOW MUCH OF A MIXED BATCH IS BUZZ.
@@ -103,97 +124,124 @@
   // They are per-tab now. For You genuinely mixes everything, so it still
   // pulls all three — just after the first batch is on screen rather than
   // competing with it.
-  var TAB_POOLS = {
-    vs:     ["data/vs-pool.json", "data/teammates-pool.json", "data/compare-pool.json"],
-    vault:  ["data/vault-pool.json", "data/lean-pool.json", "data/oddity-pool.json",
-             "data/salary-pool.json",
-             /* Franchise droughts from 71 seasons of official award voting.
-              * Its ids start "oddity-hist-" so the prefix table below already
-              * routes them here - this line is the whole wiring. */
-             "data/award-history-pool.json",
-             /* Records that stood and the seasons that ended them, from the
-              * league schedule. Ids start "oddity-rec-", so the prefix table
-              * below routes them here too and this line is again the whole
-              * wiring. The vault needed content that is surprising rather than
-              * dated: it was 82% on-this-day cards. */
-             "data/record-pool.json",
-             /* Careers the award voting remembers differently than anybody
-              * else does. Ids start "oddity-career-". */
-             "data/career-pool.json"],
-    races:  ["data/race-pool.json", "data/ballotrace-pool.json"],
-    /* FRIVOLITIES ARE OFF. Jorge's call, Sept 2026: the cards were weak.
+  /* ---------------- the pool registry: one source of truth ----------------
+   *
+   * §12-13 of the feed-mix brief. This was two hand-written structures - a
+   * TAB_POOLS map and an OPTIONAL_POOLS set - and a pool had to be added to
+   * both, plus a third list inside TAB_POOLS for For You. The For You list was
+   * the one that got forgotten, and the symptom was subtle enough to survive
+   * months of use:
+   *
+   *   FIVE POOLS, 219 CARDS, REACHED FOR YOU ONLY IF YOU HAD VISITED ANOTHER
+   *   TAB FIRST. award-history (55), record (9), career (55), careermap (60)
+   *   and dreamteam (40) were listed under History or Quiz and not under For
+   *   You, so ensurePools never fetched them for a reader who opened the app
+   *   and scrolled. Open History once and they appeared - in For You, for the
+   *   rest of the session. The feed a first-time reader saw and the feed a
+   *   returning reader saw were different feeds, and which one you got
+   *   depended on where you had clicked.
+   *
+   * So there is one list now, and For You is DERIVED rather than written down:
+   * every pool is in For You unless it says otherwise. A pool added to a tab
+   * cannot be forgotten here, because there is no second place to remember.
+   * tools/test_app_pools.mjs asserts that, and asserts that no pool file in
+   * data/ is missing from the registry entirely.
+   *
+   *   url       the file
+   *   tabs      the tabs whose own section draws on it
+   *   foryou    default true. false means deliberately not in the mix.
+   *   optional  its absence is a normal state, not a broken checkout
+   */
+  var POOLS = [
+    /* ---- VS ---- */
+    { url: "data/vs-pool.json",         tabs: ["vs"] },
+    { url: "data/teammates-pool.json",  tabs: ["vs"] },
+    { url: "data/compare-pool.json",    tabs: ["vs"] },
+
+    /* ---- History ---- */
+    { url: "data/vault-pool.json",      tabs: ["vault"] },
+    { url: "data/lean-pool.json",       tabs: ["vault"] },
+    /* Built from the Media Vote Tracker's ballots by tools/build_oddities.mjs.
+     * Absent until that has been run, which is a normal state. */
+    { url: "data/oddity-pool.json",     tabs: ["vault"], optional: true },
+    /* Built from nba-player-data plus the cap table by tools/build_salary.mjs. */
+    { url: "data/salary-pool.json",     tabs: ["vault"], optional: true },
+    /* Franchise droughts from 71 seasons of official award voting. Its ids
+     * start "oddity-hist-" so the prefix table below already routes them to
+     * History - this entry is the whole wiring.
      *
-     * The pool file, its builder and its tests are all left exactly where they
-     * are - this is two list entries, not a deletion, so turning them back on
-     * is putting "data/frivolities-pool.json" back in these two arrays. The
-     * quiz tab now draws its cards from the shared pools like every other tab.
+     * Absent until tools/build_award_history.mjs has been run, which is a
+     * normal state - and better than committing a placeholder, because an
+     * empty pool that exists is indistinguishable from a build that produced
+     * nothing. */
+    { url: "data/award-history-pool.json", tabs: ["vault"], optional: true },
+    /* Records that stood and the seasons that ended them, from the league
+     * schedule. Ids start "oddity-rec-", so the prefix table below routes them
+     * to History too. The vault needed content that is surprising rather than
+     * dated: it was 82% on-this-day cards. Built by tools/build_records.mjs. */
+    { url: "data/record-pool.json",     tabs: ["vault"], optional: true },
+    /* Careers the award voting remembers differently than anybody else does.
+     * Ids start "oddity-career-". Built by tools/build_career_oddities.mjs. */
+    { url: "data/career-pool.json",     tabs: ["vault"], optional: true },
+
+    /* ---- Races ---- */
+    { url: "data/race-pool.json",       tabs: ["races"] },
+    { url: "data/ballotrace-pool.json", tabs: ["races"] },
+
+    /* ---- Quiz ----
      *
-     * It also removes the last consumer of the surname-matching in
-     * build_frivolities.mjs, which is the code the shared resolver in
-     * js/player-resolver.js was written to replace. */
-    /* THE GAME CARDS ARE OFF TOO. Jorge's call, Sept 2026, on seeing two of
+     * Cap Call: the value-per-dollar game as a card, built alongside the salary
+     * pool. Career Map and Dream Team are the same shape: playable, built from
+     * nba-player-data's rsStats, absent until their builder has been run.
+     *
+     * All three are in For You now, which is the coverage fix above. They are
+     * games, and the brief wants games in the mix. */
+    { url: "data/capcall-pool.json",    tabs: ["quiz"], optional: true },
+    { url: "data/careermap-pool.json",  tabs: ["quiz"], optional: true },
+    { url: "data/dreamteam-pool.json",  tabs: ["quiz"], optional: true },
+
+    /* ---- off, and left in the registry rather than deleted ----
+     *
+     * FRIVOLITIES ARE OFF. Jorge's call, Sept 2026: the cards were weak. The
+     * pool file, its builder and its tests are all left exactly where they are.
+     * Turning them back on is putting a tab in `tabs` and dropping the
+     * `foryou: false`.
+     *
+     * It is built from the HoopsHype archive by a script run on a machine that
+     * has it (tools/build_frivolities.mjs), and the archive is not public, so a
+     * checkout without the file is a normal state.
+     *
+     * THE GAME CARDS ARE OFF TOO. Jorge's call, Sept 2026, on seeing two of
      * them at the top of For You: "I don't want cards promoting the games. I
      * want the game in the stream (or a lite version of it) if possible. If
      * not, shelve them from the stream."
      *
      * They were a hook plus a link - an advert wearing a card's clothes - and
      * the feed has real playable cards a few rows below them, which is what
-     * makes the contrast obvious. A lite 73-9 that can be played in the card
-     * needs the daily board, which lives in that game's own Worker and not in
-     * this repo, so it is a separate piece of work rather than a line here.
-     *
-     * Three list entries, not a deletion. data/games.json, its test and its
-     * entries in data/links.json are untouched, so turning them back on is
-     * putting "data/games.json" back in these arrays.
-     *
-     * The quiz tab is left with no lazy pool of its own, which is fine: the
-     * quiz, trivia and ballot pools are in EAGER_POOLS above and carry 1,538
-     * cards tagged for that tab. */
-    /* Cap Call: the value-per-dollar game as a card, built alongside the
-     * salary pool. Playable, so it belongs here where the game cards did not. */
-    quiz:   ["data/capcall-pool.json", "data/careermap-pool.json",
-             "data/dreamteam-pool.json"],
-    foryou: ["data/vs-pool.json", "data/vault-pool.json", "data/race-pool.json",
-             "data/teammates-pool.json", "data/compare-pool.json",
-             "data/ballotrace-pool.json", "data/lean-pool.json",
-             "data/oddity-pool.json",
-             "data/salary-pool.json", "data/capcall-pool.json"]
-  };
+     * makes the contrast obvious. data/games.json, its test and its entries in
+     * data/links.json are untouched. */
+    { url: "data/frivolities-pool.json", tabs: [], foryou: false, optional: true },
+    { url: "data/games.json",            tabs: [], foryou: false, optional: true }
+  ];
 
-  /* Pools that may legitimately not exist.
-   *
-   * The Frivolities pool is built from the HoopsHype archive by a script run on
-   * a machine that has it (tools/build_frivolities.mjs), and the archive is not
-   * public. A checkout without that file is a normal state, not a broken one,
-   * so its absence loads nothing and says so once rather than surfacing the
-   * "could not load the card pools" error that a missing vs-pool should. */
-  var OPTIONAL_POOLS = {
-    "data/frivolities-pool.json": 1,
-    /* Built from the Media Vote Tracker's ballots by tools/build_oddities.mjs.
-     * Absent until that has been run, which is a normal state. */
-    "data/oddity-pool.json": 1,
-    /* Built from nba-player-data plus the cap table by tools/build_salary.mjs. */
-    "data/salary-pool.json": 1,
-    /* Same builder, second file. */
-    "data/capcall-pool.json": 1,
-    /* Built from nba-player-data's rsStats by tools/build_career_map.mjs, with
-     * the team badges read out of data/vault-pool.json. Absent until that has
-     * been run, which is a normal state. */
-    "data/careermap-pool.json": 1,
-    /* Built from nba-player-data's rsStats by tools/build_dream_team.mjs.
-     * Absent until that has been run, which is a normal state. */
-    "data/dreamteam-pool.json": 1,
-    /* Built from nba-player-data's awardVotes + rsStats by
-     * tools/build_award_history.mjs. Absent until that has been run, which is
-     * a normal state - and better than committing a placeholder, because an
-     * empty pool that exists is indistinguishable from a build that produced
-     * nothing. */
-    "data/award-history-pool.json": 1,
-    /* Built from the league game log by tools/build_records.mjs. */
-    "data/record-pool.json": 1,
-    /* Built from awardVotes + rsStats by tools/build_career_oddities.mjs. */
-    "data/career-pool.json": 1
-  };
+  /* Everything below is DERIVED. Nothing here is a second place to remember a
+   * pool, which is the whole point of the registry. */
+
+  var TAB_POOLS = (function () {
+    var out = { foryou: [] };
+    POOLS.forEach(function (p) {
+      (p.tabs || []).forEach(function (t) { (out[t] = out[t] || []).push(p.url); });
+      /* Default true: a pool has to opt OUT of the mix, not into it. */
+      if (p.foryou !== false && (p.tabs || []).length) out.foryou.push(p.url);
+    });
+    return out;
+  })();
+
+  var OPTIONAL_POOLS = (function () {
+    var out = {};
+    POOLS.forEach(function (p) { if (p.optional) out[p.url] = 1; });
+    return out;
+  })();
   var poolPromises = {};
   // Set when a live source could not be reached, so the tab can say so instead
   // of quietly showing nothing.
@@ -261,8 +309,18 @@
     // wrong. Those cards say "Around this date" instead.
     var otdExact = otdDate === todayMd(0);
     var quizDropped = 0;
+    var rumorsDropped = 0;
     (list || []).forEach(function (c) {
       if (byId[c.id]) return;
+      /* RUMORS_ON. Refused at the door rather than filtered at draw time.
+       *
+       * poolForTab("foryou") returns allCards without looking at c.tab, so a
+       * card that reaches allCards reaches For You whatever it is tagged with -
+       * which is exactly how ten sample rumors tagged tab:["rumors"] were
+       * turning up in For You. Keeping them out of allCards is the only place
+       * the answer is the same for every pool, every tab and the entity
+       * filter. */
+      if (!RUMORS_ON && c.type === "rumor") { rumorsDropped++; return; }
       if (c.type === "otd" && c.payload.date && otdDate && c.payload.date !== otdDate) return;
       if (c.type === "otd" && !otdExact) c.payload.approx = true;
       /* Guess the Player shows a clear, full photograph, so the difficulty has
@@ -288,6 +346,10 @@
     if (quizDropped) {
       console.info("[doomscroll] quiz: " + quizDropped +
         " cards held back (tiers outside " + Object.keys(QUIZ_QUALITY).join(", ") + ")");
+    }
+    if (rumorsDropped) {
+      console.info("[doomscroll] rumors are off: " + rumorsDropped +
+        " card(s) held back (set RUMORS_ON to turn them back on)");
     }
   }
 
@@ -375,6 +437,62 @@
      * HoopsHype. Labelling it SAMPLE is not enough: a screenshot loses the
      * label. So a failed rumor load drops the placeholders entirely and the tab
      * says so. */
+    /* §17: LIVE DATA ARRIVING NEVER CLEARS AN ACTIVE FEED.
+     *
+     * Every live path used to do `clearFeed(); loadMore();`. clearFeed() wipes
+     * innerHTML and resets `rendered`, so a reader thirty cards into For You
+     * when the Buzz fetch resolved - which is a second or two after boot, or
+     * later on a slow connection - was thrown back to the top of a feed they
+     * had already read. Nothing errored. It just looked like the app had
+     * reloaded itself.
+     *
+     * The fix is that clearing is only ever allowed when there is nothing to
+     * lose. A feed holding no `.card` is a placeholder message ("Loading
+     * today's feed...", "Nothing here yet."), and clearing that is how the
+     * message is removed. A feed holding cards keeps every one of them, in
+     * order, with the scroll position untouched; the new material arrives
+     * BELOW, on the next batch, which is where a reader expects new cards in a
+     * feed they are scrolling.
+     *
+     * state.exhausted is cleared first in both cases: a tab that reached its
+     * empty state has the flag set, and loadMore() returns immediately while it
+     * is - so without this the new cards would not be drawn at all. */
+    function absorbLive() {
+      state.exhausted = false;
+      if (!feedEl.querySelector(".card")) clearFeed();
+      loadMore();
+      renderSummary();
+    }
+
+    /* The one thing that does have to leave the screen: a sample card of a type
+     * whose real cards have just arrived. Mixing an invented trade with real
+     * ones is the thing swapInLive was written to prevent, and it was
+     * preventing it by clearing everything.
+     *
+     * So the sample cards are removed individually and everything else stays
+     * where it is. Removing a node mid-feed shifts what is below it up by that
+     * card's height, which is a smaller disruption than a reset by the width of
+     * the whole feed - and there are at most fourteen of them, all near the top
+     * of a session. */
+    function dropRenderedSamples(type) {
+      var nodes = feedEl.querySelectorAll(".card");
+      var gone = 0;
+      for (var i = 0; i < nodes.length; i++) {
+        var c = byId[nodes[i].dataset.id];
+        if (!c || c.type !== type || !c.dummy) continue;
+        /* Same teardown clearFeed() does, for this node only: a race player
+         * holds a rAF loop and a resize listener, and a <video> keeps
+         * streaming, so dropping the node without them leaks both. */
+        destroyRaces(nodes[i]);
+        if (root.BskyVideo) BskyVideo.releaseAll(nodes[i]);
+        if (root.YtVideo) YtVideo.releaseAll(nodes[i]);
+        delete rendered[nodes[i].dataset.id];
+        nodes[i].parentNode.removeChild(nodes[i]);
+        gone++;
+      }
+      return gone;
+    }
+
     function swapInLive(loader, type) {
       if (!loader) return;
       loader.load().then(function (live) {
@@ -383,16 +501,14 @@
         // — not just a rejected promise.
         if (!live || !live.length) {
           liveFailed[type] = true;
-          if (type === "rumor") dropInventedRumors();
+          /* RUMORS_ON. Unreachable while rumors are off; the branch stays so
+           * that turning them back on restores the fake-rumor safeguard with
+           * the flag rather than needing this code written again. */
+          if (type === "rumor") { dropInventedRumors(); return; }
           // Buzz has no sample cards at all — it is live or it is nothing — so
-          // a tab already sitting on its empty state has to be told.
-          // exhausted has to be cleared first: the tab reached its empty state
-          // on the first pass, and loadMore() returns immediately while that
-          // flag is set — so clearing the feed without it would wipe the
-          // message and leave a blank section.
-          else if (state.tab === TAB_FOR_TYPE[type]) {
-            state.exhausted = false; clearFeed(); loadMore();
-          }
+          // a tab already sitting on its empty state has to be told. absorbLive
+          // clears the placeholder message and leaves a read feed alone.
+          if (state.tab === TAB_FOR_TYPE[type]) absorbLive();
           return;
         }
         allCards = allCards.filter(function (c) {
@@ -400,20 +516,25 @@
           return true;
         });
         addCards(live);
-        state.exhausted = false;
-        if (state.tab === TAB_FOR_TYPE[type] || state.tab === "foryou") {
-          clearFeed();
-          loadMore();
-        }
-        renderSummary();
+        /* The samples of this type leave the screen; everything else stays.
+         * See dropRenderedSamples and absorbLive for why this is not a
+         * clearFeed() any more. */
+        dropRenderedSamples(type);
+        if (state.tab === TAB_FOR_TYPE[type] || state.tab === "foryou") absorbLive();
+        else { state.exhausted = false; renderSummary(); }
       }).catch(function (e) {
         console.warn("[doomscroll] live " + type + " failed:", e.message);
         liveFailed[type] = true;
+        /* RUMORS_ON, same reason as the empty-result branch above. */
         if (type === "rumor") dropInventedRumors();
-        else if (state.tab === TAB_FOR_TYPE[type]) { clearFeed(); loadMore(); }
+        else if (state.tab === TAB_FOR_TYPE[type]) absorbLive();
       });
     }
 
+    /* RUMORS_ON. Kept because it is the safety net for the case where rumors
+     * are turned back on and the live load then fails: the sample cards must
+     * still be dropped rather than shown. With rumors off it never runs,
+     * because addCards refuses rumor cards long before this could. */
     function dropInventedRumors() {
       liveFailed.rumor = true;
       var before = allCards.length;
@@ -424,11 +545,13 @@
       if (before === allCards.length) return;
       console.info("[doomscroll] rumors unavailable — " + (before - allCards.length) +
         " placeholder cards dropped rather than shown");
-      state.exhausted = false;
-      if (state.tab === "rumors" || state.tab === "foryou") { clearFeed(); loadMore(); }
-      renderSummary();
+      /* A fake rumor is the one thing that must leave the screen even mid-read:
+       * §17 protects a reader's position, not a fabricated NBA report. */
+      dropRenderedSamples("rumor");
+      absorbLive();
     }
-    swapInLive(root.LiveRumors, "rumor");
+    /* RUMORS_ON */
+    if (RUMORS_ON) swapInLive(root.LiveRumors, "rumor");
     swapInLive(root.DoomTrades, "trade");
     swapInLive(root.LiveBuzz, "buzz");
 

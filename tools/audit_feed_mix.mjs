@@ -140,7 +140,15 @@ function loadEngine(seed, fixedNow) {
 
 /* ---------------- the archive ---------------- */
 
-const pools = fs.readdirSync(path.join(REPO, "data")).filter(f => /-pool\.json$/.test(f)).sort();
+/* --skip drops pool files by substring, which is how the §13 coverage bug is
+ * measured rather than described: the five pools For You never asked for on a
+ * cold load are skipped, and the difference between that run and a full one is
+ * exactly what a first-time reader was missing. */
+const SKIP = String(arg("skip", "")).split(",").map(s => s.trim()).filter(Boolean);
+const pools = fs.readdirSync(path.join(REPO, "data"))
+  .filter(f => /-pool\.json$/.test(f))
+  .filter(f => !SKIP.some(s => f.indexOf(s) >= 0))
+  .sort();
 const archive = [];
 for (const f of pools) {
   const j = JSON.parse(fs.readFileSync(path.join(REPO, "data", f), "utf8"));
@@ -283,7 +291,8 @@ function runSession(E, pool, wanted, rnd) {
 const usable = archive.filter(usableCard);
 
 console.log(`FEED MIX AUDIT`);
-console.log(`  archive:      ${archive.length} cards, ${usable.length} usable, ${pools.length} pools`);
+console.log(`  archive:      ${archive.length} cards, ${usable.length} usable, ${pools.length} pools` +
+  (SKIP.length ? `   (skipping ${SKIP.join(", ")})` : ""));
 console.log(`  live supply:  ${LIVE_SUPPLY} synthetic cards (buzz/trade/digest; none exist in the repo)`);
 console.log(`  sampler:      the shipped E.sampleMixed`);
 console.log(`  constants:    BATCH=${BATCH} BUZZ_SHARE=${BUZZ_SHARE} ` +
