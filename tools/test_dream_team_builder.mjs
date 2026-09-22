@@ -34,28 +34,42 @@ const ck = (name, ok, d) => {
  * checked by hand.
  */
 const rows = [];
+/* Six decades, sixty scorers each, ANCHORED so that d + (k % 8) stays inside
+ * its own ten years: 1962 + 7 is 1969, but 1965 + 7 would be 1972 and would
+ * scatter one decade's men across two, leaving every bucket under the depth
+ * floor. That mistake cost two debugging rounds when this fixture was first
+ * written, so the anchors are spelled out rather than computed.
+ *
+ * Each decade gets its own base so the totals separate enough for some
+ * pairings to land inside the gap band, and its own scoring level so the era
+ * figure in the reveal is not identical on every card. */
 const decades = [1962, 1972, 1982, 1992, 2002, 2012];
-const base = [27.5, 26.0, 27.0, 25.5, 24.5, 26.5];
+const base    = [28.0, 26.8, 25.6, 24.4, 23.2, 22.0];
 decades.forEach((d, di) => {
-  for (let k = 0; k < 25; k++) {
+  for (let k = 0; k < 60; k++) {
     const y = d + (k % 8);
-    const p = base[di] - k * 0.45;
-    rows.push({ PLAYER: `P${di}_${k}`, TEAM: "BOS", YEAR: String(y), GP: "78",
-                PTS: String(Math.round(78 * p)) });
+    const p = base[di] - k * 0.2;
+    /* Two teams a season, so team-games is a sum over teams rather than one
+     * roster's schedule, which is the shape teamScoringByYear has to handle. */
+    rows.push({ PLAYER: `P${di}_${String(k).padStart(2, "0")}`,
+                TEAM: (k % 2 ? "BOS" : "LAL"), YEAR: String(y),
+                GP: "78", PTS: String(Math.round(78 * p)) });
   }
 });
 
 /* THE TRADED MAN. A TOT row of 70 games and 1470 points, 21.0 a game, plus the
  * two team rows that make it up. If the builder sums all three he becomes a
- * 140-game player, and his average survives unchanged - which is why the games
- * count, not the average, is what gives this bug away. He is built to be good
- * enough to be picked. */
-rows.push({ PLAYER: "Traded Guy", TEAM: "TOT", YEAR: "1992", GP: "70", PTS: "1470" });
-rows.push({ PLAYER: "Traded Guy", TEAM: "BOS", YEAR: "1992", GP: "30", PTS: "630" });
-rows.push({ PLAYER: "Traded Guy", TEAM: "LAL", YEAR: "1992", GP: "40", PTS: "840" });
+ * 140-game player and his average survives unchanged, which is why the games
+ * count and not the average is what gives this bug away. */
+rows.push({ PLAYER: "Traded Guy", TEAM: "TOT", YEAR: "1995", GP: "70", PTS: "1470" });
+rows.push({ PLAYER: "Traded Guy", TEAM: "BOS", YEAR: "1995", GP: "30", PTS: "630" });
+rows.push({ PLAYER: "Traded Guy", TEAM: "LAL", YEAR: "1995", GP: "40", PTS: "840" });
 
 /* A six-game cameo at a huge average, which must never reach a card. */
 rows.push({ PLAYER: "Cameo Man", TEAM: "BOS", YEAR: "2012", GP: "6", PTS: "240" });
+
+/* A BAA-era season, which is before MIN_YEAR and must be dropped. */
+rows.push({ PLAYER: "Baa Man", TEAM: "BOS", YEAR: "1948", GP: "60", PTS: String(60 * 22) });
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dream-team-"));
 fs.writeFileSync(path.join(dir, "rsStats.json"), JSON.stringify(rows));
@@ -107,6 +121,70 @@ console.log("\nwho never appears");
   for (const c of cards) for (const s of c.payload.squads) for (const m of s.players) names.add(m.name);
   ck("the six-game cameo is not on any card", !names.has("Cameo Man"),
      names.has("Cameo Man") ? "he got picked" : "");
+  ck("nor does a pre-merger season", !names.has("Baa Man"),
+     names.has("Baa Man") ? "he got picked" : "");
+
+  /* Nobody is the face of the card type. The library caps this; asserted here
+   * because the cap is shared across the whole run and only a real build
+   * exercises that. */
+  const count = new Map();
+  for (const c of cards) {
+    for (const s of c.payload.squads) for (const m of s.players) {
+      count.set(m.name, (count.get(m.name) || 0) + 1);
+    }
+  }
+  const worst = [...count.entries()].sort((a, b) => b[1] - a[1])[0] || ["(nobody)", 0];
+  ck("no man carries more than three cards", worst[1] <= 3,
+     `${worst[0]} appears on ${worst[1]}`);
+}
+
+console.log("\nevery five has the shape of a team");
+
+{
+  /* THE BUG THAT SHIPPED, caught at the level Jorge saw it. The first real
+   * build produced fives of five men on the SAME average, in alphabetical
+   * order, because squadFrom took consecutive entries from a list sorted by
+   * scoring average. Every total was correct, every gate passed, and the cards
+   * were unusable. Only the spread inside a five gives it away. */
+  let worstSpread = Infinity, worstCard = "";
+  let flat = 0;
+  for (const c of cards) {
+    for (const s of c.payload.squads) {
+      const v = s.players.map(m => m.ppg);
+      const spread = Math.max(...v) - Math.min(...v);
+      if (spread < worstSpread) { worstSpread = spread; worstCard = c.id + " / " + s.label; }
+      /* Five averages inside a single point of each other is the signature. */
+      if (spread < 1.0) flat++;
+    }
+  }
+  ck("no five is five men on the same average", flat === 0,
+     flat ? `${flat} flat five(s), tightest ${worstSpread.toFixed(1)} on ${worstCard}` : "");
+  ck("and the tightest five still spans a real range", worstSpread > 3,
+     `tightest spread ${worstSpread.toFixed(1)} (${worstCard})`);
+
+  /* A five listed low-to-high would read as a mistake next to its total. */
+  const descending = cards.every(c => c.payload.squads.every(s =>
+    s.players.every((m, i) => i === 0 || m.ppg <= s.players[i - 1].ppg + 0.001)));
+  ck("every five is listed best scorer first", descending);
+}
+
+console.log("\nthe scoring era the reveal quotes");
+
+{
+  /* It has to VARY, or the sentence is decoration. The old measure came out
+   * near 19 in every decade because it was computed over players who had
+   * already cleared the scoring floor. */
+  const eras = new Set();
+  for (const c of cards) {
+    for (const m of c.payload.detail.matchAll(/averaged ([\d.]+) points a game|and ([\d.]+) in the/g)) {
+      eras.add(m[1] || m[2]);
+    }
+  }
+  ck("the reveal quotes a team scoring figure", eras.size > 0, [...eras].join(", "));
+  ck("and it is not the same number on every card", eras.size > 1,
+     `${eras.size} distinct value(s): ${[...eras].sort().join(", ")}`);
+  ck("the build printed the two landmark seasons for checking",
+     /points per team per game, against what these seasons are known for/.test(log));
 }
 
 console.log("\nevery card's arithmetic");

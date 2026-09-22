@@ -10,9 +10,10 @@
  */
 
 import {
-  seasonTotals, ppg, seasonLabel, decadeOf, eligibleSeasons, scoringByYear,
+  seasonTotals, ppg, seasonLabel, decadeOf, eligibleSeasons, teamScoringByYear,
   environmentOf, squadFrom, squadPairs, squadTotal,
-  MIN_GP, MIN_PPG, SQUAD, MIN_GAP, MAX_GAP
+  MIN_GP, MIN_PPG, SQUAD, MIN_GAP, MAX_GAP, MIN_YEAR, MIN_DECADE_SEASONS,
+  MAX_CARDS_PER_PLAYER
 } from "./lib/dream_squads.mjs";
 
 let fail = 0;
@@ -104,22 +105,68 @@ console.log("\nwho is eligible");
   ck("the floors are inclusive", names.includes("Just Over"), `MIN_GP=${MIN_GP} MIN_PPG=${MIN_PPG}`);
 }
 
-console.log("\nthe scoring environment");
+console.log("\nthe scoring era, measured before any filter");
 
 {
-  /* Two seasons, deliberately different environments: 1962 scores heavily,
-   * 1999 does not. This is the number the reveal quotes. */
+  /* THE BUG THIS REPLACES. The old version averaged the scoring of players who
+   * had already cleared MIN_PPG, so the figure could not go below that floor
+   * and came out near 19 in every decade. Real scoring went from ~118 points a
+   * team per game in 1961-62 to ~92 in 1998-99, and the card was quoting a
+   * number that erased the whole effect.
+   *
+   * These rows are built so the right answer is arithmetic. One season, one
+   * team of 10 men, 80 games each, 8 points a man: 80 team-games (the max GP
+   * on the roster), 6400 points, 80 points a team per game. Crucially most of
+   * these men are FAR below the card's 14-point floor, so a figure computed
+   * from eligible seasons could never see them. */
   const rows = [];
-  for (let k = 0; k < 4; k++) rows.push(row("Sixties " + k, "BOS", 1962, 80, 80 * 25));
-  for (let k = 0; k < 4; k++) rows.push(row("Nineties " + k, "BOS", 1999, 80, 80 * 17));
-  const el = eligibleSeasons(seasonTotals(rows));
-  const by = scoringByYear(el);
-  ck("1962 reads 25.0 points per player-game", near((by.get(1962) || {}).ppg, 25.0),
-     String((by.get(1962) || {}).ppg));
-  ck("1999 reads 17.0", near((by.get(1999) || {}).ppg, 17.0), String((by.get(1999) || {}).ppg));
-  const sixties = el.filter(s => s.year === 1962);
-  ck("a squad's environment is the mean of its seasons",
-     near(environmentOf(sixties, by), 25.0), String(environmentOf(sixties, by)));
+  for (let k = 0; k < 10; k++) {
+    rows.push(row("Low " + k, "BOS", 1975, 80, 80 * 8));
+  }
+  const by = teamScoringByYear(rows);
+  const y = by.get(1975);
+  ck("it counts every row, floors or no floors", !!y && near(y.perTeamGame, 80.0),
+     y ? String(y.perTeamGame) : "(absent)");
+  /* THE ASSERTION THAT PINS THE OLD BUG. Not one of these ten men would clear
+   * the card's own floor, so the replaced version - which measured only
+   * eligible seasons - had nothing at all to average here and would have
+   * reported this league as unmeasurable. This one reports 80.0. */
+  ck("and it measures a league where NOBODY clears the card's floor",
+     eligibleSeasons(seasonTotals(rows)).length === 0 && !!y && y.perTeamGame > 0,
+     `${eligibleSeasons(seasonTotals(rows)).length} eligible seasons, ` +
+     `era still reads ${y && y.perTeamGame}`);
+  ck("it reports how many teams it saw", !!y && y.teams === 1, y && String(y.teams));
+
+  /* Two teams, different roster sizes, so team-games is the SUM over teams and
+   * not the league's schedule length. 80 + 80 = 160 team-games, 12800 points,
+   * 80 a game again. */
+  const two = [];
+  for (let k = 0; k < 10; k++) two.push(row("A" + k, "BOS", 1976, 80, 80 * 8));
+  for (let k = 0; k < 16; k++) two.push(row("B" + k, "LAL", 1976, 50, 50 * 8));
+  const y2 = teamScoringByYear(two).get(1976);
+  /* BOS: 80 team-games, 6400 points. LAL: 50 team-games, 6400 points.
+   * 12800 / 130 = 98.46 */
+  ck("team-games is the sum over teams, by each team's longest server",
+     !!y2 && near(y2.perTeamGame, 98.5, 0.1), y2 && String(y2.perTeamGame));
+  ck("and both teams are counted", !!y2 && y2.teams === 2, y2 && String(y2.teams));
+
+  /* A TOT row must not inflate the numerator, and belongs to no team, so it is
+   * excluded from both halves of the fraction. */
+  const withTot = [
+    row("Split Man", "TOT", 1977, 80, 80 * 20),
+    row("Split Man", "BOS", 1977, 40, 40 * 20),
+    row("Split Man", "LAL", 1977, 40, 40 * 20)
+  ];
+  const y3 = teamScoringByYear(withTot).get(1977);
+  /* 1600 points across 40 + 40 = 80 team-games = 20.0. With the TOT row
+   * counted it would be 3200/80 = 40.0, exactly double. */
+  ck("a TOT row does not double the league's points",
+     !!y3 && near(y3.perTeamGame, 20.0), y3 && String(y3.perTeamGame));
+
+  const squad = [{ year: 1975 }, { year: 1976 }];
+  ck("a squad's era is the mean of its seasons",
+     near(environmentOf(squad, by.size ? new Map([[1975, { perTeamGame: 80 }],
+       [1976, { perTeamGame: 100 }]]) : by), 90.0));
 }
 
 console.log("\nbuilding a five");
@@ -164,7 +211,10 @@ console.log("\npairing two decades");
   for (let k = 0; k < 5; k++) rows.push(row("Nine " + k, "BOS", 1995, 80, 80 * 24));
   for (let k = 0; k < 5; k++) rows.push(row("Ten " + k, "BOS", 2015, 80, 80 * 15));
   const el = eligibleSeasons(seasonTotals(rows));
-  const pairs = squadPairs(el);
+  /* Five seasons a decade is under MIN_DECADE_SEASONS by design: these
+   * fixtures exist to check the arithmetic, so the depth gate is lowered
+   * here and tested on its own below. */
+  const pairs = squadPairs(el, { minDecadeSeasons: 5 });
 
   ck("only the pairing inside the band survives", pairs.length === 1,
      pairs.map(p => p.decades.join(" v ") + " gap " + p.gap).join(", ") || "(none)");
@@ -190,7 +240,7 @@ console.log("\npairing two decades");
   for (let k = 0; k < 5; k++) rows.push(row("B" + k, "BOS", 1995, 80, 80 * 20));
   const el = eligibleSeasons(seasonTotals(rows));
   ck("two equal fives are never a card",
-     squadPairs(el, { minGap: 0, maxGap: 99 }).length === 0);
+     squadPairs(el, { minGap: 0, maxGap: 99, minDecadeSeasons: 5 }).length === 0);
 }
 
 {
@@ -199,7 +249,7 @@ console.log("\npairing two decades");
   for (let k = 0; k < 5; k++) rows.push(row("Big" + k, "BOS", 1962, 80, 80 * 30));
   for (let k = 0; k < 5; k++) rows.push(row("Small" + k, "BOS", 1995, 80, 80 * 15));
   const el = eligibleSeasons(seasonTotals(rows));
-  const wide = squadPairs(el);
+  const wide = squadPairs(el, { minDecadeSeasons: 5 });
   ck("a 75-point gap is not offered", wide.length === 0,
      wide.map(p => String(p.gap)).join(",") || "(none, correct)");
   ck("and the band is the reason", MIN_GAP > 0 && MAX_GAP < 75,
@@ -214,8 +264,8 @@ console.log("\nthe seed walk, which is what makes this a pool and not three card
    * whatever the first draw gave and discard the pairing on a miss; walking
    * seeds should find several. */
   const rows = [];
-  for (let k = 0; k < 40; k++) rows.push(row("Six " + k, "BOS", 1962 + (k % 8), 80, 80 * (30 - k * 0.4)));
-  for (let k = 0; k < 40; k++) rows.push(row("Nine " + k, "LAL", 1992 + (k % 8), 80, 80 * (29 - k * 0.4)));
+  for (let k = 0; k < 55; k++) rows.push(row("Six " + k, "BOS", 1962 + (k % 8), 80, 80 * (30 - k * 0.25)));
+  for (let k = 0; k < 55; k++) rows.push(row("Nine " + k, "LAL", 1992 + (k % 8), 80, 80 * (29 - k * 0.25)));
   const el = eligibleSeasons(seasonTotals(rows));
 
   const many = squadPairs(el);
@@ -242,6 +292,139 @@ console.log("\nthe seed walk, which is what makes this a pool and not three card
    * reshuffles between builds is a different question wearing the same key. */
   ck("a rebuild produces exactly the same pool",
      JSON.stringify(squadPairs(el)) === JSON.stringify(many));
+}
+
+console.log("\nthe five has the shape of a team, not a slice of a tie block");
+
+{
+  /* THE BUG THIS IS FOR, AND IT SHIPPED. squadFrom used to take five
+   * CONSECUTIVE entries from a list sorted by scoring average, so every five
+   * was men who averaged the same thing, ordered by the sort's name tiebreak:
+   *
+   *     Andre Iguodala 14.1  Bogdan Bogdanovic 14.1  DeMarcus Cousins 14.1
+   *     Deron Williams 14.1  Domantas Sabonis 14.1
+   *
+   * A hundred men all at exactly 15.0, which is the worst case: under the old
+   * code every possible five was five 15.0s and no test of totals could see
+   * anything wrong, because the totals were all correct. Only the SPREAD gives
+   * it away. Here one tier of a hundred identical men is unavoidable, so the
+   * fixture puts a real range underneath instead and asserts the range comes
+   * through. */
+  const rows = [];
+  for (let k = 0; k < 100; k++) {
+    /* 28.0 down to 14.0 in even steps, so a five drawn one-per-tier must span
+     * most of that range and five consecutive entries cannot. */
+    rows.push(row("Man " + String(k).padStart(3, "0"), "BOS", 1985 + (k % 8), 80,
+                  Math.round(80 * (28 - k * 0.14))));
+  }
+  const el = eligibleSeasons(seasonTotals(rows));
+  ck("the fixture is deep enough to have tiers", el.length >= 90, el.length + " seasons");
+
+  const five = squadFrom(el, "spread", new Set());
+  const vals = five ? five.map(s => s.ppg) : [];
+  const spread = vals.length ? Math.max(...vals) - Math.min(...vals) : 0;
+  ck("the five is not five men on the same average", spread > 5,
+     vals.join(", ") + "  spread " + spread.toFixed(1));
+  ck("and it runs high to low, like a rotation",
+     vals.length === SQUAD && vals.every((v, i) => i === 0 || v <= vals[i - 1] + 0.001),
+     vals.join(" > "));
+
+  /* Ten different seeds, every one of them spread. One lucky seed is not the
+   * property being claimed. */
+  const spreads = [];
+  for (let k = 0; k < 10; k++) {
+    const f = squadFrom(el, "seed" + k, new Set());
+    if (!f) { spreads.push(-1); continue; }
+    const v = f.map(s => s.ppg);
+    spreads.push(Math.max(...v) - Math.min(...v));
+  }
+  ck("every seed gives a spread five, not just this one",
+     spreads.every(v => v > 5), spreads.map(v => v.toFixed(1)).join(", "));
+}
+
+console.log("\nthe era floor and the depth floor");
+
+{
+  /* Pre-1950 is the BAA. The NBA counts those seasons as its own, so this is
+   * not a correctness gate - it is a depth gate. Eleven qualifying seasons
+   * cannot supply eight pairings without the same men recurring, which is what
+   * the first real build did. */
+  const rows = [
+    row("Baa Man", "BOS", 1948, 60, 60 * 20),
+    row("Nba Man", "BOS", 1955, 60, 60 * 20)
+  ];
+  const el = eligibleSeasons(seasonTotals(rows));
+  const names = el.map(s => s.player);
+  ck(`a pre-${MIN_YEAR} season is out`, !names.includes("Baa Man"), names.join(", "));
+  ck("a later one is in", names.includes("Nba Man"));
+  ck("and the floor is the merger season", MIN_YEAR === 1950, String(MIN_YEAR));
+}
+
+{
+  /* A decade with enough men to fill ONE five but not enough to be sampled
+   * from repeatedly is dropped rather than allowed to repeat itself. */
+  const rows = [];
+  for (let k = 0; k < 6; k++) rows.push(row("Thin " + k, "BOS", 1965, 80, 80 * (25 - k)));
+  for (let k = 0; k < 60; k++) rows.push(row("Deep " + k, "LAL", 1995 + (k % 8), 80,
+                                             Math.round(80 * (28 - k * 0.2))));
+  const el = eligibleSeasons(seasonTotals(rows));
+  const thin = el.filter(s => s.decade === "1960s").length;
+  ck("the thin decade could fill a five on its own", thin >= SQUAD, thin + " seasons");
+  ck("but it is dropped from the pairings anyway",
+     squadPairs(el).every(p => !p.decades.includes("1960s")),
+     `MIN_DECADE_SEASONS=${MIN_DECADE_SEASONS}, thin decade had ${thin}`);
+  ck("and lowering the gate lets it back in",
+     squadPairs(el, { minDecadeSeasons: SQUAD }).some(p => p.decades.includes("1960s")));
+}
+
+console.log("\nnobody becomes the face of the card type");
+
+{
+  /* Three decades deep enough to pair, so the pool has several cards and the
+   * per-player cap has something to bite on. */
+  const rows = [];
+  /* Anchored so that d + (k % 8) stays INSIDE each decade. 1965 + 7 is 1972,
+   * which would scatter one decade's men across two and leave every bucket
+   * under the depth floor - which is exactly what it did. */
+  const decades = [1962, 1982, 2002];
+  decades.forEach((d, di) => {
+    for (let k = 0; k < 60; k++) {
+      rows.push(row(`D${di} Man ${String(k).padStart(2, "0")}`, "BOS", d + (k % 8), 80,
+                    Math.round(80 * (28 - di * 0.6 - k * 0.2))));
+    }
+  });
+  const el = eligibleSeasons(seasonTotals(rows));
+  const pairs = squadPairs(el);
+  ck("the pool has several cards", pairs.length >= 3, pairs.length + " cards");
+
+  const seen = new Map();
+  for (const p of pairs) {
+    for (const s of p.a.concat(p.b)) seen.set(s.player, (seen.get(s.player) || 0) + 1);
+  }
+  const worst = [...seen.entries()].sort((a, b) => b[1] - a[1])[0] || ["(nobody)", 0];
+  ck(`no man appears on more than ${MAX_CARDS_PER_PLAYER} cards`,
+     worst[1] <= MAX_CARDS_PER_PLAYER, `${worst[0]} appears ${worst[1]} time(s)`);
+  /* THE CAP AS A MECHANISM, not as a hope about the fixture.
+   *
+   * The default cap of three is not reached on this data - the worst offender
+   * appears twice - so asserting "somebody would exceed three without it"
+   * would be a claim about the fixture rather than about the code, and it
+   * would pass or fail for reasons that have nothing to do with the cap.
+   *
+   * Driving the cap to one instead gives a difference that can only come from
+   * the cap: uncapped, some man appears more than once; capped at one, nobody
+   * can. */
+  const countBy = list => {
+    const m = new Map();
+    for (const p of list) for (const s of p.a.concat(p.b)) m.set(s.player, (m.get(s.player) || 0) + 1);
+    return Math.max(0, ...m.values());
+  };
+  const worstUncapped = countBy(squadPairs(el, { maxCardsPerPlayer: 99 }));
+  const worstAtOne = countBy(squadPairs(el, { maxCardsPerPlayer: 1 }));
+  ck("uncapped, at least one man recurs", worstUncapped > 1,
+     `worst appears ${worstUncapped} times`);
+  ck("and a cap of one holds every man to one card", worstAtOne === 1,
+     `worst appears ${worstAtOne} time(s) with the cap at 1`);
 }
 
 console.log(fail ? `\n${fail} failed` : "\n0 failed");
