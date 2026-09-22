@@ -36,8 +36,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { resolveSource } from "./lib/find.mjs";
 import {
-  seasonTotals, eligibleSeasons, scoringByYear, environmentOf, squadPairs,
-  MIN_GP, MIN_PPG, MIN_GAP, MAX_GAP, SQUAD, SEED_ATTEMPTS, PER_PAIRING
+  seasonTotals, eligibleSeasons, teamScoringByYear, environmentOf, squadPairs,
+  MIN_GP, MIN_PPG, MIN_GAP, MAX_GAP, SQUAD, SEED_ATTEMPTS, PER_PAIRING,
+  MIN_YEAR, MIN_DECADE_SEASONS, MAX_CARDS_PER_PLAYER
 } from "./lib/dream_squads.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,9 +79,30 @@ if (splits === 0) {
 }
 
 const seasons = eligibleSeasons(totals);
-console.log(`${seasons.length} clear the floors (${MIN_GP}+ games at ${MIN_PPG}+ points a game)`);
+console.log(`${seasons.length} clear the floors (${MIN_GP}+ games at ${MIN_PPG}+ points a game, ` +
+  `${MIN_YEAR - 1}-${String(MIN_YEAR % 100).padStart(2, "0")} onwards)`);
 
-const byYear = scoringByYear(seasons);
+/* MEASURED BEFORE ANY FILTER, from every row. See lib/dream_squads.mjs for
+ * why: computing this from the eligible seasons gave a number bounded below by
+ * the scoring floor, so it read ~19 in every decade and hid the effect the
+ * card exists to show. */
+const byYear = teamScoringByYear(statRows);
+
+/* THE CHECK THAT MAKES THE NUMBER QUOTABLE. Two seasons whose scoring is
+ * common knowledge, printed so the derivation is verified rather than
+ * trusted. If these are far off, the card must not be quoting this figure. */
+{
+  const known = [
+    [1962, "1961-62", "~118, the highest-scoring season on record"],
+    [1999, "1998-99", "~92, the lockout-season low"]
+  ];
+  console.log(`  points per team per game, against what these seasons are known for:`);
+  for (const [y, label, expect] of known) {
+    const v = byYear.get(y);
+    console.log(`    ${label}  ${v ? v.perTeamGame : "(absent)"}` +
+      `${v ? "  (" + v.teams + " teams)" : ""}   expected ${expect}`);
+  }
+}
 
 const byDecade = new Map();
 for (const s of seasons) byDecade.set(s.decade, (byDecade.get(s.decade) || 0) + 1);
@@ -94,6 +116,8 @@ if (thin.length) {
 /* ---------------- pairings ---------------- */
 
 const pairs = squadPairs(seasons);
+console.log(`  decades under ${MIN_DECADE_SEASONS} qualifying seasons are dropped; ` +
+  `no player appears on more than ${MAX_CARDS_PER_PLAYER} cards`);
 console.log(`${pairs.length} pairings landed inside the ${MIN_GAP}-${MAX_GAP} point gap band ` +
   `(${SEED_ATTEMPTS} seeds tried per decade pair, at most ${PER_PAIRING} taken)`);
 if (!pairs.length) {
@@ -136,9 +160,9 @@ for (const p of pairs.slice(0, MAX_CARDS)) {
   /* THE SENTENCE THAT KEEPS THE CARD HONEST. It says the quantity out loud -
    * five separate seasons added together - because a reader who thinks the
    * card is predicting a lineup's output is right to think the card is wrong.
-   * Then the scoring environment, which is the thing worth learning: the
-   * number is points per player-game in those seasons, not pace, and it is
-   * described as what it is rather than dressed up. */
+   * Then the scoring era, which is the thing worth learning and the reason the
+   * pairing is cross-era at all: points per team per game, measured over every
+   * row rather than over the men who cleared the card's own floor. */
   const hi = answerIdx === 0 ? a : b;
   const lo = answerIdx === 0 ? b : a;
   const hiEnv = answerIdx === 0 ? envA : envB;
@@ -146,8 +170,8 @@ for (const p of pairs.slice(0, MAX_CARDS)) {
   const detail =
     `The ${hi.label} five add up to ${fmt1(hi.total)} a game, the ${lo.label} five to ` +
     `${fmt1(lo.total)}. That is five separate seasons added together, not what the lineup ` +
-    `would score as a team. The average qualifying player scored ${fmt1(hiEnv)} a game in ` +
-    `those ${hi.label} seasons and ${fmt1(loEnv)} in the ${lo.label} ones.`;
+    `would score as a team. Teams averaged ${fmt1(hiEnv)} points a game in those ` +
+    `${hi.label} seasons and ${fmt1(loEnv)} in the ${lo.label} ones.`;
 
   cards.push({
     /* "dreamteam-" routes it to the quiz tab through the id-prefix table in

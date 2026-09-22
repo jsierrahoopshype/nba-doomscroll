@@ -67,6 +67,31 @@ export const MAX_GAP = 7.0;
 /** Distinct decades a card may draw from. Two, and never the same one twice. */
 export const DECADES_PER_CARD = 2;
 
+/** Earliest season, by ENDING year. 1950 is 1949-50, the first season after
+ * the BAA and the NBL merged into the NBA.
+ *
+ * Not a correctness fix: the NBA counts the three BAA seasons as its own, so
+ * a 1948-49 card would not have been lying. It is a depth fix. Those years
+ * produce eleven qualifying seasons in total, and the first build spent them
+ * across eight different decade pairings - Arnie Risen and Belus Smawley
+ * appeared on two cards in a sample of six. A reader who meets the same man
+ * three times in one sitting has found the seam. */
+export const MIN_YEAR = 1950;
+
+/** Qualifying seasons a decade needs before it can be paired at all.
+ *
+ * Five would be enough to fill one five. Forty is enough to fill several
+ * WITHOUT the same men recurring, which is the actual requirement, and it
+ * leaves each scoring tier with a real choice in it rather than one name. */
+export const MIN_DECADE_SEASONS = 40;
+
+/** Cards any one player may appear on across the whole pool.
+ *
+ * The tiers already stop a man appearing twice on one card. This stops him
+ * being the face of the card type: without it the best scorer in a thin tier
+ * is drawn every time that tier is sampled. */
+export const MAX_CARDS_PER_PLAYER = 3;
+
 /**
  * One row per player-season, with the TOT trap handled.
  *
@@ -139,9 +164,10 @@ export function decadeOf(year) {
  * @returns {Array} [{ player, year, gp, pts, ppg, decade, label }]
  */
 export function eligibleSeasons(totals, opts) {
-  const o = Object.assign({ minGp: MIN_GP, minPpg: MIN_PPG }, opts || {});
+  const o = Object.assign({ minGp: MIN_GP, minPpg: MIN_PPG, minYear: MIN_YEAR }, opts || {});
   const out = [];
   for (const s of (totals || new Map()).values()) {
+    if (s.year < o.minYear) continue;
     if (s.gp < o.minGp) continue;
     const p = ppg(s);
     if (p < o.minPpg) continue;
@@ -158,33 +184,74 @@ export function eligibleSeasons(totals, opts) {
 }
 
 /**
- * The scoring environment of a season, from the same rows.
+ * What a team scored, per game, in each season.
  *
- * Points per player-game across every qualifying season in that year. Not
- * "pace" - pace is possessions and this file has no possessions - but it moves
- * with pace and it is defined precisely by what is here, which a borrowed pace
- * figure would not be. The reveal quotes it as what it is.
+ * WHY THIS IS NOT COMPUTED FROM THE ELIGIBLE SEASONS
  *
- * @param {Array} seasons  from eligibleSeasons()
- * @returns {Map} year -> { ppg, n }
+ * It was, and the number it produced was worthless. Averaging the scoring of
+ * players who had already cleared a 14-points-a-game floor gives a figure
+ * bounded below by 14 by construction, so it came out near 19 in every decade
+ * from the fifties to the twenties: 17.6, 18.4, 18.8, 19.0, 19.2, 19.2, 19.6,
+ * 21.1. The card was using that as its evidence for a scoring era, while real
+ * scoring went from about 118 points a team per game in 1961-62 to about 91 in
+ * 1998-99. Filtering before measuring erased the entire effect.
+ *
+ * So this reads EVERY row, with no floors, and reports the unit a reader
+ * actually recognises: points per team per game.
+ *
+ *   total points scored by all players  /  total team-games
+ *
+ * The numerator is the league's points with both teams counted, which is what
+ * summing every player gives. The denominator is the sum over teams of that
+ * team's games, taken as the largest GP on its roster - a team's leading
+ * iron man played essentially the full schedule, and no season's schedule
+ * length has to be hard-coded, so lockout years and the 1940s come out right
+ * without a table of exceptions.
+ *
+ * The builder prints 1961-62 and 1998-99 against their known values, because
+ * a derived figure that nobody checks is a figure nobody should quote.
+ *
+ * @param {Array} rows  raw rsStats rows
+ * @returns {Map} year -> { perTeamGame, teams, teamGames }
  */
-export function scoringByYear(seasons) {
-  const agg = new Map();
-  for (const s of (seasons || [])) {
-    if (!agg.has(s.year)) agg.set(s.year, { pts: 0, gp: 0, n: 0 });
-    const a = agg.get(s.year);
-    a.pts += s.pts; a.gp += s.gp; a.n++;
+export function teamScoringByYear(rows) {
+  const points = new Map();          // year -> total points
+  const teamMax = new Map();         // year -> Map(team -> max GP)
+  for (const r of (rows || [])) {
+    const year = parseInt(String((r && r.YEAR) || "").slice(0, 4), 10);
+    if (!isFinite(year)) continue;
+    const team = String((r && r.TEAM) || "").trim().toUpperCase();
+    /* A TOT row is a player's own season total across teams. Counting it
+     * would double his points and it belongs to no single team, so it is
+     * skipped on both sides of the fraction. This file has none today; the
+     * guard costs nothing and the alternative is a silent 2x. */
+    if (!team || team === "TOT") continue;
+    const gp = parseInt(r.GP, 10) || 0;
+    const pts = parseFloat(r.PTS) || 0;
+    points.set(year, (points.get(year) || 0) + pts);
+    if (!teamMax.has(year)) teamMax.set(year, new Map());
+    const m = teamMax.get(year);
+    m.set(team, Math.max(m.get(team) || 0, gp));
   }
   const out = new Map();
-  for (const [year, a] of agg) {
-    out.set(year, { ppg: a.gp > 0 ? Math.round((a.pts / a.gp) * 10) / 10 : 0, n: a.n });
+  for (const [year, pts] of points) {
+    const m = teamMax.get(year) || new Map();
+    let teamGames = 0;
+    for (const g of m.values()) teamGames += g;
+    out.set(year, {
+      perTeamGame: teamGames > 0 ? Math.round((pts / teamGames) * 10) / 10 : 0,
+      teams: m.size,
+      teamGames
+    });
   }
   return out;
 }
 
-/** Mean scoring environment across a set of seasons, one decimal. */
+/** Mean points per team per game across a squad's seasons, one decimal. */
 export function environmentOf(squad, byYear) {
-  const vals = squad.map(s => (byYear.get(s.year) || {}).ppg || 0).filter(v => v > 0);
+  const vals = (squad || [])
+    .map(s => (byYear.get(s.year) || {}).perTeamGame || 0)
+    .filter(v => v > 0);
   if (!vals.length) return 0;
   return Math.round((vals.reduce((n, v) => n + v, 0) / vals.length) * 10) / 10;
 }
@@ -206,29 +273,64 @@ export function squadTotal(squad) {
 }
 
 /**
- * Five from one decade, at most one season per player.
+ * Five from one decade, at most one season per player, ONE PER SCORING TIER.
  *
- * Walks the decade's seasons from a stable offset and takes the first five
- * distinct men. Offset rather than "the top five" because the top five of a
- * decade is the same card every time and there is more than one good five in
- * any ten years.
+ * WHY TIERS, AND WHAT IT REPLACED
  *
- * @returns {Array|null} five seasons, or null if the decade cannot fill one
+ * This used to walk the decade's seasons from a stable offset and take the
+ * first five distinct men. The seasons arrive sorted by scoring average, so
+ * "five consecutive entries" means five men who averaged almost exactly the
+ * same thing - and with hundreds of seasons in a decade, several dozen of them
+ * tie to the decimal. The first real build produced this:
+ *
+ *     Andre Iguodala 14.1   Bogdan Bogdanovic 14.1   DeMarcus Cousins 14.1
+ *     Deron Williams 14.1   Domantas Sabonis 14.1
+ *
+ * Five identical numbers, in alphabetical order by first name, because the
+ * sort's tiebreak is the player's name. Not a five. A slice of a tie block.
+ *
+ * So the decade is split into SQUAD tiers by scoring average and one man is
+ * taken from each. A five then has the shape of a team - a lead scorer, a
+ * second option, a couple in the middle, a role player - the totals vary
+ * enough between seeds that the gap band is reachable, and consecutive ties
+ * can no longer all land on the same card.
+ *
+ * @param {Array} seasons  sorted DESCENDING by ppg, as eligibleSeasons returns
+ * @param {string} seed
+ * @param {Set} used  names already on the opposing five, or across the pool
+ * @returns {Array|null} five seasons, best-scoring first, or null
  */
 export function squadFrom(seasons, seed, used) {
   if (!seasons || seasons.length < SQUAD) return null;
   const taken = [];
   const names = new Set();
-  const start = stableIndex(seed, seasons.length);
-  for (let i = 0; i < seasons.length && taken.length < SQUAD; i++) {
-    const s = seasons[(start + i) % seasons.length];
-    /* One season per man per card, and never a man who is already on the
-     * opposing five: the same name on both sides reads as an error whatever
-     * the seasons are. */
-    if (names.has(s.player)) continue;
-    if (used && used.has(s.player)) continue;
-    names.add(s.player);
-    taken.push(s);
+  /* Contiguous tiers over the sorted list. The last tier absorbs the
+   * remainder, so no season is unreachable. */
+  const size = Math.floor(seasons.length / SQUAD);
+  if (size < 1) return null;
+
+  for (let t = 0; t < SQUAD; t++) {
+    const from = t * size;
+    const to = (t === SQUAD - 1) ? seasons.length : (t + 1) * size;
+    const tier = seasons.slice(from, to);
+    if (!tier.length) return null;
+    const start = stableIndex(seed + "|t" + t, tier.length);
+    let picked = null;
+    for (let i = 0; i < tier.length; i++) {
+      const s = tier[(start + i) % tier.length];
+      /* One season per man per card, and never a man who is already spoken
+       * for: the same name twice on one card reads as an error whatever the
+       * seasons are. */
+      if (names.has(s.player)) continue;
+      if (used && used.has(s.player)) continue;
+      picked = s;
+      break;
+    }
+    /* A tier with nobody left is a dead end for this seed rather than for the
+     * decade. The caller tries another seed. */
+    if (!picked) return null;
+    names.add(picked.player);
+    taken.push(picked);
   }
   return taken.length === SQUAD ? taken : null;
 }
@@ -264,15 +366,25 @@ export const PER_PAIRING = 3;
 export function squadPairs(seasons, opts) {
   const o = Object.assign({
     minGap: MIN_GAP, maxGap: MAX_GAP,
-    attempts: SEED_ATTEMPTS, perPairing: PER_PAIRING
+    attempts: SEED_ATTEMPTS, perPairing: PER_PAIRING,
+    minDecadeSeasons: MIN_DECADE_SEASONS, maxCardsPerPlayer: MAX_CARDS_PER_PLAYER
   }, opts || {});
   const byDecade = new Map();
   for (const s of (seasons || [])) {
     if (!byDecade.has(s.decade)) byDecade.set(s.decade, []);
     byDecade.get(s.decade).push(s);
   }
+  /* A decade too thin to sample from repeatedly is dropped entirely rather
+   * than allowed to supply the same men to card after card. */
+  for (const [d, list] of [...byDecade]) {
+    if (list.length < o.minDecadeSeasons) byDecade.delete(d);
+  }
   const decades = [...byDecade.keys()].sort();
   const out = [];
+  /* How many cards each man is already on, across every pairing. Shared
+   * across the whole run, which is why it lives out here. */
+  const appearances = new Map();
+  const atCap = name => (appearances.get(name) || 0) >= o.maxCardsPerPlayer;
 
   for (let i = 0; i < decades.length; i++) {
     for (let j = i + 1; j < decades.length; j++) {
@@ -285,10 +397,16 @@ export function squadPairs(seasons, opts) {
 
       for (let k = 0; k < o.attempts && takenHere < o.perPairing; k++) {
         const seed = da + "|" + db + "|" + k;
-        const a = squadFrom(byDecade.get(da), seed + "|a", null);
-        if (!a) break;   // the decade cannot fill a five at all; no seed will
-        const b = squadFrom(byDecade.get(db), seed + "|b", new Set(a.map(s => s.player)));
-        if (!b) break;
+        /* Men already on their limit are unavailable to both fives. Rebuilt
+         * each attempt because the cap moves as cards are accepted. */
+        const spent = new Set([...appearances.keys()].filter(atCap));
+        const a = squadFrom(byDecade.get(da), seed + "|a", spent);
+        /* Not `break`: a dead end here is this SEED's, not the decade's,
+         * because which men are spent changes from attempt to attempt. */
+        if (!a) continue;
+        const bBlocked = new Set([...spent, ...a.map(s => s.player)]);
+        const b = squadFrom(byDecade.get(db), seed + "|b", bBlocked);
+        if (!b) continue;
 
         const aTotal = squadTotal(a), bTotal = squadTotal(b);
         const gap = Math.round(Math.abs(aTotal - bTotal) * 10) / 10;
@@ -312,6 +430,9 @@ export function squadPairs(seasons, opts) {
           higher: aTotal > bTotal ? "a" : "b",
           decades: [da, db]
         });
+        for (const s of a.concat(b)) {
+          appearances.set(s.player, (appearances.get(s.player) || 0) + 1);
+        }
         takenHere++;
       }
     }
