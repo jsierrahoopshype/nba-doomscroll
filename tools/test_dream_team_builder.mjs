@@ -49,11 +49,14 @@ decades.forEach((d, di) => {
   for (let k = 0; k < 60; k++) {
     const y = d + (k % 8);
     const p = base[di] - k * 0.2;
-    /* Two teams a season, so team-games is a sum over teams rather than one
-     * roster's schedule, which is the shape teamScoringByYear has to handle. */
+    /* Two teams a season, and MIN on every row. Both matter: the production
+     * denominator is total minutes, so a fixture without MIN would silently
+     * exercise only the pre-1952 fallback, and two teams gives the shape a
+     * one-roster season would not. */
     rows.push({ PLAYER: `P${di}_${String(k).padStart(2, "0")}`,
                 TEAM: (k % 2 ? "BOS" : "LAL"), YEAR: String(y),
-                GP: "78", PTS: String(Math.round(78 * p)) });
+                GP: "78", MIN: String(78 * 24),
+                PTS: String(Math.round(78 * p)) });
   }
 });
 
@@ -183,8 +186,13 @@ console.log("\nthe scoring era the reveal quotes");
   ck("the reveal quotes a team scoring figure", eras.size > 0, [...eras].join(", "));
   ck("and it is not the same number on every card", eras.size > 1,
      `${eras.size} distinct value(s): ${[...eras].sort().join(", ")}`);
-  ck("the build printed the two landmark seasons for checking",
+  ck("the build printed the landmark seasons for checking",
      /points per team per game, against what these seasons are known for/.test(log));
+  /* The production denominator is minutes. A fixture that quietly fell through
+   * to the roster-max fallback would leave the real path untested. */
+  ck("and it used the minutes denominator, not the fallback",
+     /denominators: minutes/.test(log),
+     (log.match(/denominators:[^\n]*/) || ["(not printed)"])[0]);
 }
 
 console.log("\nevery card's arithmetic");

@@ -151,9 +151,21 @@ export function seasonLabel(year) {
   return (year - 1) + "-" + String(year % 100).padStart(2, "0");
 }
 
-/** "1960s" from a season's ending year. */
+/** "1960s" from a season's ENDING year, by the decade it was PLAYED in.
+ *
+ * THE OFF-BY-ONE THIS AVOIDS, which shipped in the first real build. rsStats
+ * YEAR is a season's ending year, so taking the decade straight off it puts
+ * 1959-60 in the 1960s and 2019-20 in the 2020s. A card headed "2020s" then
+ * listed Tim Hardaway Jr and Alec Burks at 2019-20 beside Kevin Durant at
+ * 2024-25, and a "1960s" five opened with Bob Pettit's 1959-60.
+ *
+ * The season is named for the year it STARTS, and that is the year a reader
+ * places it in, so the decade comes off year - 1. This is the same mistake
+ * that made every career-cliff card in this repo name a departure a season
+ * late, in the same file's units. */
 export function decadeOf(year) {
-  return (year - (year % 10)) + "s";
+  const start = year - 1;
+  return (start - (start % 10)) + "s";
 }
 
 /**
@@ -215,8 +227,7 @@ export function eligibleSeasons(totals, opts) {
  * @returns {Map} year -> { perTeamGame, teams, teamGames }
  */
 export function teamScoringByYear(rows) {
-  const points = new Map();          // year -> total points
-  const teamMax = new Map();         // year -> Map(team -> max GP)
+  const agg = new Map();   // year -> { pts, min, teamMax: Map(team -> max GP) }
   for (const r of (rows || [])) {
     const year = parseInt(String((r && r.YEAR) || "").slice(0, 4), 10);
     if (!isFinite(year)) continue;
@@ -226,22 +237,54 @@ export function teamScoringByYear(rows) {
      * skipped on both sides of the fraction. This file has none today; the
      * guard costs nothing and the alternative is a silent 2x. */
     if (!team || team === "TOT") continue;
-    const gp = parseInt(r.GP, 10) || 0;
-    const pts = parseFloat(r.PTS) || 0;
-    points.set(year, (points.get(year) || 0) + pts);
-    if (!teamMax.has(year)) teamMax.set(year, new Map());
-    const m = teamMax.get(year);
-    m.set(team, Math.max(m.get(team) || 0, gp));
+    if (!agg.has(year)) agg.set(year, { pts: 0, min: 0, teamMax: new Map() });
+    const a = agg.get(year);
+    a.pts += parseFloat(r.PTS) || 0;
+    a.min += parseFloat(r.MIN) || 0;
+    const m = a.teamMax;
+    m.set(team, Math.max(m.get(team) || 0, parseInt(r.GP, 10) || 0));
   }
+
   const out = new Map();
-  for (const [year, pts] of points) {
-    const m = teamMax.get(year) || new Map();
-    let teamGames = 0;
-    for (const g of m.values()) teamGames += g;
+  for (const [year, a] of agg) {
+    let perTeamGame = 0, method = "none", teamGames = 0;
+    if (a.min > 0) {
+      /* MINUTES, which is exact.
+       *
+       * Five men are on the floor for all 48 minutes, so one team-game is 240
+       * player-minutes however the coach distributes them. Total minutes
+       * divided by 240 is therefore the league's team-game count with no
+       * estimate in it, and points per team-game is 240 x points / minutes.
+       *
+       * Overtime adds minutes AND the points scored in them, so the ratio is
+       * a per-48 figure either way and needs no correction. */
+      teamGames = a.min / 240;
+      perTeamGame = a.pts / teamGames;
+      method = "minutes";
+    } else {
+      /* ROSTER MAX, which is a LOWER BOUND on a team's games and was the only
+       * method here until it was checked against seasons whose scoring is
+       * common knowledge.
+       *
+       * It is near-exact when somebody played every game - Wilt played all 80
+       * in 1961-62, and 1998-99's fifty-game season had men who played fifty -
+       * and it is badly wrong in the load-management era, where no team has
+       * anyone at 82. Understating the denominator overstates the figure: the
+       * 2020s came out near 117 against a real 113.
+       *
+       * Worst of all the error tracks the era, which is exactly the axis this
+       * card compares. Kept only for seasons before minutes were recorded
+       * (1951-52 is the first), where it is the best available and those
+       * rosters did play nearly every game. */
+      for (const g of a.teamMax.values()) teamGames += g;
+      perTeamGame = teamGames > 0 ? a.pts / teamGames : 0;
+      method = "roster-max";
+    }
     out.set(year, {
-      perTeamGame: teamGames > 0 ? Math.round((pts / teamGames) * 10) / 10 : 0,
-      teams: m.size,
-      teamGames
+      perTeamGame: Math.round(perTeamGame * 10) / 10,
+      teams: a.teamMax.size,
+      teamGames: Math.round(teamGames),
+      method
     });
   }
   return out;

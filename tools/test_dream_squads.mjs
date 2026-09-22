@@ -84,8 +84,32 @@ console.log("\nseasons and decades");
 
 ck("YEAR is the ending year, so 2016 is 2015-16", seasonLabel(2016) === "2015-16", seasonLabel(2016));
 ck("and 2000 is 1999-00", seasonLabel(2000) === "1999-00", seasonLabel(2000));
-ck("1963 is the 1960s", decadeOf(1963) === "1960s", decadeOf(1963));
-ck("1970 is the 1970s, not the 1960s", decadeOf(1970) === "1970s", decadeOf(1970));
+/* THE DECADE COMES OFF THE SEASON'S START, and these are the cases that
+ * shipped wrong when it came off the ending year instead. A card headed
+ * "2020s" carried two 2019-20 seasons next to a 2024-25 one, and a "1960s"
+ * five opened with Bob Pettit's 1959-60. */
+ck("1963 is the 1962-63 season, so the 1960s", decadeOf(1963) === "1960s", decadeOf(1963));
+ck("1970 is the 1969-70 season, so still the 1960s",
+   decadeOf(1970) === "1960s", decadeOf(1970) + " for " + seasonLabel(1970));
+ck("1971 is the 1970-71 season, so the 1970s",
+   decadeOf(1971) === "1970s", decadeOf(1971) + " for " + seasonLabel(1971));
+ck("2020 is the 2019-20 season, so the 2010s",
+   decadeOf(2020) === "2010s", decadeOf(2020) + " for " + seasonLabel(2020));
+ck("2021 is the 2020-21 season, so the 2020s",
+   decadeOf(2021) === "2020s", decadeOf(2021) + " for " + seasonLabel(2021));
+/* Every man on a card must belong to the decade the panel is headed with, or
+ * the reader is reading a contradiction. Asserted as a property rather than
+ * as five examples. */
+{
+  const wrong = [];
+  for (let y = 1951; y <= 2026; y++) {
+    const start = parseInt(seasonLabel(y).slice(0, 4), 10);
+    const want = (start - (start % 10)) + "s";
+    if (decadeOf(y) !== want) wrong.push(`${seasonLabel(y)} -> ${decadeOf(y)}, not ${want}`);
+  }
+  ck("and every season from 1950-51 on lands in the decade it started in",
+     wrong.length === 0, wrong.slice(0, 3).join("  |  "));
+}
 
 console.log("\nwho is eligible");
 
@@ -162,6 +186,40 @@ console.log("\nthe scoring era, measured before any filter");
    * counted it would be 3200/80 = 40.0, exactly double. */
   ck("a TOT row does not double the league's points",
      !!y3 && near(y3.perTeamGame, 20.0), y3 && String(y3.perTeamGame));
+
+  /* MINUTES BEAT THE ROSTER MAX, and this is the case that proves it.
+   *
+   * One team, 82 games, and LOAD MANAGEMENT: nobody plays more than 70, which
+   * is the modern league. Ten men share 82 x 240 = 19,680 player-minutes and
+   * score 82 x 110 = 9,020 points, so the answer is exactly 110.0.
+   *
+   * The roster-max method sees a top GP of 70 and calls it 70 team-games,
+   * giving 9020 / 70 = 128.9 - nearly twenty points high. That is the error
+   * that put the 2020s at 117 against a real 113, and because it only appears
+   * when nobody plays a full season it tracks the era, which is the one axis
+   * this card compares. */
+  {
+    const games = 82, teamPts = 110;
+    const load = [];
+    for (let k = 0; k < 10; k++) {
+      load.push({ PLAYER: "Rested " + k, TEAM: "BOS", YEAR: "2024",
+                  GP: String(60 + (k % 11)),            // 60..70, never 82
+                  MIN: String((games * 240) / 10),      // the minutes are all there
+                  PTS: String((games * teamPts) / 10) });
+    }
+    const y = teamScoringByYear(load).get(2024);
+    ck("minutes give the exact answer when nobody plays every game",
+       !!y && near(y.perTeamGame, 110.0, 0.1), y && String(y.perTeamGame));
+    ck("and it says which denominator it used", !!y && y.method === "minutes",
+       y && y.method);
+    /* The same rows with minutes stripped fall back, and are wrong - stated
+     * here so the fallback's weakness is recorded rather than discovered. */
+    const noMin = load.map(r => Object.assign({}, r, { MIN: "0" }));
+    const y2 = teamScoringByYear(noMin).get(2024);
+    ck("without minutes it falls back and overstates, as documented",
+       !!y2 && y2.method === "roster-max" && y2.perTeamGame > 120,
+       y2 && `${y2.perTeamGame} from ${y2.method}, true answer 110.0`);
+  }
 
   const squad = [{ year: 1975 }, { year: 1976 }];
   ck("a squad's era is the mean of its seasons",
