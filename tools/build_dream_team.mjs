@@ -93,15 +93,25 @@ const byYear = teamScoringByYear(statRows);
  * trusted. If these are far off, the card must not be quoting this figure. */
 {
   const known = [
-    [1962, "1961-62", "~118, the highest-scoring season on record"],
-    [1999, "1998-99", "~92, the lockout-season low"]
+    [1962, "1961-62", "118.8, the highest-scoring season on record"],
+    [1999, "1998-99", "91.6, the lockout-season low"],
+    /* THE MODERN LANDMARK, added because the first two were not enough. Both
+     * are seasons where somebody played every game, so the old roster-max
+     * denominator happened to be right and the check passed while the 2020s
+     * came out four points high. A high and a low from the same era cannot
+     * catch an error that only appears in another one. */
+    [2024, "2023-24", "114.2, a recent full season"]
   ];
   console.log(`  points per team per game, against what these seasons are known for:`);
   for (const [y, label, expect] of known) {
     const v = byYear.get(y);
     console.log(`    ${label}  ${v ? v.perTeamGame : "(absent)"}` +
-      `${v ? "  (" + v.teams + " teams)" : ""}   expected ${expect}`);
+      `${v ? "  (" + v.teams + " teams, from " + v.method + ")" : ""}   actual ${expect}`);
   }
+  const methods = {};
+  for (const v of byYear.values()) methods[v.method] = (methods[v.method] || 0) + 1;
+  console.log(`    denominators: ${Object.entries(methods).sort()
+    .map(([k, n]) => k + " " + n + " season(s)").join(", ")}`);
 }
 
 const byDecade = new Map();
