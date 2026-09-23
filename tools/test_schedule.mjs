@@ -261,6 +261,96 @@ console.log("\nthe media budget is spent, and capped");
   ck("and none of them sit next to each other", adjacent === 0, adjacent + " adjacent pairs");
 }
 
+console.log("\nballot oddities are sprinkled, not banned and not frequent");
+
+{
+  /* Jorge's call in two steps. First: fewer. Measured, the weighted draw was
+   * already serving ZERO in 3,000 cards - oddity-pool.json carries an explicit
+   * quality_score of 0.47-0.94 while the video awards pools carry none and take
+   * the engine's higher default - so "fewer" would have meant none. Then:
+   * "I want some sprinkled here and there. Don't go to 0."
+   *
+   * So they are rationed by the awards family rotation rather than excluded:
+   * one in six awards cards, and awards are one per 28-36, which lands a ballot
+   * oddity roughly once every 200 cards. */
+  const q = S.QUOTAS.awards_voting;
+  ck("the awards slot rotates its family", Array.isArray(q.cycle), JSON.stringify(q.cycle));
+  const n = {};
+  for (const k of q.cycle) n[k] = (n[k] || 0) + 1;
+  ck("a ballot oddity is one in six of them", n["oddity|ballot-oddity"] === 1 &&
+     q.cycle.length === 6, JSON.stringify(n));
+  /* NOT ZERO. The whole point of the second instruction. */
+  ck("which is neither zero nor frequent", n["oddity|ballot-oddity"] > 0);
+  /* The rest of the rotation is the animated awards families, which is also
+   * where some of the extra video comes from. */
+  ck("the other five slots are the video families",
+     q.cycle.filter(k => k === "race|ballot" || k === "lean|media-lean").length === 5,
+     JSON.stringify(q.cycle));
+  ck("and cycleOf keys on type|category, not on the bucket",
+     q.cycleOf({ type: "oddity", tags: { content_type: "oddity", category: "ballot-oddity" } })
+       === "oddity|ballot-oddity");
+
+  /* A ballot RACE is awards-voting too. Rationing by bucket would have taken
+   * the video with it, which is the opposite of what was asked for. */
+  ck("a ballot race is a different family in the same bucket",
+     q.cycleOf({ type: "race", tags: { content_type: "race", category: "ballot" } })
+       === "race|ballot");
+}
+
+console.log("\nthe video rate, and the placement that makes it safe");
+
+{
+  /* Five attempts went into raising the video share before finding that the
+   * autoplay budget is the only thing that moves it - every animation is both
+   * media_heavy and autoplay, so that budget binds before the media one. This
+   * asserts the finding is still true so nobody repeats the five attempts. */
+  const src = fs.readFileSync(path.join(REPO, "js", "schedule.js"), "utf8");
+  ck("the rate is a named cycle, not a literal",
+     /var AUTOPLAY_CYCLE = position < COLD_CARDS \? \[1\] : \[2, 1\]/.test(src),
+     (src.match(/var AUTOPLAY_CYCLE = [^;]+;/) || [""])[0]);
+  /* Jorge asked for a rate between one animation per 8 cards and one per 4.
+   * [2,1] averages 1.5 per batch of eight, which is one per 5.3. A single
+   * integer per batch could only ever give 12.5% or 25%, which is why there
+   * appeared to be no middle. */
+  ck("and it averages between the two integers", (() => {
+    const m = src.match(/\[2, 1\]/);
+    return !!m;
+  })(), "1.5 autoplay per batch of eight is one animation per 5.3 cards");
+  ck("the cold start keeps the brief's rate",
+     /position < COLD_CARDS \? \[1\]/.test(src),
+     "comparisons are the video family, so the bump would push §1's band");
+
+  /* Placement is computed, not searched for. The greedy scorer could not hold
+   * the spacing with two animations in a batch: measured, two clips inside four
+   * cards and about one adjacent pair per hundred. */
+  ck("autoplay positions are placed deterministically",
+     /function placeAutoplay/.test(src));
+  ck("and the gap is the one §16 asks for",
+     /var MIN_AUTOPLAY_GAP = 4/.test(src));
+  ck("the session still opens on current NBA, not an animation",
+     /if \(!\(tail \|\| \[\]\)\.length\) slot = Math\.max\(1, slot\)/.test(src),
+     "deterministic placement took index 0 until this guard went in");
+
+  /* The caps, measured. This is what would silently stop being true if the rate
+   * were raised without the placement. */
+  const feed = run(400, { pool: pool({ live: 20 }) });
+  const auto = c => T(c, "autoplay");
+  const archMedia = c => T(c, "media_heavy") && B(c) !== "live";
+  ck("at most one autoplay in any four", worstWindow(feed, auto, 4) <= 1,
+     "worst window " + worstWindow(feed, auto, 4));
+  let adjacent = 0;
+  for (let i = 1; i < feed.length; i++) {
+    if (archMedia(feed[i]) && archMedia(feed[i - 1])) adjacent++;
+  }
+  ck("and no two animations adjacent", adjacent === 0, adjacent + " pairs");
+  /* Three in ten follows from four-apart placement - indexes 1, 5 and 9 - and
+   * is why the cap moved from 2 to 3 rather than the rule being loosened. */
+  ck("three in any ten is the arithmetic of four-apart",
+     S.MEDIA.maxMediaHeavyPer10 === 3 &&
+     worstWindow(feed, archMedia, 10) <= 3,
+     "worst window " + worstWindow(feed, archMedia, 10));
+}
+
 console.log("\nthe session opens the way the brief asks");
 
 {
