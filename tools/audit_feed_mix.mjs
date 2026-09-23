@@ -385,7 +385,18 @@ console.log(`  constants:    BATCH=${BATCH} BUZZ_SHARE=${BUZZ_SHARE} ` +
 console.log(`  ${RUNS} seeded cold starts of ${CARDS} cards each`);
 console.log(`  cold-start window: first ${COLD} cards, which is what §1 targets`);
 console.log(`  clock:        ${new Date(NOW).toISOString()} (fixed, so reports compare)`);
-console.log(`  seeds:        ${SEED0}, engine Math.random shadowed per run\n`);
+console.log(`  seeds:        ${SEED0}, engine Math.random shadowed per run`);
+if (BOOT) {
+  console.log(`  BOOT MODE:    only the ${EAGER.length} eager pools, dummies excluded - the first`);
+  console.log(`                second of a cold load, before the lazy pools and live land.`);
+}
+if (!LIVE_SUPPLY) {
+  console.log(`  NOTE:         --live 0, so the §1 SHARE targets are not judged: with no live`);
+  console.log(`                cards every share is measured against a denominator missing two`);
+  console.log(`                thirds of the feed. The caps, the throttles and the boot checks`);
+  console.log(`                below still are.`);
+}
+console.log("");
 
 const feeds = [];
 for (let r = 0; r < RUNS; r++) {
@@ -576,14 +587,48 @@ if (Object.keys(full.sources).length) {
 
 const bad = [];
 const cp = n => pct(n, cold.total);
-if (cp(cold.live) < 65) bad.push(`COLD: current NBA is ${cp(cold.live).toFixed(1)}% of the first ${COLD}, target 65-70%`);
-if (cp(cold.playable) < 10 || cp(cold.playable) > 15) bad.push(`COLD: playable is ${cp(cold.playable).toFixed(1)}%, target 10-15%`);
-if (cp(cold.history) < 8 || cp(cold.history) > 12) bad.push(`COLD: history is ${cp(cold.history).toFixed(1)}%, target 8-12%`);
-/* BOTH ENDS. This checked only the ceiling, which passed a run serving 4.0%
- * comparisons against a 5-8% band - a scheduler that had quietly stopped
- * serving a family reads as a success if only the upper bound is tested. */
-if (cp(cold.comparison) > 8 || cp(cold.comparison) < 5) {
-  bad.push(`COLD: comparisons are ${cp(cold.comparison).toFixed(1)}%, target 5-8%`);
+
+/* THE SHARE TARGETS ASSUME LIVE SUPPLY, so with none they are not failures.
+ *
+ * §1's percentages are shares of a feed that is two thirds current NBA. Run
+ * with --live 0 and the live share is 0% by arithmetic, and the other three are
+ * measured against a denominator missing two thirds of its cards, so every one
+ * of them reports out of band. Four violations, none of which says anything
+ * about the scheduler.
+ *
+ * That matters because "VIOLATIONS: 0" is the pass signal for every other mode.
+ * A mode that always reports four is a number people learn to ignore, and an
+ * ignored check is worse than an absent one - it is the fifth violation, the
+ * real one, that gets ignored with it. So the share checks are skipped when
+ * there is no live supply to measure them against, and the header says so.
+ *
+ * The CAPS and the frequency checks below are not skipped. Clustering, adjacent
+ * media, awards-per-window and the throttles are all properties of the archive
+ * mix and are just as meaningful without live. */
+const LIVE_SHARES_MEANINGFUL = LIVE_SUPPLY > 0;
+if (LIVE_SHARES_MEANINGFUL) {
+  if (cp(cold.live) < 65) bad.push(`COLD: current NBA is ${cp(cold.live).toFixed(1)}% of the first ${COLD}, target 65-70%`);
+  if (cp(cold.playable) < 10 || cp(cold.playable) > 15) bad.push(`COLD: playable is ${cp(cold.playable).toFixed(1)}%, target 10-15%`);
+  if (cp(cold.history) < 8 || cp(cold.history) > 12) bad.push(`COLD: history is ${cp(cold.history).toFixed(1)}%, target 8-12%`);
+  /* BOTH ENDS. This checked only the ceiling, which passed a run serving 4.0%
+   * comparisons against a 5-8% band - a scheduler that had quietly stopped
+   * serving a family reads as a success if only the upper bound is tested. */
+  if (cp(cold.comparison) > 8 || cp(cold.comparison) < 5) {
+    bad.push(`COLD: comparisons are ${cp(cold.comparison).toFixed(1)}%, target 5-8%`);
+  }
+}
+
+/* WHAT --boot IS ACTUALLY JUDGED ON. The share bands do not apply with no live,
+ * but the thing the boot window exists to catch does: one bucket taking over
+ * the first screen. Half the first screen being quiz cards is what Jorge saw
+ * twice, and it passed every check this file had. */
+if (BOOT) {
+  const share = b => pct(cold[b], cold.total);
+  if (share("playable") > 30) {
+    bad.push(`BOOT: playable is ${share("playable").toFixed(1)}% of the first screen, max 30% before live arrives`);
+  }
+  if (cold.history === 0) bad.push(`BOOT: no history cards at all in the eager set`);
+  if (cold.comparison === 0) bad.push(`BOOT: no comparison cards at all in the eager set`);
 }
 if (cold.awards / cold.runs > 2) bad.push(`COLD: ${(cold.awards / cold.runs).toFixed(1)} awards cards per ${COLD}, want 1-2`);
 if (cold.money / cold.runs > 1) bad.push(`COLD: ${(cold.money / cold.runs).toFixed(1)} static salary cards per ${COLD}, want 0-1`);

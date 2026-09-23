@@ -181,8 +181,11 @@ console.log("\nthe scheduler is wired to For You and to nothing else");
   /* §14: every other tab is a reader asking for one kind of thing, and a
    * scheduler that thinned those out would be the app arguing with the reader.
    * An entity filter is exempt for the same reason. */
+  /* The ?v= is the cache-busting build string - see tools/test_cache_bust.mjs.
+   * Matched loosely here so bumping the build does not fail an assertion about
+   * script order. */
   ck("js/schedule.js is loaded by index.html",
-     /<script src="js\/schedule\.js"><\/script>/.test(
+     /<script src="js\/schedule\.js(\?v=[^"]*)?"><\/script>/.test(
        fs.readFileSync(path.join(REPO, "index.html"), "utf8")));
   ck("and js/editorial.js is loaded before it", (() => {
     const html = fs.readFileSync(path.join(REPO, "index.html"), "utf8");
