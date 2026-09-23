@@ -175,6 +175,44 @@ console.log("\n§4: rumors are off, in all four places");
   ck("every rumor site is marked RUMORS_ON", flagged >= 8, flagged + " mentions");
 }
 
+console.log("\nthe scheduler is wired to For You and to nothing else");
+
+{
+  /* §14: every other tab is a reader asking for one kind of thing, and a
+   * scheduler that thinned those out would be the app arguing with the reader.
+   * An entity filter is exempt for the same reason. */
+  ck("js/schedule.js is loaded by index.html",
+     /<script src="js\/schedule\.js"><\/script>/.test(
+       fs.readFileSync(path.join(REPO, "index.html"), "utf8")));
+  ck("and js/editorial.js is loaded before it", (() => {
+    const html = fs.readFileSync(path.join(REPO, "index.html"), "utf8");
+    return html.indexOf("js/editorial.js") < html.indexOf("js/schedule.js");
+  })());
+
+  const load = bodyOf("loadMore");
+  ck("For You draws through the scheduler",
+     !!load && /DoomSchedule && state\.tab === "foryou" && !state\.entity/.test(load),
+     "the guard is what keeps every other tab on its own draw");
+  ck("and every other tab still uses drawFrom",
+     !!load && /: drawFrom\(pool, recentlyShown\(\)/.test(load));
+
+  const sb = bodyOf("scheduleBatch");
+  /* THE ENGINE MUST STILL PICK. The scheduler says how many cards of each kind;
+   * E.sample decides which. Replacing that with a plain shuffle would throw
+   * away the learned weights, the freshness rule and the story spacing - the
+   * personalisation this app is built on - and nothing else would notice. */
+  ck("the scheduler still draws through the engine's sampler",
+     !!sb && /sample: function \(list, n, opts\) \{ return E\.sample/.test(sb));
+  ck("and it is given the feed's real tail, not just the batch",
+     !!sb && /tail: feedTail\(/.test(sb));
+  ck("and the counters survive across batches",
+     /var foryouSince/.test(CODE) && /foryouSince = res\.since/.test(CODE));
+  ck("and reset when the feed genuinely restarts",
+     /function resetSchedule/.test(CODE) && /state\.phase = "own"; resetSchedule\(\)/.test(CODE));
+  ck("cards are counted as SERVED, in the render loop",
+     /DoomSchedule\.countCard\(foryouSince, byId\[node\.dataset\.id\]\)/.test(CODE));
+}
+
 console.log("\nthe feed still ends where it always did");
 
 {
