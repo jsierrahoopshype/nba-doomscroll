@@ -487,6 +487,17 @@
   })).then(function (lists) {
     lists.forEach(addCards);
     if (!allCards.length) throw new Error("no cards loaded");
+    /* WHICH BUILD IS THIS? Printed once, at boot, so the question can be
+     * answered by opening the console instead of by shipping another fix and
+     * waiting to hear whether it arrived. See the BUILD comment in index.html:
+     * three fixes were reported as "not fixed" from the live site with no way
+     * to tell a stale cache from a bad fix. */
+    try {
+      var buildMeta = document.querySelector('meta[name="doomscroll-build"]');
+      console.info("[doomscroll] build " +
+        ((buildMeta && buildMeta.content) || "unknown") +
+        " · " + allCards.length + " cards from " + EAGER_POOLS.length + " eager pools");
+    } catch (e) { /* a console that throws is not worth a broken boot */ }
     E.startSession();
     renderTabs();
     var pinned = handleShareLink();   // may miss: VS/Vault pools load later

@@ -8,11 +8,26 @@
 <meta property="og:title" content="NBA Doomscroll · HoopsMatic">
 <meta property="og:description" content="An endless NBA feed: today's social buzz, user-built trades, rumor history, player comparisons, quizzes, ballot oddities and animated record races. Personalized in your browser, with no account and no tracking.">
 <meta property="og:type" content="website">
+<!-- BUILD. Bump this on every deploy, and the ?v= on every local script and
+     stylesheet below with it - they are one string and tools/test_cache_bust.mjs
+     fails if they drift apart.
+
+     WHY THIS EXISTS. Three separate fixes were shipped, verified green, and
+     reported as "not fixed" from the live site, and there was no way to tell
+     from the outside whether the browser was running the new code or a cached
+     copy of the old one. GitHub Pages serves js/*.js with a cache header, and a
+     hard reload does not always beat it. The query string does: a changed URL
+     is a different file as far as the cache is concerned.
+
+     js/app.js prints this to the console on load, so the question "is this the
+     new code?" is answerable in ten seconds instead of by another round of
+     guessing. -->
+<meta name="doomscroll-build" content="20260923f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Jost:wght@500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/styles.css?v=20260923f">
 </head>
 <body>
 <div class="container">
@@ -130,31 +145,31 @@
 
 <div class="toast" id="toast" role="status"></div>
 
-<script src="js/scoreboard.js"></script>
-<script src="js/daily-five.js"></script>
-<script src="js/pacing.js"></script>
-<script src="js/media.js"></script>
-<script src="js/story.js"></script>
-<script src="js/editorial.js"></script>
-<script src="js/engine.js"></script>
+<script src="js/scoreboard.js?v=20260923f"></script>
+<script src="js/daily-five.js?v=20260923f"></script>
+<script src="js/pacing.js?v=20260923f"></script>
+<script src="js/media.js?v=20260923f"></script>
+<script src="js/story.js?v=20260923f"></script>
+<script src="js/editorial.js?v=20260923f"></script>
+<script src="js/engine.js?v=20260923f"></script>
 <!-- The For You scheduler. Needs js/editorial.js above it and is read by
      js/app.js below, so the order of these three matters. -->
-<script src="js/schedule.js"></script>
-<script src="js/share-text.js"></script>
-<script src="js/cards.js"></script>
-<script src="js/vs-score.js"></script>
-<script src="js/race-player.js"></script>
-<script src="js/mates-player.js"></script>
-<script src="js/compare-player.js"></script>
-<script src="js/lean-player.js"></script>
-<script src="js/share-image.js"></script>
-<script src="js/live-vs.js"></script>
-<script src="js/rumors.js"></script>
-<script src="js/player-resolver.js"></script>
-<script src="js/buzz.js"></script>
-<script src="js/bsky-video.js"></script>
-<script src="js/yt-video.js"></script>
-<script src="js/trades.js"></script>
-<script src="js/app.js"></script>
+<script src="js/schedule.js?v=20260923f"></script>
+<script src="js/share-text.js?v=20260923f"></script>
+<script src="js/cards.js?v=20260923f"></script>
+<script src="js/vs-score.js?v=20260923f"></script>
+<script src="js/race-player.js?v=20260923f"></script>
+<script src="js/mates-player.js?v=20260923f"></script>
+<script src="js/compare-player.js?v=20260923f"></script>
+<script src="js/lean-player.js?v=20260923f"></script>
+<script src="js/share-image.js?v=20260923f"></script>
+<script src="js/live-vs.js?v=20260923f"></script>
+<script src="js/rumors.js?v=20260923f"></script>
+<script src="js/player-resolver.js?v=20260923f"></script>
+<script src="js/buzz.js?v=20260923f"></script>
+<script src="js/bsky-video.js?v=20260923f"></script>
+<script src="js/yt-video.js?v=20260923f"></script>
+<script src="js/trades.js?v=20260923f"></script>
+<script src="js/app.js?v=20260923f"></script>
 </body>
 </html>
