@@ -34,6 +34,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { loadBio, lineupOrder, withBio } from "./lib/player_bio.mjs";
 import { resolveSource } from "./lib/find.mjs";
 import {
   seasonTotals, eligibleSeasons, teamScoringByYear, environmentOf, squadPairs,
@@ -65,6 +66,23 @@ if (!PD) process.exit(1);
 
 const statRows = JSON.parse(fs.readFileSync(path.join(PD, "rsStats.json"), "utf8"));
 console.log(`${statRows.length} stat rows`);
+
+/* HEIGHTS AND POSITIONS, for listing each five in lineup order rather than in
+ * scoring order. rsStats has PLAYER, TEAM, YEAR, GP and PTS and nothing else,
+ * so this is a second file from the same repo - see tools/lib/player_bio.mjs
+ * for what it can and cannot support (it has no PG/SG split, so the order is
+ * shortest to tallest with position breaking ties).
+ *
+ * Optional on purpose: a checkout without bio.json still builds a valid pool,
+ * it just lists each five the way it always did. */
+let bio = null;
+try {
+  bio = loadBio(PD);
+  console.log(`${bio.size} bio rows` +
+    (bio.duplicates ? ` (${bio.duplicates} duplicate name(s) - last wins)` : ""));
+} catch (e) {
+  console.log(`no bio.json in ${PD}: listing each five in scoring order (${e.code || e.message})`);
+}
 
 /* ---------------- seasons ---------------- */
 
@@ -156,7 +174,19 @@ const fmt1 = n => (Math.round(n * 10) / 10).toFixed(1);
 const squadOf = (five, decade) => ({
   label: decade,
   total: Math.round(five.reduce((n, s) => n + s.ppg, 0) * 10) / 10,
-  players: five.map(s => ({ name: s.player, season: s.label, ppg: s.ppg }))
+  /* LINEUP ORDER, NOT SCORING ORDER. The five are picked from five scoring
+   * tiers, so the natural array order is best scorer first - which reads as a
+   * ranking and invites the reader to compare the two lists top to top instead
+   * of as squads. Sorted shortest to tallest here, at build time, so the
+   * renderer stays a plain map over the array.
+   *
+   * `total` is computed BEFORE the sort and is a sum, so the order cannot
+   * change the answer - which matters, because the answer_idx that goes with it
+   * is decided from these totals. */
+  players: lineupOrder(
+    five.map(s => withBio({ name: s.player, season: s.label, ppg: s.ppg }, bio)),
+    bio
+  )
 });
 
 const cards = [];
