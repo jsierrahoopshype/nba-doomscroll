@@ -50,7 +50,21 @@ let out;
   ck("exits clean", !err, err && String(err.message).slice(0, 200));
   if (err) { console.log("\n1 failed\nthe audit does not run"); process.exit(1); }
 
-  ck("says it drove the shipped sampler", /sampler:\s+the shipped E\.sampleMixed/.test(out));
+  /* The header names WHICH path ran, and since Stage 3 there are two: For You
+   * goes through DoomSchedule and --legacy drives the pre-scheduler sampleMixed
+   * path so the before/after comparison uses the same seeds. A report that does
+   * not say which one it measured is worthless for tuning. */
+  ck("says it drove the shipped scheduler",
+     /sampler:\s+the shipped DoomSchedule \+ E\.sample/.test(out),
+     (out.match(/sampler:.*/) || [""])[0].trim());
+  /* indexOf rather than a regex: tools/test_lib_imports.mjs reads every tools/
+   * file for undeclared names, and a regex literal holding spaces and hyphens
+   * reads to it as division followed by identifiers. A plain string keeps the
+   * lint honest instead of teaching it to ignore this line. */
+  ck("and --legacy says it drove the old path", (() => {
+    const old = run(FAST.concat(["--live", "50", "--legacy"]));
+    return old.indexOf("the pre-Stage-3 E.sampleMixed path") >= 0;
+  })());
   ck("read the whole archive", /archive:\s+\d{4} cards/.test(out),
      (out.match(/archive:.*/) || [""])[0].trim());
   ck("reports a cold-start block", /COLD START, FIRST 40 CARDS/.test(out));
