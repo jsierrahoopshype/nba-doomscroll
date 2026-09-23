@@ -557,7 +557,23 @@ function buildTriviaPool(universe) {
     if (va < minVal || vb < minVal) continue;          // both must be real volume scorers of this stat
     if (minYear && (a.first < minYear || b.first < minYear)) continue;  // untracked-era guard
     const ratio = Math.max(va, vb) / Math.min(va, vb);
-    if (ratio < 1.08 || ratio > 4) continue; // too close to be fair, or a blowout nobody misses
+    /* THE GATE THAT MAKES THIS A QUESTION.
+     *
+     * The ceiling was 4. That shipped a card asking whether Michael Jordan
+     * (32,292 career points) or Steve Francis (10,446) scored more - a 3.1x
+     * gap, which is not a question, and Jorge caught it on the live feed:
+     * "They are supposed to be difficult with similar numbers."
+     *
+     * 1.6 is the ceiling now. The floor stays at 1.08, because two numbers
+     * within 8% of each other is a coin flip dressed as knowledge and a reader
+     * who loses one of those has not learned anything.
+     *
+     * The pool does not get smaller: 260 players across 7 stats is ~236,000
+     * candidate pairs, so the 300-card target fills comfortably inside a
+     * narrower band. js/app.js refuses anything above this ratio as well, which
+     * is what fixes the pool already sitting in readers' caches. Keep the two
+     * numbers the same. */
+    if (ratio < 1.08 || ratio > 1.6) continue;
     seen.add(pairKey);
     cards.push({
       id: `trivia-${cards.length + 1}`,
