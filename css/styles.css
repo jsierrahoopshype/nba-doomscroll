@@ -135,10 +135,29 @@ a:hover{ text-decoration:underline }
 /* You against the feed. Quiet by design and hidden entirely until there is a
    score: a running tally is a reward for playing, not a scoreboard staring at
    someone who has not. */
+.score-row{
+  display:flex; align-items:center; gap:.5rem; margin:-.3rem 0 .55rem;
+}
 .score-line{
   font-family:'JetBrains Mono',monospace; font-size:.66rem; font-weight:600;
   letter-spacing:.04em; text-transform:uppercase;
-  color:var(--t-vault); margin:-.3rem 0 .55rem;
+  color:var(--t-vault);
+}
+/* THE RUN, CARRIED BETWEEN CARDS.
+   The meter on an answered card scrolls away with it, so on its own the run was
+   only ever visible for the second after answering. This keeps it on screen
+   while the reader scrolls toward the next question, which is the whole point
+   of having a streak. Hidden below two in a row, and silent when one breaks:
+   the reward for a run is seeing it, and a chip that announces the end of one
+   would make losing it the loudest event on the page. */
+.run-chip{
+  font-family:'JetBrains Mono',monospace; font-size:.6rem; font-weight:600;
+  letter-spacing:.06em; text-transform:uppercase;
+  color:var(--accent); border:1px solid var(--accent); border-radius:999px;
+  padding:.15rem .45rem; white-space:nowrap;
+}
+.run-chip.is-hit{
+  color:var(--green); border-color:var(--green); background:var(--green-dim);
 }
 
 /* -------- feed cards -------- */
@@ -795,15 +814,59 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
 .sal-headline{ margin-top:.4rem }
 
 .quiz-opts{ display:grid; grid-template-columns:1fr 1fr; gap:.5rem }
-/* §11: the run milestone, inside the card's own result area.
-   Quiet on purpose. Three right in a row is worth a word, not a fanfare, and a
-   feed that interrupts a scroll to congratulate you is a feed you put down. It
-   sits under "Correct." and scrolls away with the card. */
+/* The run, inside the card's own result area.
+   Quiet on purpose - a feed that interrupts a scroll to congratulate you is a
+   feed you put down - but no longer silent. It was one line of grey text, which
+   Jorge called correctly: a number with nothing to reach is a counter, not a
+   reward. So the line now carries a meter filling toward the next milestone,
+   and the milestone itself brings a badge. Both sit under "Correct." and scroll
+   away with the card. */
 .quiz-run{
-  display:block; margin-top:.3rem;
+  display:block; margin-top:.4rem;
+}
+.quiz-run-head{
+  display:flex; align-items:baseline; justify-content:space-between; gap:.5rem;
   font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
   color:var(--text-secondary);
 }
+.quiz-run.is-hit .quiz-run-label{ color:var(--green) }
+.quiz-run-goal{ opacity:.7; flex:0 0 auto }
+.quiz-run-bar{
+  margin-top:.25rem; height:3px; border-radius:3px;
+  background:var(--border); overflow:hidden;
+}
+.quiz-run-bar > span{
+  display:block; height:100%; border-radius:3px;
+  background:var(--accent);
+  /* The bar is drawn at its final width, so the growth a reader sees is the
+     jump from the previous card's meter to this one. No keyframes: a bar that
+     animates every time becomes the loudest thing on a quiet card. */
+  transition:width .25s ease;
+}
+.quiz-run.is-hit .quiz-run-bar > span{ background:var(--green) }
+
+/* The milestone. The one moment the run says more than a number, and the only
+   place this feed offers to post something about the reader rather than about
+   the NBA. */
+.quiz-run-badge{
+  display:flex; align-items:center; flex-wrap:wrap; gap:.4rem .6rem;
+  margin-top:.45rem; padding:.45rem .55rem;
+  border:1px solid var(--green); border-radius:10px;
+  background:var(--green-dim);
+}
+.quiz-run-badge strong{ color:var(--green); font-size:.8rem }
+.quiz-run-best{
+  font-size:.6rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-secondary);
+}
+.quiz-run-acts{ display:flex; gap:.35rem; margin-left:auto }
+.quiz-run-share{
+  background:transparent; border:1px solid var(--border); border-radius:8px;
+  padding:.25rem .45rem; cursor:pointer;
+  color:var(--text-secondary); font-family:inherit; font-size:.62rem;
+  letter-spacing:.04em; text-transform:uppercase; transition:.15s;
+}
+.quiz-run-share:hover{ border-color:var(--accent); color:var(--accent) }
 .quiz-opt{
   background:var(--surface); border:1px solid var(--border); border-radius:10px;
   padding:.55rem .5rem; cursor:pointer; transition:.15s;
