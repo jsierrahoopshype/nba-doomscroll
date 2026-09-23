@@ -116,6 +116,110 @@ console.log("\nthe compose URLs");
      decodeURIComponent(composeUrl("bsky", c)).indexOf("undefined") < 0);
 }
 
+/* THE POST HAS TO SAY WHO IT IS ABOUT.
+ *
+ * Jorge, on sharing a teammates card: the post read "Who had the better
+ * teammates? — NBA Doomscroll @hoopshype" while the link said
+ * ?card=mates-kyle-lowry-vs-al-horford. "This should be more specific. Show
+ * that it's Kyle Lowry or Al Horford in the text."
+ *
+ * The same fault ran through half the card types, so every one of them is
+ * pinned here. The rule, and the line the rule must not cross: NAME WHAT THE
+ * CARD IS ABOUT, NEVER THE ANSWER. Naming both options of a two-player
+ * question spoils nothing, because the question is which of the two. Naming
+ * the player on a Guess the Player card gives the game away, which is why
+ * `quiz` stays generic and has an assertion of its own below. */
+console.log("\nthe post names the players the card is about");
+
+{
+  const two = (type, extra) => card(type, Object.assign({
+    a: { name: "Kyle Lowry" }, b: { name: "Al Horford" }
+  }, extra || {}));
+
+  const m = text(two("mates", { headline: "Who had the better help?" }));
+  ck("a teammates card names both players", /Kyle Lowry/.test(m) && /Al Horford/.test(m), m);
+  ck("and still asks the question", /better help/.test(m), m);
+  /* The question becomes a clause after the colon, so its first letter drops. */
+  ck("as a clause, not a second sentence", /: who /.test(m), m);
+
+  const tr = text(two("trivia", { question: "Who has more career points?" }));
+  ck("a trivia card names both players", /Kyle Lowry vs Al Horford/.test(tr), tr);
+  const cc = text(two("capcall", { question: "Who scored more per game in 2023-24?" }));
+  ck("so does a Cap Call", /Kyle Lowry vs Al Horford/.test(cc), cc);
+
+  /* Without names it must fall back rather than print "undefined: who…". */
+  const bare = text(card("mates", {}));
+  ck("a card with no names still reads", /teammates/.test(bare) && !/undefined/.test(bare), bare);
+
+  const tt = text(card("trade", {
+    sides: [{ team_name: "Sacramento Kings" }, { team_name: "Los Angeles Lakers" }]
+  }));
+  ck("a trade names the two teams", /Sacramento Kings and Los Angeles Lakers/.test(tt), tt);
+  const tp = Object.assign(card("trade", { sides: [] }),
+    { tags: { players: ["Player One", "Player Two"] } });
+  ck("and falls back to the players when a side has no team",
+     /Player One and Player Two/.test(text(tp)), text(tp));
+
+  const cm = text(card("careermap", {
+    question: "Which of these NBA teams did LeBron James never play for?"
+  }));
+  ck("a Career Map card posts its question", /LeBron James never play for/.test(cm), cm);
+  ck("rather than nothing but the site name", cm.length > 40, cm.length + " chars");
+
+  const dt = text(card("dreamteam", {
+    question: "Which five averaged more points a game between them?",
+    squads: [{ label: "1970s" }, { label: "1990s" }]
+  }));
+  ck("a Dream Team card names the two squads", /1970s or 1990s/.test(dt), dt);
+
+  const rc = text(card("race", {
+    title: "All-time scoring leaders",
+    note: "Ballots counted in a random order, and other small print."
+  }));
+  ck("a race posts its title, not its methodology note",
+     /All-time scoring leaders/.test(rc) && !/small print/.test(rc), rc);
+
+  const ln = text(card("lean", {
+    player: "Al Horford",
+    note: "Points above or below what the rest of the voters gave him, averaged over every ballot."
+  }));
+  ck("a media-lean card names the player", /Al Horford/.test(ln), ln);
+  ck("and not the methodology paragraph", !/averaged over every ballot/.test(ln), ln);
+}
+
+console.log("\nand never the answer");
+
+{
+  /* Guess the Player. The answer is the player's name, so nothing about the
+   * player may appear - not from the payload, not from the tags. */
+  const q = Object.assign(card("quiz", {
+    answer: "George Mikan", options: ["George Mikan", "Bob Pettit"],
+    difficulty: "easy", img: "data/faces/george-mikan.png"
+  }), { tags: { players: ["George Mikan"] } });
+  const s = text(q, "x");
+  ck("a Guess the Player card does not name the player", !/Mikan/.test(s), s);
+  ck("nor any of its options", !/Pettit/.test(s), s);
+  ck("nor in the compose URL",
+     !/Mikan/.test(decodeURIComponent(composeUrl("bsky", q, URL_))));
+  ck("it still says something", s.length > 20, s);
+}
+
+console.log("\nevery type stays inside the cap");
+
+{
+  /* The pair now rides in front of the question, which is the change most
+   * likely to push a post past what a composer accepts. Two long NBA names
+   * plus a long question plus the Bluesky handle is the worst case. */
+  const worst = card("trivia", {
+    a: { name: "Giannis Antetokounmpo" }, b: { name: "Shai Gilgeous-Alexander" },
+    question: "Who has more career 3-pointers made in the regular season?"
+  });
+  const b = text(worst, "bsky");
+  ck("the worst case fits", b.length <= MAX, b.length + "/" + MAX + ": " + b);
+  ck("and the handle survives the truncation",
+     /@hoopshypeofficial\.bsky\.social$/.test(b), b);
+}
+
 console.log(fail ? "\n" + fail + " failure(s)"
                  : "\nthe post says what the card is; the words stay on the page");
 process.exit(fail ? 1 : 0);
