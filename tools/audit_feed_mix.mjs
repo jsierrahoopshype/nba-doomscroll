@@ -64,6 +64,14 @@ const VERBOSE = argv.indexOf("--sample") >= 0;
  * synthetic live supply, so the two runs are comparable card for card. */
 const LEGACY = argv.indexOf("--legacy") >= 0;
 
+/* Read out of js/schedule.js rather than restated, for the same reason the app
+ * constants are: a cap this file disagrees with makes every report worthless. */
+const MEDIA_CAP = (() => {
+  const src = fs.readFileSync(path.join(REPO, "js", "schedule.js"), "utf8");
+  const m = src.match(/maxMediaHeavyPer10:\s*(\d+)/);
+  return m ? parseInt(m[1], 10) : 2;
+})();
+
 /* ---------------- the app's own constants ----------------
  *
  * READ OUT OF js/app.js rather than restated. A copy here would drift, and an
@@ -459,7 +467,7 @@ shares(cold, "");
   console.log(`    first live card at index        ${(fl == null ? "never" : fl.toFixed(1)).padStart(6)}   want 0-1`);
   console.log(`    first playable card at index   ${(fp == null ? "never" : fp.toFixed(1)).padStart(7)}   want 6-8`);
   console.log(`    worst awards in a 12-card window${String(cold.win12awards).padStart(5)}   max 1`);
-  console.log(`    worst archive media in 10 cards${String(cold.win10media).padStart(6)}   max 2`);
+  console.log(`    worst archive media in 10 cards${String(cold.win10media).padStart(6)}   max ${MEDIA_CAP}`);
   console.log(`      (all media incl. live)       ${String(cold.win10mediaAll).padStart(6)}   not capped`);
 }
 
@@ -480,7 +488,7 @@ gapLine("any playable", full.gapPlayable, "1 per 7-10");
 gapLine("media-heavy", full.gapMedia, "");
 
 console.log("\nCAPS AND CLUSTERING (worst across runs)");
-console.log(`  archive media in any 10-card window ${String(full.win10media).padStart(6)}   max 2`);
+console.log(`  archive media in any 10-card window ${String(full.win10media).padStart(6)}   max ${MEDIA_CAP}`);
 console.log(`  all media incl. live, per 10        ${String(full.win10mediaAll).padStart(6)}   not capped`);
 console.log(`  autoplay in any 4-card window       ${String(full.win4autoplay).padStart(6)}   max 1`);
 console.log(`  awards in any 12-card window        ${String(full.win12awards).padStart(6)}   max 1`);
@@ -530,7 +538,9 @@ if (cp(cold.comparison) > 8 || cp(cold.comparison) < 5) {
 if (cold.awards / cold.runs > 2) bad.push(`COLD: ${(cold.awards / cold.runs).toFixed(1)} awards cards per ${COLD}, want 1-2`);
 if (cold.money / cold.runs > 1) bad.push(`COLD: ${(cold.money / cold.runs).toFixed(1)} static salary cards per ${COLD}, want 0-1`);
 if (cold.win12awards > 1) bad.push(`COLD: ${cold.win12awards} awards in a 12-card window, max 1`);
-if (cold.win10media > 2) bad.push(`COLD: ${cold.win10media} media-heavy in a 10-card window, max 2`);
+if (cold.win10media > MEDIA_CAP) {
+  bad.push(`COLD: ${cold.win10media} archive media in a 10-card window, max ${MEDIA_CAP}`);
+}
 {
   const m = mean(full.gapAwards);
   if (m != null && m < 25) bad.push(`FULL: awards every ${m.toFixed(1)} cards, target 25-40`);
@@ -539,7 +549,12 @@ if (cold.win10media > 2) bad.push(`COLD: ${cold.win10media} media-heavy in a 10-
   const mg = mean(full.gapGtp);
   if (mg != null && mg < 20) bad.push(`FULL: Guess the Player every ${mg.toFixed(1)} cards, target 20-30`);
 }
-if (full.win10media > 2) bad.push(`FULL: ${full.win10media} media-heavy in a 10-card window, max 2`);
+/* The cap is read out of js/schedule.js, not restated. It moved once - three
+ * follows from animations being placed four apart - and a hardcoded 2 here
+ * would have reported a violation the scheduler was designed to allow. */
+if (full.win10media > MEDIA_CAP) {
+  bad.push(`FULL: ${full.win10media} archive media in a 10-card window, max ${MEDIA_CAP}`);
+}
 if (full.win4autoplay > 1) bad.push(`FULL: ${full.win4autoplay} autoplay in a 4-card window, max 1`);
 if (full.win12awards > 1) bad.push(`FULL: ${full.win12awards} awards cards in a 12-card window, max 1`);
 if (full.adjAwards > 0) bad.push(`FULL: ${(full.adjAwards / RUNS).toFixed(1)} adjacent awards cards per run, max 0`);
