@@ -151,6 +151,79 @@ console.log("\nthe registry knows about every pool on disk");
     `${absent.length} registry entries not built in this checkout)`);
 }
 
+/* EVERY BUCKET THE COLD PLAN NAMES MUST HAVE AN EAGER POOL.
+ *
+ * THE BUG THIS ENDS, which the app shipped twice in two different disguises.
+ * DoomSchedule's cold plan asks each of the first six batches for five live,
+ * one game, one history_record and one comparison. The eager set was picked for
+ * file size and tab coverage instead, and supplied one of those four buckets:
+ * game, 1,378 cards of it. The live and comparison cards it appeared to carry
+ * were all in data/dummy-cards.json and all marked `dummy`.
+ *
+ *   Disguise one: the sample trades held the live slots, so the feed opened on
+ *   a screen of "Example trade - not a real user build".
+ *   Disguise two: For You stopped drawing dummy cards, which is correct, and
+ *   the fallback then had one bucket to round-robin over. Eighteen consecutive
+ *   two-player trivia cards. Jorge: "just as bad as before."
+ *
+ * Both are this invariant being broken, so the invariant is asserted rather
+ * than the symptoms. Measured on cards that can actually REACH For You, which
+ * means non-dummy: counting the sample trades is precisely the mistake that
+ * made the eager set look complete for months.
+ *
+ * `live` is exempt and cannot be otherwise: buzz and trades exist only in the
+ * reader's browser, so no file in data/ can supply them. Its slots fall through
+ * to the other three until the fetch lands. */
+console.log("\nthe eager set covers every bucket the cold plan asks for");
+
+{
+  const SCHED = fs.readFileSync(path.join(REPO, "js", "schedule.js"), "utf8");
+  const win = {};
+  new Function("window", fs.readFileSync(path.join(REPO, "js", "editorial.js"), "utf8"))(win);
+  const ED = win.DoomEditorial;
+
+  const eager = [...SRC.match(/var EAGER_POOLS = \[([\s\S]*?)\];/)[1]
+    .matchAll(/"(data\/[^"]+)"/g)].map(m => m[1]);
+
+  /* The cold plan's slot names, read out of the shipped scheduler. Changing the
+   * plan without changing the eager set fails here, which is the point. */
+  const coldSlots = (/cold:\s*\{\s*slots:\s*\{([^}]*)\}/.exec(SCHED) || [, ""])[1];
+  const want = [...coldSlots.matchAll(/(\w+):\s*\d+/g)].map(m => m[1])
+    .filter(b => b !== "live");
+  ck("the cold plan's slots were found", want.length >= 3, want.join(", "));
+
+  /* What the eager set actually supplies, dummy cards excluded. */
+  const have = {};
+  let missingFiles = [];
+  for (const url of eager) {
+    const file = path.join(REPO, url);
+    if (!fs.existsSync(file)) { missingFiles.push(url); continue; }
+    const raw = JSON.parse(fs.readFileSync(file, "utf8"));
+    const cards = Array.isArray(raw) ? raw : (raw.cards || []);
+    for (const c of cards) {
+      if (c.dummy) continue;                 // never reaches For You
+      const b = ED.bucketOf(c);
+      have[b] = (have[b] || 0) + 1;
+    }
+  }
+
+  for (const b of want) {
+    ck(`eager cards exist for ${b}`, (have[b] || 0) > 0,
+       (have[b] || 0) + " cards");
+  }
+  /* A bucket with two cards technically passes the loop above and still gives a
+   * reader the same card twice on the first screen. The cold plan asks for one
+   * per batch over six batches, so six is the real floor. */
+  for (const b of want) {
+    ck(`and enough of them to fill the cold window`, (have[b] || 0) >= 6,
+       b + ": " + (have[b] || 0));
+  }
+  ck("no eager pool is missing from this checkout", missingFiles.length === 0,
+     missingFiles.join(", "));
+  console.log("  --   eager buckets: " +
+    Object.keys(have).sort().map(k => k + " " + have[k]).join(", "));
+}
+
 console.log("\nthe per-tab lists are unchanged by the restructure");
 
 {
@@ -163,8 +236,15 @@ console.log("\nthe per-tab lists are unchanged by the restructure");
             "data/salary-pool.json", "data/award-history-pool.json",
             "data/record-pool.json", "data/career-pool.json"],
     races: ["data/race-pool.json", "data/ballotrace-pool.json"],
-    quiz: ["data/capcall-pool.json", "data/careermap-pool.json",
-           "data/dreamteam-pool.json"]
+    /* quiz-pool joined the registry in Sept 2026. It was eager-only, which is
+     * why it was never listed here: 552KB bought before the history and
+     * comparison pools, for the bucket the cold plan wants ONE card of per
+     * batch. Moving it to lazy is what stopped the feed opening on a wall of
+     * quizzes - see EAGER_POOLS in js/app.js. The Quiz tab is unchanged in
+     * substance: it gains the pool it was always shown, just fetched when the
+     * tab is opened rather than before the first paint. */
+    quiz: ["data/quiz-pool.json", "data/capcall-pool.json",
+           "data/careermap-pool.json", "data/dreamteam-pool.json"]
   };
   for (const tab of Object.keys(BEFORE)) {
     const got = (TAB_POOLS[tab] || []).slice().sort();
@@ -173,9 +253,10 @@ console.log("\nthe per-tab lists are unchanged by the restructure");
        got.join("|") === want.join("|"),
        got.join("|") === want.join("|") ? "" : `got ${got.join(", ")}`);
   }
-  /* For You is the one that CHANGED, and by exactly the five. */
-  ck("For You gained five pools and lost none",
-     TAB_POOLS.foryou.length === 15, TAB_POOLS.foryou.length + " pools (was 10)");
+  /* For You gained the five coverage pools, and then quiz-pool when that moved
+   * out of the eager set. */
+  ck("For You carries every registry pool that has not opted out",
+     TAB_POOLS.foryou.length === 16, TAB_POOLS.foryou.length + " pools (was 10)");
 }
 
 console.log("\nOPTIONAL_POOLS is derived from the same list");

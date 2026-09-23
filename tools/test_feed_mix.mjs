@@ -250,11 +250,19 @@ console.log("\nfrivolities are off, without anything being deleted");
      fs.existsSync(path.join(REPO, "data", "frivolities-pool.json")));
   ck("and its builder is too, so it can be switched back on",
      fs.existsSync(path.join(REPO, "tools", "build_frivolities.mjs")));
-  /* The quiz tab still has cards: quiz, trivia and ballot are eager pools,
-   * loaded for every tab, not part of TAB_POOLS. */
-  ck("the eager pools still carry the quiz types",
-     /EAGER_POOLS[\s\S]{0,200}quiz-pool\.json/.test(APP) &&
-     /EAGER_POOLS[\s\S]{0,200}ballot-pool\.json/.test(APP));
+  /* The Quiz tab still has cards on its first screen without waiting for a
+   * fetch. trivia and ballot are eager; quiz-pool moved to the registry in
+   * Sept 2026 and arrives with the tab, so the eager pair is what has to hold
+   * here - 460 playable cards, which is a first screen many times over. */
+  const eagerBlock = (/var EAGER_POOLS = \[([\s\S]*?)\];/.exec(APP) || [, ""])[1];
+  ck("the eager pools still carry the quiz tab's own types",
+     /trivia-pool\.json/.test(eagerBlock) && /ballot-pool\.json/.test(eagerBlock));
+  /* And the one that moved is genuinely reachable rather than orphaned: an
+   * eager-only pool dropped from EAGER_POOLS without a registry entry loads
+   * nowhere at all, which would silently cost the app 1,078 cards. */
+  ck("and quiz-pool is in the registry now that it is not eager",
+     !/quiz-pool\.json/.test(eagerBlock) &&
+     /\{ url: "data\/quiz-pool\.json",\s+tabs: \["quiz"\] \}/.test(APP));
 }
 
 console.log("\nballot cards offer four answers");
