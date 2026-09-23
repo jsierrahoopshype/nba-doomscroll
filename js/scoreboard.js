@@ -39,12 +39,39 @@
 
   var MILESTONE_TEXT = {
     3: "Three in a row.",
-    5: "Five in a row.",
+    5: "Five in a row. Best you have done today.",
     10: "Ten in a row."
   };
 
   /** The line to show when an answer reaches a milestone, or "". */
   function milestoneText(n) { return MILESTONE_TEXT[n] || ""; }
+
+  /* WHAT EVERY CORRECT ANSWER SAYS, not just the milestone ones.
+   *
+   * Jorge on the first version: "That does not do much." It was right - a line
+   * appeared on the third answer and then nothing until the fifth, so most
+   * correct answers got no acknowledgement at all and the run was invisible
+   * while it was building. A streak you cannot see is not a streak.
+   *
+   * So the run is shown from two upward, every time, and the milestones are the
+   * moments it says something more than a number. Still one quiet line in the
+   * card's own result area: no modal, no toast, nothing that interrupts a
+   * scroll.
+   *
+   * Two is the floor rather than one, because "1 in a row" is just an answer. */
+  function runText(n, best, hasMissed) {
+    if (!n || n < 2) return "";
+    var m = milestoneText(n);
+    if (m) return m;
+    /* Past ten the milestones stop, but the count should not - that is the
+     * point at which a reader is actually invested in it. */
+    var s = n + " in a row";
+    /* "best yet" ONLY once there is something to have beaten. On a first
+     * unbroken run every answer is a personal best, so saying so on all of
+     * them is true and means nothing. It earns its place after a miss. */
+    if (hasMissed && best && n === best) s += " · best yet";
+    return s;
+  }
 
   /** Attempts, correct, the run in progress and the best run. */
   function run() {
@@ -157,7 +184,12 @@
              attempts: r.attempts, correct: r.correct,
              /* The milestone this answer just reached, or 0. Read by js/app.js
               * to put one line under the card - see MILESTONES. */
-             milestone: correct && MILESTONES.indexOf(r.cur) >= 0 ? r.cur : 0 };
+             milestone: correct && MILESTONES.indexOf(r.cur) >= 0 ? r.cur : 0,
+             /* The line to print under this answer, or "". Covers every correct
+              * answer from two up, not only the milestones - see runText. */
+             runLine: correct
+               ? runText(r.cur, r.best, r.attempts > r.correct)
+               : "" };
   }
 
   function dayTally(d, day) {
@@ -209,7 +241,7 @@
 
   root.Scoreboard = {
     record: record, today: todayScore, total: total, streak: streak,
-    run: run, milestoneText: milestoneText, MILESTONES: MILESTONES,
+    run: run, milestoneText: milestoneText, runText: runText, MILESTONES: MILESTONES,
     line: line, reset: reset, scorable: scorable, dayKey: today, KEY: KEY
   };
 })(typeof window !== "undefined" ? window : this);

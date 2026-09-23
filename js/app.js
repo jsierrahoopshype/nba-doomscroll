@@ -839,10 +839,8 @@
    * cardEl is passed in rather than looked up, because by the time a reader has
    * answered two cards there are two answered cards on screen and querying for
    * one would find whichever came first. */
-  function showMilestone(cardEl, n) {
-    if (!cardEl || !n || !root.Scoreboard) return;
-    var text = root.Scoreboard.milestoneText(n);
-    if (!text) return;
+  function showMilestone(cardEl, text) {
+    if (!cardEl || !text) return;
     var res = cardEl.querySelector(".quiz-result");
     if (!res || res.querySelector(".quiz-run")) return;
     var el = document.createElement("span");
@@ -855,7 +853,11 @@
     if (!root.Scoreboard) return;
     try {
       var tally = root.Scoreboard.record(card.id, card.type, correct);
-      if (tally && tally.milestone) showMilestone(cardEl, tally.milestone);
+      /* Every correct answer from two up, not only the milestones. The first
+       * version showed a line on the third answer and nothing on the fourth,
+       * so the run was invisible while it was building - Jorge's words: "that
+       * does not do much". */
+      if (tally && tally.runLine) showMilestone(cardEl, tally.runLine);
       renderScore();
       if (root.DailyFive) {
         var el = document.querySelector('#feed [data-id^="daily-"]');
@@ -1195,8 +1197,30 @@
   }
 
   function scheduleBatch(pool, avoid) {
+    /* NO SAMPLE CARDS IN FOR YOU.
+     *
+     * The fourteen placeholder trades in data/dummy-cards.json are type
+     * "trade", which the editorial classification calls `live` - correctly, for
+     * a real one. At boot, before the live fetch resolves, they are the ONLY
+     * live cards in the pool, so the scheduler filled all five of its live
+     * slots with them and the feed opened on a screen of "SAMPLE TRADE". The
+     * old type-balanced draw spread them out enough to hide it; scheduling live
+     * deliberately did not.
+     *
+     * An invented trade is not current NBA, so it is not eligible here. The
+     * Trades tab still shows them, because there the reader has asked for
+     * trades and an empty tab is worse than a labelled example. Until live
+     * arrives those slots fall through to history, games and comparisons, and
+     * absorbLive appends the real cards below when they land.
+     *
+     * THIS FIX WAS LOST ONCE. It was written on a branch that was then
+     * abandoned in favour of one cut from main, and its test assertion went
+     * with it - so the suite passed at 56 with the bug back in the feed and
+     * Jorge found it on the live site for the second time. The assertion in
+     * tools/test_app_live_refresh.mjs is what stops that happening again. */
+    var real = pool.filter(function (c) { return !c.dummy; });
     var res = DoomSchedule.build({
-      pool: pool,
+      pool: real,
       size: BATCH,
       position: feedEl.querySelectorAll(".card").length,
       tail: feedTail(DIVERSITY_WINDOW),
