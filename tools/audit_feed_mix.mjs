@@ -59,6 +59,10 @@ const COLD = num("cold", 50);
  * with --now <epoch ms> to model a different point in a season. */
 const NOW = num("now", Date.parse("2026-01-15T12:00:00Z"));
 const VERBOSE = argv.indexOf("--sample") >= 0;
+/* --legacy drives the pre-scheduler path: sampleMixed with the reserved buzz
+ * share, which is what shipped before Stage 3. Same seeds, same pools, same
+ * synthetic live supply, so the two runs are comparable card for card. */
+const LEGACY = argv.indexOf("--legacy") >= 0;
 
 /* ---------------- the app's own constants ----------------
  *
@@ -130,12 +134,19 @@ function loadEngine(seed, fixedNow) {
     setTimeout: (f) => f && 0,
     requestIdleCallback: null
   };
-  new Function("window", "localStorage", "navigator", "document", "Math", "Date",
-    fs.readFileSync(path.join(REPO, "js", "engine.js"), "utf8"))(
-    win, win.localStorage, win.navigator,
-    { createElement: () => ({}), addEventListener: () => {} },
-    SeededMath, FrozenDate);
-  return win.DoomEngine;
+  const doc = { createElement: () => ({}), addEventListener: () => {} };
+  const load = (file) => new Function(
+    "window", "localStorage", "navigator", "document", "Math", "Date",
+    fs.readFileSync(path.join(REPO, "js", file), "utf8"))(
+    win, win.localStorage, win.navigator, doc, SeededMath, FrozenDate);
+
+  /* The shipped scheduler, loaded the same way and in the same order
+   * index.html loads it: editorial first, because schedule.js reads it at
+   * definition time. */
+  load("editorial.js");
+  load("engine.js");
+  load("schedule.js");
+  return { E: win.DoomEngine, S: win.DoomSchedule, rnd: rnd };
 }
 
 /* ---------------- the archive ---------------- */
@@ -234,9 +245,10 @@ function mulberry32(a) {
  *
  * Mirrors loadMore(): batches of BATCH, drawn with sampleMixed, MIXED_CAPS, a
  * reserved buzz share and the last-twelve avoid set. */
-function runSession(E, pool, wanted, rnd) {
+function runSession(E, S, pool, wanted, rnd) {
   const rendered = {};
   const feed = [];
+  const since = S ? S.newCounters() : null;
 
   function buzzShare(p) {
     /* A fresh profile sits exactly on BUZZ_SHARE, which is what a cold start
@@ -268,16 +280,30 @@ function runSession(E, pool, wanted, rnd) {
   while (feed.length < wanted && guard++ < wanted * 4) {
     const avail = pool.filter(c => !rendered[c.id]);
     if (!avail.length) break;
-    const batch = E.sampleMixed(avail, BATCH, {
-      cap: MIXED_CAPS,
-      share: { buzz: buzzShare(avail) },
-      avoid: avoid()
-    });
+    /* THE SHIPPED FOR YOU PATH. js/app.js sends For You through
+     * DoomSchedule.build and every other tab through sampleMixed; --legacy
+     * measures the old path, which is how the before/after comparison is made
+     * against the same seeds rather than against a remembered number. */
+    const batch = (S && !LEGACY)
+      ? S.build({
+          pool: avail, size: BATCH, position: feed.length,
+          tail: feed.slice(Math.max(0, feed.length - DIVERSITY_WINDOW)),
+          since, avoid: avoid(),
+          sample: (list, n, opts) => E.sample(list, n, opts),
+          rng: rnd
+        }).cards
+      : E.sampleMixed(avail, BATCH, {
+          cap: MIXED_CAPS,
+          share: { buzz: buzzShare(avail) },
+          avoid: avoid()
+        });
     if (!batch || !batch.length) break;
     for (const c of batch) {
       if (feed.length >= wanted) break;
       rendered[c.id] = 1;
       feed.push(c);
+      /* Counted as served, exactly as js/app.js counts it in the render loop. */
+      if (S && since) S.countCard(since, c);
     }
   }
   return feed;
@@ -294,7 +320,7 @@ console.log(`FEED MIX AUDIT`);
 console.log(`  archive:      ${archive.length} cards, ${usable.length} usable, ${pools.length} pools` +
   (SKIP.length ? `   (skipping ${SKIP.join(", ")})` : ""));
 console.log(`  live supply:  ${LIVE_SUPPLY} synthetic cards (buzz/trade/digest; none exist in the repo)`);
-console.log(`  sampler:      the shipped E.sampleMixed`);
+console.log(`  sampler:      ${LEGACY ? "the pre-Stage-3 E.sampleMixed path (--legacy)" : "the shipped DoomSchedule + E.sample"}`);
 console.log(`  constants:    BATCH=${BATCH} BUZZ_SHARE=${BUZZ_SHARE} ` +
   `DIVERSITY_WINDOW=${DIVERSITY_WINDOW} caps=${JSON.stringify(MIXED_CAPS)}` +
   (BUZZ_OVERRIDDEN ? `\n  OVERRIDE:     BUZZ_SHARE forced to ${BUZZ_SHARE}; js/app.js says ${BUZZ_SHARE_APP}. This is a proposal, not a measurement.` : ""));
@@ -308,9 +334,9 @@ for (let r = 0; r < RUNS; r++) {
   const s = SEED0 + r * 7919;
   const rnd = mulberry32(s);
   /* A fresh engine per run, seeded, so run r is reproducible on its own. */
-  const E = loadEngine(s, NOW);
+  const { E, S } = loadEngine(s, NOW);
   const pool = usable.concat(liveSupply(LIVE_SUPPLY, rnd));
-  feeds.push(runSession(E, pool, CARDS, rnd));
+  feeds.push(runSession(E, LEGACY ? null : S, pool, CARDS, rnd));
 }
 
 
@@ -324,7 +350,7 @@ function summarize(list) {
     mediaHeavy: 0, autoplay: 0, total: 0,
     gapAwards: [], gapMoney: [], gapGtp: [], gapPlayable: [], gapMedia: [],
     firstPlayable: [], firstLive: [],
-    win10media: 0, win4autoplay: 0, win12awards: 0,
+    win10media: 0, win10mediaAll: 0, win4autoplay: 0, win12awards: 0,
     adjSource: 0, adjBucket: 0, adjAwards: 0, adjMedia: 0,
     repeatPlayer: 0, repeatTeam: 0,
     runs: list.length,
@@ -369,7 +395,15 @@ function summarize(list) {
     push(agg.firstPlayable, gaps(feed, c => hasTrait(c, "playable")).first);
     push(agg.firstLive, gaps(feed, c => bucketOf(c) === "live").first);
 
-    agg.win10media = Math.max(agg.win10media, windowMax(feed, c => hasTrait(c, "media_heavy"), 10));
+    /* TWO media counts, because the scheduler caps one of them and not the
+     * other. Archive media - races, comparisons, teammates, media-lean - is
+     * what §16's cap governs. A Buzz card is media-heavy too, and counting it
+     * would make the cap unsatisfiable against a 65-70% live target, so it is
+     * reported separately rather than folded in silently. */
+    agg.win10media = Math.max(agg.win10media,
+      windowMax(feed, c => hasTrait(c, "media_heavy") && bucketOf(c) !== "live", 10));
+    agg.win10mediaAll = Math.max(agg.win10mediaAll || 0,
+      windowMax(feed, c => hasTrait(c, "media_heavy"), 10));
     agg.win4autoplay = Math.max(agg.win4autoplay, windowMax(feed, c => hasTrait(c, "autoplay"), 4));
     agg.win12awards = Math.max(agg.win12awards, windowMax(feed, c => bucketOf(c) === "awards_voting", 12));
 
@@ -377,7 +411,7 @@ function summarize(list) {
       ? ((c.payload && (c.payload.source || c.payload.outlet)) || null) : null);
     agg.adjBucket += adjacent(feed, c => bucketOf(c));
     agg.adjAwards += adjacent(feed, c => bucketOf(c) === "awards_voting" ? "aw" : null);
-    agg.adjMedia += adjacent(feed, c => hasTrait(c, "media_heavy") ? "mh" : null);
+    agg.adjMedia += adjacent(feed, c => (hasTrait(c, "media_heavy") && bucketOf(c) !== "live") ? "mh" : null);
 
     /* Repeat frequency inside a 5-card window, which is the §18 requirement. */
     for (let i = 0; i < feed.length; i++) {
@@ -425,7 +459,8 @@ shares(cold, "");
   console.log(`    first live card at index        ${(fl == null ? "never" : fl.toFixed(1)).padStart(6)}   want 0-1`);
   console.log(`    first playable card at index   ${(fp == null ? "never" : fp.toFixed(1)).padStart(7)}   want 6-8`);
   console.log(`    worst awards in a 12-card window${String(cold.win12awards).padStart(5)}   max 1`);
-  console.log(`    worst media-heavy in 10 cards  ${String(cold.win10media).padStart(6)}   max 2`);
+  console.log(`    worst archive media in 10 cards${String(cold.win10media).padStart(6)}   max 2`);
+  console.log(`      (all media incl. live)       ${String(cold.win10mediaAll).padStart(6)}   not capped`);
 }
 
 console.log("\nWHOLE SESSION (" + CARDS + " cards)");
@@ -445,7 +480,8 @@ gapLine("any playable", full.gapPlayable, "1 per 7-10");
 gapLine("media-heavy", full.gapMedia, "");
 
 console.log("\nCAPS AND CLUSTERING (worst across runs)");
-console.log(`  media-heavy in any 10-card window   ${String(full.win10media).padStart(6)}   max 2`);
+console.log(`  archive media in any 10-card window ${String(full.win10media).padStart(6)}   max 2`);
+console.log(`  all media incl. live, per 10        ${String(full.win10mediaAll).padStart(6)}   not capped`);
 console.log(`  autoplay in any 4-card window       ${String(full.win4autoplay).padStart(6)}   max 1`);
 console.log(`  awards in any 12-card window        ${String(full.win12awards).padStart(6)}   max 1`);
 console.log(`  adjacent awards cards (per run)     ${(full.adjAwards / RUNS).toFixed(1).padStart(6)}   0`);
@@ -485,7 +521,12 @@ const cp = n => pct(n, cold.total);
 if (cp(cold.live) < 65) bad.push(`COLD: current NBA is ${cp(cold.live).toFixed(1)}% of the first ${COLD}, target 65-70%`);
 if (cp(cold.playable) < 10 || cp(cold.playable) > 15) bad.push(`COLD: playable is ${cp(cold.playable).toFixed(1)}%, target 10-15%`);
 if (cp(cold.history) < 8 || cp(cold.history) > 12) bad.push(`COLD: history is ${cp(cold.history).toFixed(1)}%, target 8-12%`);
-if (cp(cold.comparison) > 8) bad.push(`COLD: comparisons are ${cp(cold.comparison).toFixed(1)}%, target 5-8%`);
+/* BOTH ENDS. This checked only the ceiling, which passed a run serving 4.0%
+ * comparisons against a 5-8% band - a scheduler that had quietly stopped
+ * serving a family reads as a success if only the upper bound is tested. */
+if (cp(cold.comparison) > 8 || cp(cold.comparison) < 5) {
+  bad.push(`COLD: comparisons are ${cp(cold.comparison).toFixed(1)}%, target 5-8%`);
+}
 if (cold.awards / cold.runs > 2) bad.push(`COLD: ${(cold.awards / cold.runs).toFixed(1)} awards cards per ${COLD}, want 1-2`);
 if (cold.money / cold.runs > 1) bad.push(`COLD: ${(cold.money / cold.runs).toFixed(1)} static salary cards per ${COLD}, want 0-1`);
 if (cold.win12awards > 1) bad.push(`COLD: ${cold.win12awards} awards in a 12-card window, max 1`);
@@ -506,6 +547,16 @@ if (full.adjMedia > 0) bad.push(`FULL: ${(full.adjMedia / RUNS).toFixed(1)} adja
 
 console.log(`\nVIOLATIONS: ${bad.length}`);
 for (const b of bad) console.log("  - " + b);
+/* A mix target that live supply makes arithmetically impossible is not a
+ * scheduler failure, and reporting it as one would train everybody to ignore
+ * the list. Said out loud instead. */
+if (LIVE_SUPPLY < Math.ceil(0.65 * COLD) && bad.length) {
+  console.log(`\n  NOTE: only ${LIVE_SUPPLY} live cards exist, and ${Math.ceil(0.65 * COLD)} are`);
+  console.log(`  needed for a ${COLD}-card window to be 65% current. The share violations above`);
+  console.log(`  are that shortage, not the scheduler. What to check on a degraded run is that`);
+  console.log(`  awards and passive salary stay rationed - before Stage 3 a failed Buzz load`);
+  console.log(`  turned the first fifty cards into 19.2% awards voting.`);
+}
 
 /* The ceiling, stated rather than implied. With LIVE_SUPPLY live cards in the
  * pool, no scheduler can make the first COLD cards more than this share live,
