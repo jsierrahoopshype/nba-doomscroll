@@ -169,14 +169,44 @@ function loadEngine(seed, fixedNow) {
  * cold load are skipped, and the difference between that run and a full one is
  * exactly what a first-time reader was missing. */
 const SKIP = String(arg("skip", "")).split(",").map(s => s.trim()).filter(Boolean);
+
+/* --boot: THE FIRST SECOND, WHICH NOTHING HERE USED TO MEASURE.
+ *
+ * Every other mode of this audit hands the sampler all nineteen pools, and a
+ * reader never has that. At boot only EAGER_POOLS have arrived, live is still
+ * in flight, and the first two batches - sixteen cards, the whole first screen
+ * and a bit - are drawn from whatever that subset holds. That blind spot is how
+ * the app shipped a feed opening on fourteen sample trades, and then, once
+ * those were correctly refused, one opening on eighteen consecutive trivia
+ * cards. Both times the full-archive audit reported zero violations, because
+ * both times the full archive was fine.
+ *
+ * So this mode restricts the pool to the eager set, read out of js/app.js, and
+ * drops the dummy cards - which is what For You does. Run it after touching
+ * EAGER_POOLS, the cold plan, or the fallback:
+ *
+ *     node tools/audit_feed_mix.mjs --boot --cards 16 --live 0
+ */
+const BOOT = process.argv.includes("--boot");
+const EAGER = [...(/var EAGER_POOLS = \[([\s\S]*?)\];/
+  .exec(fs.readFileSync(path.join(REPO, "js", "app.js"), "utf8")) || [, ""])[1]
+  .matchAll(/"data\/([^"]+)"/g)].map(m => m[1]);
+
 const pools = fs.readdirSync(path.join(REPO, "data"))
-  .filter(f => /-pool\.json$/.test(f))
+  .filter(f => BOOT ? EAGER.indexOf(f) >= 0 : /-pool\.json$/.test(f))
   .filter(f => !SKIP.some(s => f.indexOf(s) >= 0))
   .sort();
 const archive = [];
 for (const f of pools) {
   const j = JSON.parse(fs.readFileSync(path.join(REPO, "data", f), "utf8"));
-  for (const c of (j.cards || [])) archive.push(c);
+  const cards = Array.isArray(j) ? j : (j.cards || []);
+  for (const c of cards) {
+    /* THE SAMPLE CARDS ARE NOT IN FOR YOU, so an audit that counts them is
+     * measuring a feed nobody is served. Only reachable in --boot mode, which
+     * is the only mode that loads dummy-cards.json at all. */
+    if (c && c.dummy) continue;
+    archive.push(c);
+  }
 }
 
 /* usableCard, mirrored from js/app.js. The gates that stop a malformed card

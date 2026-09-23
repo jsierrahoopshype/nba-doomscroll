@@ -131,10 +131,42 @@
 
   /* ---------------- boot ---------------- */
 
-  // Eager pools are small and cover every tab's first screen. vs-pool is ~1.9MB
-  // so it streams in behind the first paint and joins the mix on arrival.
-  var EAGER_POOLS = ["data/dummy-cards.json", "data/quiz-pool.json",
-                     "data/trivia-pool.json", "data/ballot-pool.json"];
+  /* THE EAGER SET IS THE FIRST SCREEN, SO IT HAS TO MATCH THE COLD PLAN.
+   *
+   * This list used to be dummy-cards, quiz, trivia and ballot: chosen for size,
+   * to cover "every tab's first screen". Read against the scheduler it was the
+   * wrong four. DoomSchedule's cold plan asks each batch for five live, one
+   * game, one history_record and one comparison, and of those four buckets the
+   * eager set supplied exactly one - game, 1,378 cards of it - plus 24 live and
+   * 4 comparison cards that were all in dummy-cards and all marked `dummy`.
+   *
+   * While that held, the sample trades were propping up the first screen. Take
+   * them out of For You (which is correct: an invented trade is not current
+   * NBA) and the fallback had one bucket left to round-robin over, so the feed
+   * opened on eighteen consecutive "Who has more career points?" cards. Jorge:
+   * "Now I'm getting all quiz cards at the top. That's just as bad as before."
+   * Both symptoms, the trades and the quizzes, are the same bug seen twice.
+   *
+   * So the rule is now the plan's, not the tab bar's: EVERY BUCKET THE COLD
+   * PLAN NAMES MUST HAVE AN EAGER POOL. tools/test_app_pools.mjs asserts it
+   * against js/schedule.js, so changing the plan and not this list fails there.
+   *
+   * It is also smaller than what it replaces - 438KB against 780KB. quiz-pool
+   * was over half the old budget and fed the one bucket already over-served at
+   * cold start, where the plan wants a single game card per batch. It is lazy
+   * now, and arrives in the second or so before a reader is eight cards down.
+   *
+   * live has no eager pool and cannot have one: buzz and trades exist only in
+   * the reader's browser. Its slots fall through to the other three until the
+   * fetch lands, which is what absorbLive is for. */
+  var EAGER_POOLS = [
+    "data/dummy-cards.json",   /* the Trades tab's own first screen        17KB */
+    "data/record-pool.json",   /* history_record                            6KB */
+    "data/career-pool.json",   /* history_record                           35KB */
+    "data/race-pool.json",     /* comparison, and every animation         169KB */
+    "data/trivia-pool.json",   /* game, and the smaller of the two        125KB */
+    "data/ballot-pool.json"    /* awards_voting, and the Quiz tab          86KB */
+  ];
 
   // Lazy pools used to load at boot no matter which tab you were on, so a
   // reader who only ever opened Trades still paid for the 1.9MB VS pool.
@@ -213,6 +245,11 @@
      *
      * All three are in For You now, which is the coverage fix above. They are
      * games, and the brief wants games in the mix. */
+    /* Guess the Player. Eager until Sept 2026 and lazy now: 552KB for the
+     * bucket the cold plan wants one card of per batch was the single biggest
+     * item in the eager budget, and buying it before the history and comparison
+     * pools is what let the feed open on a wall of quizzes. See EAGER_POOLS. */
+    { url: "data/quiz-pool.json",       tabs: ["quiz"] },
     { url: "data/capcall-pool.json",    tabs: ["quiz"], optional: true },
     { url: "data/careermap-pool.json",  tabs: ["quiz"], optional: true },
     { url: "data/dreamteam-pool.json",  tabs: ["quiz"], optional: true },
@@ -433,7 +470,20 @@
   }
 
   Promise.all(EAGER_POOLS.map(function (u) {
-    return fetchPool(u).catch(function (e) { console.warn("[doomscroll] pool failed:", e.message); return []; });
+    var p = fetchPool(u).catch(function (e) {
+      console.warn("[doomscroll] pool failed:", e.message);
+      /* Do not leave a failed eager pool cached as loaded: opening its tab
+       * should retry it, exactly as ensurePools does. */
+      delete poolPromises[u];
+      return [];
+    });
+    /* Seeded so ensurePools does not fetch a pool the eager pass already has.
+     * Three of these are in the registry as well - record, career and race -
+     * because they belong to History and Races, and For You is derived from the
+     * registry. addCards dedupes by id so a second fetch was harmless, but it
+     * was still a second fetch of the same bytes on every boot. */
+    poolPromises[u] = p;
+    return p;
   })).then(function (lists) {
     lists.forEach(addCards);
     if (!allCards.length) throw new Error("no cards loaded");
