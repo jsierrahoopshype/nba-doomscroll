@@ -47,12 +47,38 @@
     }
   }
 
+  /* THE ACCOUNT HANDLE, PER NETWORK.
+   *
+   * Jorge's call: a card shared out of the feed should tag HoopsHype, so the
+   * post is attributable and the reply lands somewhere. The handles differ by
+   * network and are not interchangeable - "@hoopshype" on Bluesky is not the
+   * HoopsHype account, it is nobody - so this is a table rather than one
+   * string.
+   *
+   * Bluesky handles are full domains and are what its intent composer expects;
+   * X wants the short form. */
+  var HANDLE = {
+    bsky: "@hoopshypeofficial.bsky.social",
+    x: "@hoopshype"
+  };
+
   /** The post body, above the link. Never empty: a post with no words at all
-   *  reads as a bot. */
-  function text(card) {
+   *  reads as a bot.
+   *
+   *  `kind` adds the network's own handle. It is optional so any existing
+   *  caller asking for plain text still gets what it always did. */
+  function text(card, kind) {
+    var tag = HANDLE[kind] ? " " + HANDLE[kind] : "";
+    /* The suffix is measured against the cap, not added after it. Otherwise a
+     * long headline plus " — NBA Doomscroll @hoopshypeofficial.bsky.social"
+     * runs past what the composer accepts and the handle is what gets cut -
+     * which is the one part of the line that has a job to do. */
+    var suffix = " — NBA Doomscroll" + tag;
+    var room = MAX - suffix.length;
     var s = String(line(card) || "").replace(/\s+/g, " ").trim();
-    if (s.length > MAX) s = s.slice(0, MAX - 3).replace(/\s+\S*$/, "") + "…";
-    return s ? s + " — NBA Doomscroll" : "NBA Doomscroll";
+    if (room < 12) return ("NBA Doomscroll" + tag).trim();
+    if (s.length > room) s = s.slice(0, room - 1).replace(/\s+\S*$/, "") + "…";
+    return (s ? s + suffix : ("NBA Doomscroll" + tag)).trim();
   }
 
   /** A compose URL, not a share widget. Nothing is loaded from either network,
@@ -62,7 +88,7 @@
    *  the URL separately and appends it itself, which is why it must NOT also be
    *  in the text - it would appear twice. */
   function composeUrl(kind, card, url) {
-    var body = text(card);
+    var body = text(card, kind === "bsky" ? "bsky" : "x");
     var href = String(url || "");
     if (kind === "bsky") {
       return "https://bsky.app/intent/compose?text=" +
@@ -72,5 +98,5 @@
       (href ? "&url=" + encodeURIComponent(href) : "");
   }
 
-  root.ShareText = { text: text, composeUrl: composeUrl, MAX: MAX };
+  root.ShareText = { text: text, composeUrl: composeUrl, MAX: MAX, HANDLE: HANDLE };
 })(window);

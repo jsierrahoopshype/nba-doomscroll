@@ -508,11 +508,35 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
   display:block; width:100%; height:auto;
   border-radius:8px; background:var(--surface-hover);
 }
-/* A multi-image post is still a grid of thumbnails: four full-height images
-   stacked would be a page each. Those are crops by design, and tapping one
-   opens the post. */
-.bsky-images.grid{ display:grid; grid-template-columns:1fr 1fr; gap:.25rem }
-.bsky-images.grid img{ height:8.5rem; object-fit:cover }
+/* A MULTI-IMAGE POST: THE FIRST ONE IS SHOWN WHOLE.
+
+   It was a 2x2 grid of 8.5rem crops for any post with more than one image, and
+   Jorge caught what that does to the common case. HoopsHype posts a photograph
+   beside a stat table, and cover cut the top and bottom off both - the table's
+   header row and its totals, which are the two rows the table exists for.
+
+   So the first image is treated the way a single image already was: full width,
+   its own aspect ratio, nothing cropped. That is the one the post is usually
+   about.
+
+   Two images get the same treatment each, stacked. Three or four keep the crop
+   row for the rest, because four full-height images in a feed card really is a
+   page each - the original comment was right about that, just not about two.
+   Tapping any of them still opens the post. */
+.bsky-images.grid{ display:flex; flex-wrap:wrap; gap:.25rem }
+.bsky-images.grid a{ flex:1 1 40%; min-width:0 }
+/* The first image, always whole. */
+.bsky-images.grid a:first-child{ flex:0 0 100% }
+.bsky-images.grid a:first-child img{ height:auto; object-fit:contain }
+/* Exactly two: the second is whole as well. :nth-last-child(2) on the first
+   child is what "there are exactly two of you" looks like in CSS. */
+.bsky-images.grid a:first-child:nth-last-child(2) ~ a{ flex:0 0 100% }
+.bsky-images.grid a:first-child:nth-last-child(2) ~ a img{
+  height:auto; object-fit:contain;
+}
+/* Three or four: the rest stay a crop row. */
+.bsky-images.grid a:not(:first-child) img{ height:8.5rem; object-fit:cover }
+.bsky-images.grid a:first-child:nth-last-child(2) ~ a img{ height:auto }
 
 .bsky-video{ position:relative; display:block; margin:.5rem 0; border-radius:8px; overflow:hidden }
 /* Same reasoning as the still above: the poster is shown whole. min-height
