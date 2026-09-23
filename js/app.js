@@ -802,6 +802,9 @@
 
   function renderSummary() {
     renderScore();
+    /* Drawn here as well as after an answer, so a reader who comes back mid-run
+     * sees it on load rather than only after the next question. */
+    renderRunChip();
     var el = document.getElementById("summary");
     if (!el) return;
     var n = poolForTab(state.tab).length;
@@ -839,14 +842,129 @@
    * cardEl is passed in rather than looked up, because by the time a reader has
    * answered two cards there are two answered cards on screen and querying for
    * one would find whichever came first. */
-  function showMilestone(cardEl, text) {
-    if (!cardEl || !text) return;
+  /* THE REWARD, NOT THE REPORT.
+   *
+   * The first version printed the run as a line of text and Jorge's verdict was
+   * "there should be some sort of reward for getting answers right". The line
+   * was accurate and inert: it said where you were and never what you were
+   * heading for, so a run had no shape. Three things fix that, and none of them
+   * interrupts a scroll, which the brief rules out and is right to:
+   *
+   *   1. A METER. The run fills a bar toward the next milestone - two of three,
+   *      four of five, seven of ten. A number with a target is a goal; a number
+   *      on its own is a counter.
+   *   2. A BADGE at the milestone itself, with the run in it, and a button that
+   *      posts it. A streak worth having is a streak worth showing, and the post
+   *      is the only output of this feed that is about the reader.
+   *   3. A CHIP in the header that carries the run between cards, so it is
+   *      visible while it is building rather than only in the second after an
+   *      answer - see renderRunChip.
+   *
+   * Everything stays in the card's own result area and scrolls away with it.
+   * Still no modal, no toast, nothing that stops the feed.
+   */
+  function showReward(cardEl, rw) {
+    if (!cardEl || !rw) return;
     var res = cardEl.querySelector(".quiz-result");
     if (!res || res.querySelector(".quiz-run")) return;
-    var el = document.createElement("span");
-    el.className = "quiz-run mono";
-    el.textContent = text;
-    res.appendChild(el);
+
+    var wrap = document.createElement("div");
+    wrap.className = "quiz-run" + (rw.hit ? " is-hit" : "");
+
+    var head = document.createElement("div");
+    head.className = "quiz-run-head";
+    var label = document.createElement("span");
+    label.className = "quiz-run-label mono";
+    label.textContent = rw.line || (rw.run + " in a row");
+    head.appendChild(label);
+    if (rw.next) {
+      var goal = document.createElement("span");
+      goal.className = "quiz-run-goal mono";
+      goal.textContent = rw.run + "/" + rw.next;
+      head.appendChild(goal);
+    }
+    wrap.appendChild(head);
+
+    /* Hidden from assistive tech: the count is already in the label beside it,
+     * and a bar that announces "57 percent" adds nothing but noise. */
+    var bar = document.createElement("div");
+    bar.className = "quiz-run-bar";
+    bar.setAttribute("aria-hidden", "true");
+    var fill = document.createElement("span");
+    fill.style.width = Math.max(0, Math.min(1, rw.fill)) * 100 + "%";
+    bar.appendChild(fill);
+    wrap.appendChild(bar);
+
+    if (rw.hit) wrap.appendChild(runBadge(rw));
+
+    res.appendChild(wrap);
+  }
+
+  /* The milestone badge. Two composer links and nothing else: no image render,
+   * no canvas, no third-party script, and the only number that leaves the
+   * browser is the one the reader tapped to post. */
+  function runBadge(rw) {
+    var box = document.createElement("div");
+    box.className = "quiz-run-badge";
+
+    var n = document.createElement("strong");
+    n.textContent = rw.hit + " in a row";
+    box.appendChild(n);
+
+    if (rw.best > rw.hit) {
+      var b = document.createElement("span");
+      b.className = "quiz-run-best mono";
+      b.textContent = "best " + rw.best;
+      box.appendChild(b);
+    }
+
+    var acts = document.createElement("span");
+    acts.className = "quiz-run-acts";
+    [["bsky", "Post on Bluesky"], ["x", "Post on X"]].forEach(function (p) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "quiz-run-share";
+      btn.textContent = p[1];
+      btn.addEventListener("click", function () {
+        /* Opened inside the click so no popup blocker eats it, and noopener so
+         * the composer gets no handle on this window. */
+        window.open(ShareText.runComposeUrl(p[0], rw.run, rw.best, siteUrl()),
+                    "_blank", "noopener,noreferrer");
+      });
+      acts.appendChild(btn);
+    });
+    box.appendChild(acts);
+    return box;
+  }
+
+  /* The feed's own address, with no card or tab on it. A posted run points at
+   * the feed, not at whichever question happened to be the tenth. */
+  function siteUrl() {
+    var u = new URL(window.location.href);
+    u.search = "";
+    u.hash = "";
+    return u.toString();
+  }
+
+  /* THE RUN, BETWEEN CARDS.
+   *
+   * The meter lives on the card that was just answered and scrolls away with
+   * it. This is the part that persists: a chip beside the score line that shows
+   * the run while the reader is still scrolling toward the next question, and
+   * goes quiet at zero rather than announcing a broken streak. Reset by a wrong
+   * answer, like the run itself.
+   */
+  function renderRunChip() {
+    var el = document.getElementById("runChip");
+    if (!el || !root.Scoreboard) return;
+    var r;
+    try { r = root.Scoreboard.run(); } catch (e) { return; }
+    if (!r || r.cur < 2) { el.hidden = true; el.textContent = ""; return; }
+    var next = root.Scoreboard.nextMilestone(r.cur);
+    el.textContent = r.cur + " in a row" + (next ? " · " + next + " next" : "");
+    el.className = "run-chip" + (root.Scoreboard.MILESTONES.indexOf(r.cur) >= 0
+      ? " is-hit" : "");
+    el.hidden = false;
   }
 
   function scoreAnswer(card, correct, cardEl) {
@@ -857,8 +975,9 @@
        * version showed a line on the third answer and nothing on the fourth,
        * so the run was invisible while it was building - Jorge's words: "that
        * does not do much". */
-      if (tally && tally.runLine) showMilestone(cardEl, tally.runLine);
+      if (tally && tally.reward) showReward(cardEl, tally.reward);
       renderScore();
+      renderRunChip();
       if (root.DailyFive) {
         var el = document.querySelector('#feed [data-id^="daily-"]');
         if (el) {
@@ -999,8 +1118,38 @@
    * sitting in a pool built before that change - 66 of the 160 at the time of
    * writing. They come back the moment the pool is rebuilt; nothing is edited
    * or deleted on disk. */
+  /* A "who has more" question is only a question if the two numbers are close.
+   *
+   * Jorge, on a card asking whether Michael Jordan (32,292 points) or Steve
+   * Francis (10,446) scored more: "We can't have dumb questions like that. They
+   * are supposed to be difficult with similar numbers." He is right - a 3x gap
+   * is not trivia, it is a name-recognition test that the reader passes without
+   * reading the numbers.
+   *
+   * The builder's gate was ratio <= 4, which let that card through. It is now
+   * 1.6 there too (tools/build_data.mjs), so a rebuilt pool is all close pairs.
+   * This is the browser-side half: the pool a reader has in cache right now was
+   * built under the old rule, and 133 of its 300 cards are blowouts. Refusing
+   * them here fixes the feed on the next page load instead of on the next
+   * weekly data refresh, and stays as the safety net afterwards.
+   *
+   * 1.6 keeps 167 of the shipped 300 - thin for a tab of its own, ample for one
+   * card type in a feed of 8,000. */
+  var TRIVIA_MAX_RATIO = 1.6;
+
+  function triviaTooEasy(c) {
+    var p = c && c.payload;
+    if (!p || !p.a || !p.b) return false;
+    var va = p.a.value, vb = p.b.value;
+    if (typeof va !== "number" || typeof vb !== "number") return false;
+    var hi = Math.max(va, vb), lo = Math.min(va, vb);
+    if (!lo) return true;                      // one of them is zero: no contest
+    return hi / lo > TRIVIA_MAX_RATIO;
+  }
+
   function usableCard(c) {
     if (c && c.type === "ballot" && (c.payload.options || []).length < 4) return false;
+    if (c && c.type === "trivia" && triviaTooEasy(c)) return false;
     /* A Career Map card with a missing option or an answer off the end of the
      * board would render four buttons and mark every one of them wrong. The
      * builder refuses to write such a card; this refuses to draw one that
@@ -1028,7 +1177,23 @@
     // The entity filter outranks the tab: it draws from everything.
     var pool = (state.entity
       ? allCards.filter(function (c) { return matchesEntity(c, state.entity); })
-      : (tab === "foryou" ? allCards
+      /* NO SAMPLE CARDS IN FOR YOU - AT THE SOURCE.
+       *
+       * This filter used to live only in scheduleBatch. That covered the one
+       * path it was written for and left two open: the fallback draw at the
+       * bottom of loadMore, which runs whenever window.DoomSchedule is missing
+       * for any reason (a 404 on js/schedule.js, a parse error in it, a stale
+       * cache holding the old file), and any future For You path somebody adds
+       * without reading this comment.
+       *
+       * The invented trades reached a reader's screen TWICE. Both times the
+       * scheduleBatch filter was correct and something upstream of it decided
+       * which pool it got. Filtering here means there is no For You draw that
+       * can see them, whichever code does the drawing. The Trades tab still
+       * shows them: there the reader has asked for trades and a labelled
+       * example beats an empty tab. */
+      : (tab === "foryou"
+        ? allCards.filter(function (c) { return !c.dummy; })
         : allCards.filter(function (c) { return (c.tab || []).indexOf(tab) >= 0; })))
       .filter(usableCard);
     if (!state.entity && tab === "races" && state.raceGroup) {
@@ -1941,28 +2106,27 @@
     });
   }
 
-  /* ONE TAP ON A PHONE, TWO ON A DESKTOP.
+  /* THE SHEET, ALWAYS.
    *
-   * This used to open a modal whose own Share button then rendered the image
-   * and called the native sheet - three taps to do the thing people came for,
-   * and no way at all to reach a social network, which is the only destination
-   * that matters for a feed. So: where the browser can share a file, the card's
-   * Share button now goes straight there and the modal never opens. Everywhere
-   * else the modal opens with X and Bluesky in it.
+   * There used to be a fast path here: if navigator.canShare reported it could
+   * put a file in the OS share sheet, the Share button rendered the PNG and
+   * went straight there, skipping the modal. On a phone that is the right
+   * trade. On Windows it is not, and Windows is where Jorge tested it: Chrome
+   * and Edge both advertise file sharing there, so every card's Share button
+   * opened the Windows "Compartir" panel offering Paint, Teams, OneDrive and a
+   * contacts list. No X, no Bluesky, no @hoopshype, no link - the OS sheet
+   * carries the file and drops the text on most targets. Jorge: "Not good."
    *
-   * The modal is still the fallback for every failure, including a browser that
-   * claims it can share files and then throws. */
+   * The destinations that matter for a feed are the two social composers, and
+   * the only thing that reaches them is this sheet. So the sheet always opens,
+   * and it is one tap on every platform instead of one on some and a dead end
+   * on others. The native sheet is still in there as "More…" for the phone case
+   * where handing Instagram or WhatsApp an actual image is the point - see the
+   * nativeBtn line in openShareSheet, which is what feature-detects it now.
+   *
+   * canShareFiles() is still used by the "More…" and native buttons below. */
   function shareCard(card) {
-    var url = cardUrl(card);
-    if (!canShareFiles()) return openShareSheet(card, url);
-
-    toast("Rendering the card…");
-    ShareImage.render(card).then(function (blob) {
-      return shareBlob(card, blob, url);
-    }).catch(function (e) {
-      if (e && e.name === "AbortError") return;   // they backed out; not a failure
-      openShareSheet(card, url);
-    });
+    openShareSheet(card, cardUrl(card));
   }
 
   function openShareSheet(card, url) {
@@ -1971,6 +2135,10 @@
     sheet.querySelector(".share-url").textContent = url || cardUrl(card);
     /* Only offered when there is a native sheet AND the fast path did not
      * already use it - otherwise it is a second button doing the same job. */
+    /* "More…" hands the card to the OS sheet, which is worth having on a phone
+     * (Instagram, WhatsApp, Messages all take the image) and worth NOT having
+     * as the default, because on desktop that sheet cannot reach X or Bluesky.
+     * So it is one button among five rather than the whole share flow. */
     var nativeBtn = sheet.querySelector('[data-share="native"]');
     nativeBtn.hidden = !navigator.share;
     sheet.hidden = false;

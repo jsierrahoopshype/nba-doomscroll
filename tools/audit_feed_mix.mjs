@@ -92,6 +92,11 @@ const BUZZ_SHARE_APP = constOf("BUZZ_SHARE", 0.4);
 const BUZZ_SHARE = num("buzz-share", BUZZ_SHARE_APP);
 const BUZZ_OVERRIDDEN = BUZZ_SHARE !== BUZZ_SHARE_APP;
 const BUZZ_FRESH_MS = constOf("BUZZ_FRESH_MS", 48 * 3600 * 1000);
+/* The "who has more" difficulty ceiling, used by usableCard below. Default 1.6
+ * matches js/app.js; if that declaration is ever renamed this falls back rather
+ * than silently counting the blowouts back in, and the fallback is the same
+ * number for that reason. */
+const TRIVIA_MAX_RATIO = constOf("TRIVIA_MAX_RATIO", 1.6);
 const DIVERSITY_WINDOW = constOf("DIVERSITY_WINDOW", 12);
 /* MIXED_CAPS is an object literal, so it is parsed rather than eval'd. */
 const MIXED_CAPS = (() => {
@@ -190,6 +195,21 @@ function usableCard(c) {
     if (sq.length !== 2) return false;
     if (!sq.every(x => x && (x.players || []).length === 5)) return false;
     if (!(di === 0 || di === 1)) return false;
+  }
+  /* The "who has more" difficulty gate. The shipped trivia pool was built with
+   * a 4x ceiling and 133 of its 300 cards are blowouts the feed now refuses, so
+   * an audit without this counts 300 trivia cards where a reader gets 167 - and
+   * reports a trivia share nobody is actually served. Ceiling read out of
+   * js/app.js rather than repeated, because the two drifting apart is exactly
+   * what tools/test_trivia_difficulty.mjs exists to catch. */
+  if (c && c.type === "trivia") {
+    const p = c.payload;
+    const va = p && p.a && p.a.value, vb = p && p.b && p.b.value;
+    if (typeof va === "number" && typeof vb === "number") {
+      const lo = Math.min(va, vb);
+      if (!lo) return false;
+      if (Math.max(va, vb) / lo > TRIVIA_MAX_RATIO) return false;
+    }
   }
   return true;
 }

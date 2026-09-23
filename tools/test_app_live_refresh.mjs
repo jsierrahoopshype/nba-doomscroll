@@ -213,6 +213,27 @@ console.log("\nthe scheduler is wired to For You and to nothing else");
      "an invented trade is not current NBA");
   ck("and the scheduler is given the filtered pool, not the raw one",
      !!sb && /pool: real,/.test(sb));
+  /* THE ASSERTION THAT ACTUALLY GUARDS THIS, and the reason there are now two.
+   *
+   * The scheduleBatch filter above was correct both times the invented trades
+   * reached a reader, because neither time was scheduleBatch the path that ran.
+   * Once it was a branch cut from main that dropped the fix; the second time the
+   * fix was in place and something upstream handed it a pool it had already
+   * chosen. The fallback draw at the bottom of loadMore runs whenever
+   * window.DoomSchedule is missing for any reason - a 404 on js/schedule.js, a
+   * parse error, a stale cache - and it had no filter at all.
+   *
+   * So the filter is in poolForTab too, on the For You branch, where no draw can
+   * get round it. This pins it to that branch specifically: a filter that
+   * drifted onto the entity branch or the per-tab one would leave For You open
+   * again and every regex above would still pass. */
+  const pf = bodyOf("poolForTab");
+  ck("and the For You pool excludes them at the source",
+     !!pf && /tab === "foryou"\s*\n?\s*\? allCards\.filter\(function \(c\) \{ return !c\.dummy; \}\)/.test(pf),
+     "whichever code does the drawing");
+  ck("while the Trades tab still shows them",
+     !!pf && !/indexOf\(tab\) >= 0 && !c\.dummy/.test(pf),
+     "a labelled example beats an empty tab");
   /* THE ENGINE MUST STILL PICK. The scheduler says how many cards of each kind;
    * E.sample decides which. Replacing that with a plain shuffle would throw
    * away the learned weights, the freshness rule and the story spacing - the

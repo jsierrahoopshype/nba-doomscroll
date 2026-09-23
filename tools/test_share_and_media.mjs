@@ -164,7 +164,86 @@ console.log("\nthe renderer still caps how many it shows");
      /function bskyMedia[\s\S]{0,700}onerror[^>]*closest\(\\?'a\\?'\)\.remove/.test(cardsSrc));
 }
 
+/* THE SHARE BUTTON HAS TO REACH THE TWO NETWORKS.
+ *
+ * There was a fast path: where navigator.canShare reported it could put a file
+ * in the OS share sheet, the Share button rendered the PNG and went straight
+ * there, skipping the modal entirely. On a phone that is one tap instead of two.
+ * On Windows it is a dead end, and Windows is where Jorge tested it - Chrome and
+ * Edge both advertise file sharing there, so every card's Share button opened
+ * the Windows "Compartir" panel offering Paint, Teams, OneDrive and a contact
+ * list. No X, no Bluesky, no handle, and the text dropped on most targets.
+ *
+ * So the sheet always opens. This is the assertion that keeps it that way,
+ * because the fast path looked like an optimisation and reads like one in the
+ * diff: the thing it optimised away was the only route to a timeline. */
+console.log("\nthe share button opens the sheet, on every platform");
+
+{
+  const app = fs.readFileSync(path.join(REPO, "js", "app.js"), "utf8");
+  const sc = (() => {
+    const at = app.indexOf("function shareCard(");
+    if (at < 0) return null;
+    const open = app.indexOf("{", at);
+    let depth = 0;
+    for (let i = open; i < app.length; i++) {
+      if (app[i] === "{") depth++;
+      else if (app[i] === "}" && --depth === 0) return app.slice(open, i + 1);
+    }
+    return null;
+  })();
+
+  ck("shareCard exists", !!sc);
+  ck("and it opens the sheet", !!sc && /openShareSheet\(card, cardUrl\(card\)\)/.test(sc));
+  /* The specific regression: shareCard branching on the OS sheet's ability to
+   * take a file, and going there instead. */
+  ck("and does not branch on the native sheet first",
+     !!sc && !/canShareFiles\(\)/.test(sc),
+     "the OS sheet cannot reach X or Bluesky");
+  ck("and renders no image before asking where it is going",
+     !!sc && !/ShareImage\.render/.test(sc));
+  /* Still reachable, because on a phone handing Instagram or WhatsApp a real
+   * image is the point. One button among five rather than the whole flow. */
+  ck("the native sheet is still offered where it exists",
+     /nativeBtn\.hidden = !navigator\.share/.test(app));
+  ck("and the sheet still carries both composers",
+     /data-share="x"/.test(fs.readFileSync(path.join(REPO, "index.html"), "utf8")) &&
+     /data-share="bsky"/.test(fs.readFileSync(path.join(REPO, "index.html"), "utf8")));
+}
+
+/* THE RUN IS THE ONE SHAREABLE THING HERE THAT IS ABOUT THE READER.
+ *
+ * Same two-network split as a card: Bluesky takes one text field so the link
+ * rides inside it, X takes the URL separately and prints it itself - which is
+ * why it must not also be in the text, or it appears twice. That bug was found
+ * once on cards already; this is the same shape of function, so it is checked
+ * the same way. */
+console.log("\na run can be posted, with the right handle and one link");
+
+{
+  eq("Bluesky gets its handle", /@hoopshypeofficial\.bsky\.social$/.test(T.runPost("bsky", 5, 5)), true);
+  eq("X gets its own", /@hoopshype$/.test(T.runPost("x", 5, 5)), true);
+  ck("the count is in the text", /\b5\b/.test(T.runPost("x", 5, 5)));
+  ck("and it is within the cap", T.runPost("bsky", 5, 5).length <= T.MAX,
+     T.runPost("bsky", 5, 5).length + " chars");
+
+  /* A run IS the best on a personal best, so printing both is a repeat. */
+  ck("a personal best does not print the best twice", !/best/.test(T.runPost("x", 5, 5)));
+  ck("but a run below the best names it", /best: 9/.test(T.runPost("x", 5, 9)));
+
+  const bsky = T.runComposeUrl("bsky", 5, 5, "https://example.com/feed");
+  ck("Bluesky carries the link inside the text",
+     bsky.indexOf("https%3A%2F%2Fexample.com%2Ffeed") > bsky.indexOf("text="));
+  const x = T.runComposeUrl("x", 5, 5, "https://example.com/feed");
+  ck("X carries it on its own parameter", /&url=/.test(x));
+  ck("and not in the text as well", !bodyOf(x).includes("example.com"),
+     "or the link appears twice");
+
+  /* Nothing is claimed that the run does not support. */
+  eq("a zero run posts no number", /\d/.test(T.runPost("x", 0, 0)), false);
+}
+
 console.log(fail ? `\n${fail} failed` : "\n0 failed");
-console.log(fail ? "a shared card tags the wrong account, or crops the wrong image"
-                 : "the right handle per network, and the first picture shown whole");
+console.log(fail ? "a shared card tags the wrong account, crops the wrong image, or cannot reach a timeline"
+                 : "the right handle per network, the first picture shown whole, and the sheet always reachable");
 process.exit(fail ? 1 : 0);

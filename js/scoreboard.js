@@ -46,6 +46,52 @@
   /** The line to show when an answer reaches a milestone, or "". */
   function milestoneText(n) { return MILESTONE_TEXT[n] || ""; }
 
+  /* THE THING THE RUN IS FOR.
+   *
+   * Jorge on the run line: "There should be some sort of reward for getting
+   * answers right." The line was a report, not a reward - it told you where you
+   * were and never what you were heading for, so there was nothing to lose by
+   * guessing and nothing to reach. A number with no target is a counter.
+   *
+   * This returns the next milestone above n, so the card can draw a meter
+   * filling toward it: two right out of three, four out of five. Past the last
+   * milestone it returns 0 and the meter stops - by ten in a row a reader does
+   * not need a progress bar to stay interested, and an endless one would
+   * promise a reward that never arrives.
+   */
+  function nextMilestone(n) {
+    for (var i = 0; i < MILESTONES.length; i++) {
+      if (MILESTONES[i] > n) return MILESTONES[i];
+    }
+    return 0;
+  }
+
+  /* What the card should draw under a correct answer: the run, the target it is
+   * working toward, how far along it is, and whether this answer IS the target.
+   * Returns null when there is nothing to show (a wrong answer, or the first
+   * right one - "1 in a row" is just an answer). */
+  function reward(cur, best, hasMissed) {
+    if (!cur || cur < 2) return null;
+    var next = nextMilestone(cur);
+    var hit = MILESTONES.indexOf(cur) >= 0 ? cur : 0;
+    return {
+      run: cur,
+      best: best || 0,
+      next: next,
+      /* Filled fraction of the meter, 0..1.
+       *
+       * The milestone case has to be special. `next` has already moved on by
+       * the time this runs - at three in a row the target is five - so the
+       * honest fraction would be 3/5 and the meter would read 60% full on the
+       * exact card that earned the badge. A reward that arrives beside a
+       * two-thirds-full bar reads as an error. At a milestone the meter is
+       * full, and the next answer starts the next one. */
+      fill: hit ? 1 : (next ? cur / next : 1),
+      hit: hit,
+      line: runText(cur, best, hasMissed)
+    };
+  }
+
   /* WHAT EVERY CORRECT ANSWER SAYS, not just the milestone ones.
    *
    * Jorge on the first version: "That does not do much." It was right - a line
@@ -189,7 +235,12 @@
               * answer from two up, not only the milestones - see runText. */
              runLine: correct
                ? runText(r.cur, r.best, r.attempts > r.correct)
-               : "" };
+               : "",
+             /* The meter, the target and the badge - see reward(). null on a
+              * wrong answer and on the first right one. */
+             reward: correct
+               ? reward(r.cur, r.best, r.attempts > r.correct)
+               : null };
   }
 
   function dayTally(d, day) {
@@ -242,6 +293,7 @@
   root.Scoreboard = {
     record: record, today: todayScore, total: total, streak: streak,
     run: run, milestoneText: milestoneText, runText: runText, MILESTONES: MILESTONES,
+    nextMilestone: nextMilestone, reward: reward,
     line: line, reset: reset, scorable: scorable, dayKey: today, KEY: KEY
   };
 })(typeof window !== "undefined" ? window : this);
