@@ -440,12 +440,51 @@ console.log("\na degenerate pool gives a short batch, not a wall");
 
   ck("the batch is short rather than padded", batch.length < 8,
      batch.length + " cards for a batch of 8");
-  /* Two from the fallback plus the plan's own game slot is three. */
-  ck("and no more than three of one bucket", batch.length <= 3,
+  /* The plan's own game slot, and nothing else: `game` is not in the cold
+   * fallback list, so an orphaned live slot never becomes a quiz. */
+  ck("and it is the plan's one game slot, not a fallback pile", batch.length === 1,
      batch.length + " game cards");
   ck("and it still returns something", batch.length > 0, batch.length + " cards");
   ck("all of which are the only bucket there was",
      batch.every(c => B(c) === "game"));
+
+  /* THE ASYMMETRY IS DELIBERATE and is the whole fix, so it is pinned here.
+   *
+   * At boot the five live slots have nothing to put in them, and whatever the
+   * fallback hands them becomes the first screen. A quiz is the least
+   * current-NBA card in the pool, so `game` is out of the COLD fallback and
+   * keeps only its single plan slot. Past the cold window live really is
+   * exhausted, the reader has chosen to keep scrolling, and games belong in the
+   * archive mix - so the steady fallback keeps it.
+   *
+   * Reading the two lists out of the shipped file rather than restating them:
+   * putting `game` back in the cold list is the regression, and it would look
+   * like a tidy-up in a diff. */
+  const schedSrc = fs.readFileSync(path.join(REPO, "js", "schedule.js"), "utf8");
+  const coldFb = (/cold:[\s\S]*?fallback: \[([^\]]*)\]/.exec(schedSrc) || [, ""])[1];
+  const steadyFb = (/steady:[\s\S]*?fallback: \[([^\]]*)\]/.exec(schedSrc) || [, ""])[1];
+  ck("the cold fallback does not include game", !/"game"/.test(coldFb),
+     coldFb.replace(/\s+/g, " ").trim());
+  ck("and the steady one does", /"game"/.test(steadyFb),
+     steadyFb.replace(/\s+/g, " ").trim());
+  ck("both still lead with live", /^\s*"live"/.test(coldFb) && /^\s*"live"/.test(steadyFb),
+     "a card that IS current beats any archive card");
+
+  /* And the numbers Jorge is actually judging: at boot, with the eager pools
+   * and no live, one card in four is playable rather than one in two. */
+  const bootish = pool({ live: 0, vs: 0, compare: 0, quiz: 0, salary: 0,
+                         race: 220, otd: 64, trivia: 300, ballot: 160 });
+  const bootFeed = run(16, { pool: bootish });
+  const playable = countIf(bootFeed, c => B(c) === "game");
+  ck("a live-less boot feed is about a quarter playable",
+     playable / bootFeed.length <= 0.3,
+     Math.round(100 * playable / bootFeed.length) + "% of " + bootFeed.length);
+  /* Two quizzes in a row is what "a bunch of trivia questions" looks like. */
+  let adjacent = 0;
+  for (let i = 1; i < bootFeed.length; i++) {
+    if (B(bootFeed[i]) === "game" && B(bootFeed[i - 1]) === "game") adjacent++;
+  }
+  ck("and never puts two of them together", adjacent === 0, adjacent + " adjacent pairs");
 
   /* THE SAME POOL AFTER THE COLD WINDOW. Past card 48 everything is loaded, so
    * a cap there would only stop a deep session drawing from the one family it

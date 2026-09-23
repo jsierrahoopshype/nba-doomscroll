@@ -72,8 +72,30 @@
     cold: {
       slots: { live: 5, game: 1, history_record: 1, comparison: 1 },
       /* Where an unfillable slot goes. Awards and passive money are
-       * deliberately absent: they are admitted by quota or not at all. */
-      fallback: ["live", "history_record", "game", "comparison"]
+       * deliberately absent: they are admitted by quota or not at all.
+       *
+       * AND SO IS `game`, IN THE COLD LIST ONLY. It keeps its one plan slot per
+       * batch and gets nothing from the fallback.
+       *
+       * The reason is what happens at boot, before the live fetch lands: five
+       * slots have no cards to put in them and the fallback redistributes all
+       * five. With `game` in this list, the first screen came out 40-50% quiz
+       * cards - a plan that asks for one game in eight, serving three in five,
+       * because the archive bucket nearest to hand was the one the brief wants
+       * least of. Jorge, twice: "still a bunch of Trivia questions."
+       *
+       * A quiz is the least current-NBA thing in the pool, so an orphaned live
+       * slot is the last thing that should become one. History and comparisons
+       * take them instead, which is what a feed waiting for the news should
+       * look like. Measured: 25% playable at boot against 50%, one every four
+       * cards, never two adjacent - and the full audit with live present does
+       * not move at all, because there the five slots are filled.
+       *
+       * Steady state keeps `game` in its fallback: past the cold window live
+       * supply really is exhausted, the reader has chosen to keep scrolling,
+       * and games are then part of the archive mix rather than a substitute for
+       * the news. */
+      fallback: ["live", "history_record", "comparison"]
     },
     steady: {
       slots: { live: 5, game: 1, history_record: 1, comparison: 1 },
@@ -553,7 +575,12 @@
      * the loop takes one card from it eight times and the reader gets a wall -
      * eighteen consecutive two-player trivia cards, in the case Jorge found.
      *
-     * Inside the cold window each fallback bucket is capped at two per batch.
+     * Inside the cold window each fallback bucket is capped at ONE per batch.
+     * It was two, which still let the boot window run 40% trivia - with four
+     * buckets in the list and only one or two of them loaded, two apiece is
+     * most of a batch. One apiece, plus `game` being out of the cold fallback
+     * list entirely, is what brings the first screen to the brief's numbers.
+     *
      * When that leaves the batch short the batch IS short, deliberately: four
      * mixed cards now and four more when the next pool lands reads as a feed
      * loading, while eight of one kind reads as the feed the app has. The
@@ -563,7 +590,7 @@
      * No cap after the cold window. By then everything is loaded, the round
      * robin has all four buckets, and a cap would only stop a deep session
      * drawing from the one family it has not exhausted. */
-    var MAX_COLD_FALLBACK_PER_BUCKET = 2;
+    var MAX_COLD_FALLBACK_PER_BUCKET = 1;
     var fbCap = position < COLD_CARDS ? MAX_COLD_FALLBACK_PER_BUCKET : size;
     var fbCount = {};
     var pass = 0;
