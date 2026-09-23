@@ -690,6 +690,36 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
 .quiz-sil{
   display:block; width:100%; height:100%; object-fit:contain;
 }
+/* §10: the veil on the two easier tiers, until the card is answered.
+
+   The hard tier carries no data-veil and is shown clear and whole - there the
+   player IS the question. On easy and medium the picture would otherwise answer
+   it instantly, so the image is scaled up and blurred: cropped past the
+   hairline and the shoulders, which are what a reader reasons from once the
+   face alone is not enough.
+
+   Easy is veiled harder than medium, because an easy card is a household face.
+   Neither is a smudge: the shape, the era's hair and the skin tone all survive,
+   which is what makes it a guess rather than a shrug.
+
+   These rules sit ABOVE the .revealed rules below on purpose. Both have the
+   same specificity, so source order is what lets answering win. No new assets -
+   this is CSS over the same 96x96 tile in data/faces. */
+.quiz-sil-mask[data-veil] .quiz-sil{
+  filter:blur(5px) contrast(1.05);
+  transform:scale(1.55);
+  transition:filter .35s ease, transform .35s ease;
+}
+.quiz-sil-mask[data-veil="easy"] .quiz-sil{
+  filter:blur(7px) contrast(1.08);
+  transform:scale(1.85);
+}
+/* Reduced-motion readers get the veil without the transition: the animation is
+   decoration, the veil is the question. */
+@media (prefers-reduced-motion:reduce){
+  .quiz-sil-mask[data-veil] .quiz-sil{ transition:none }
+}
+
 /* The progressive-reveal levels are kept as no-ops rather than deleted: cards
    rendered before this change still carry data-obscure in their markup, and a
    missing rule would leave them styled by whatever came last. They now all
@@ -741,6 +771,15 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
 .sal-headline{ margin-top:.4rem }
 
 .quiz-opts{ display:grid; grid-template-columns:1fr 1fr; gap:.5rem }
+/* §11: the run milestone, inside the card's own result area.
+   Quiet on purpose. Three right in a row is worth a word, not a fanfare, and a
+   feed that interrupts a scroll to congratulate you is a feed you put down. It
+   sits under "Correct." and scrolls away with the card. */
+.quiz-run{
+  display:block; margin-top:.3rem;
+  font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-secondary);
+}
 .quiz-opt{
   background:var(--surface); border:1px solid var(--border); border-radius:10px;
   padding:.55rem .5rem; cursor:pointer; transition:.15s;

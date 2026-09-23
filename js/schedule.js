@@ -98,7 +98,31 @@
     /* 22 measured out at one per 33.5 rather than the 20-30 asked for: the
      * gap is a floor, and a batch that is already full pushes the actual
      * spacing past it. 18 lands inside the band. */
-    guess_the_player: { kind: "trait", gap: 18, window: 12 }
+    guess_the_player: {
+      kind: "trait", gap: 18, window: 12,
+      /* §10'S DIFFICULTY MIX, AS A ROTATION RATHER THAN A WEIGHTING.
+       *
+       * hard 60-65%, medium 25-30%, easy 10%. js/app.js explains why weights
+       * cannot do this: quality_score maps to a 0.7x-1.3x band, so the widest
+       * gap between two tiers is 1.65x per card, and 193 easy cards against
+       * 625 hard ones do not become 10% of what is served by nudging a weight.
+       *
+       * Because Guess the Player is admitted ONE CARD AT A TIME by the quota
+       * above, the tier can simply be chosen in turn. Ten in a row read as six
+       * hard, three medium, one easy - 60/30/10, inside every band - and the
+       * easy card sits at position eight so it never opens a session and never
+       * lands next to another easy card.
+       *
+       * `pick` is a hint, not a filter: if the pool has no card of the wanted
+       * tier left, the quota still serves one rather than skipping the slot. A
+       * mix that silently becomes a ban is the mistake this scheduler already
+       * made once. */
+      cycle: ["hard", "hard", "medium", "hard", "hard",
+              "medium", "hard", "easy", "hard", "medium"],
+      cycleOf: function (card) {
+        return (card && card.payload && card.payload.difficulty) || null;
+      }
+    }
   };
 
   /* §16, WITH ONE DELIBERATE DEPARTURE THAT JORGE SHOULD OVERRULE IF HE WANTS.
@@ -143,7 +167,13 @@
    * the first passive salary card around 100, and the first Guess the Player
    * around 22, which is what the targets actually ask for. */
   function newCounters() {
-    return { awards_voting: 0, money_cap_static: 0, guess_the_player: 0, served: 0 };
+    return {
+      awards_voting: 0, money_cap_static: 0, guess_the_player: 0, served: 0,
+      /* How many of each throttled kind have been SERVED, which is what the
+       * tier rotation indexes on. Distinct from the gap counters above: those
+       * reset to zero on a hit, these only ever go up. */
+      seen: { awards_voting: 0, money_cap_static: 0, guess_the_player: 0 }
+    };
   }
 
   /** Advance the counters by one served card. */
@@ -152,6 +182,10 @@
       if (!QUOTAS.hasOwnProperty(k)) continue;
       var hit = QUOTAS[k].kind === "trait" ? hasTrait(card, k) : bucketOf(card) === k;
       since[k] = hit ? 0 : (since[k] === Infinity ? Infinity : since[k] + 1);
+      if (hit) {
+        if (!since.seen) since.seen = {};
+        since.seen[k] = (since.seen[k] || 0) + 1;
+      }
     }
     since.served++;
     return since;
@@ -343,7 +377,17 @@
     for (var k2 in QUOTAS) {
       if (!QUOTAS.hasOwnProperty(k2)) continue;
       if (admittedOne || !allow[k2]) continue;
-      if (take(throttled[k2], 1).length) admittedOne = true;
+      /* A kind with a `cycle` picks its sub-kind in turn - the quiz difficulty
+       * mix. Preferred, not required: an empty tier must not cost the slot. */
+      var pool2 = throttled[k2] || [];
+      var q = QUOTAS[k2];
+      if (q.cycle && pool2.length) {
+        var n = (since.seen && since.seen[k2]) || 0;
+        var wanted = q.cycle[n % q.cycle.length];
+        var only = pool2.filter(function (c) { return q.cycleOf(c) === wanted; });
+        if (only.length) pool2 = only;
+      }
+      if (take(pool2, 1).length) admittedOne = true;
     }
 
     /* 2. THE PLAN, trimmed by whatever the quota already took.
