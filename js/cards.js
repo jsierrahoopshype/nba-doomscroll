@@ -759,6 +759,10 @@
       '<div class="quiz-result" hidden></div>';
   }
 
+  /* Which Guess the Player tiers hide the photograph until the card is
+   * answered. The hard tier is deliberately absent. */
+  var VEILED = { easy: 1, medium: 1 };
+
   function renderQuiz(c) {
     var p = c.payload;
     var opts = p.options.map(function (o) {
@@ -780,8 +784,22 @@
        * to place, and a clear photograph of a journeyman is a harder and more
        * interesting question than a blurred one of a superstar. The hints
        * still narrow the field for anyone who wants them. */
+      /* §10: THE EASY AND MEDIUM TIERS ARE VEILED UNTIL ANSWERED.
+       *
+       * The hard tier - a player who lasted in the league without ever making
+       * an All-Star team - is shown clear and whole, because there the picture
+       * is not the puzzle. A clear photograph of George Mikan is not a
+       * question, so the two easier tiers carry a veil: cropped in and blurred
+       * enough to take the instant recognition away, then shown in full the
+       * moment the card is answered.
+       *
+       * data-veil only, no new assets: the veil is CSS over the same 96x96
+       * tile in data/faces, and answering removes it through the .revealed
+       * class revealFace() already sets. Tapping the picture also reveals it,
+       * which was already true and is a reader choosing to give up. */
       '<div class="quiz-sil-wrap" data-action="reveal">' +
-        '<span class="quiz-sil-mask">' +
+        '<span class="quiz-sil-mask"' +
+          (VEILED[p.difficulty] ? ' data-veil="' + esc(p.difficulty) + '"' : '') + '>' +
           face(p.img, "Mystery player", "quiz-sil") +
         '</span>' +
       '<span class="quiz-sil-hint">who is this?</span></div>' +
