@@ -117,7 +117,12 @@
         return ED.typeOf(card) + "|" + ED.categoryOf(card);
       }
     },
-    money_cap_static: { kind: "bucket", gap: 100, window: 100 },
+    /* 1.5%, NOT 1%. The brief said "~1 per 100" and that measured 0.0% in the
+     * first fifty cards, which reads as the family having been removed. Jorge
+     * asked for 1.5% - a gap of 64 lands one in the first fifty and one per 67
+     * over a session, so a cap card is a curiosity a reader actually meets
+     * rather than one they never see. */
+    money_cap_static: { kind: "bucket", gap: 64, window: 64 },
     /* 22 measured out at one per 33.5 rather than the 20-30 asked for: the
      * gap is a floor, and a batch that is already full pushes the actual
      * spacing past it. 18 lands inside the band. */
@@ -209,7 +214,19 @@
    * around 22, which is what the targets actually ask for. */
   function newCounters() {
     return {
-      awards_voting: 0, money_cap_static: 0, guess_the_player: 0, served: 0,
+      awards_voting: 0,
+      /* THE ONE COUNTER THAT DOES NOT START AT ZERO.
+       *
+       * At a gap of 64 and a cold start of zero, the first passive salary card
+       * lands at card 64 - past the fifty-card window the brief measures, so
+       * the family read as 0.0% there and Jorge asked for 1.5%.
+       *
+       * 30, not 20. At 20 it became eligible at card 44 and then waited for a
+       * batch the awards quota was not already using, which landed it at 54 -
+       * still outside the window. Only one throttled kind is admitted per
+       * batch, so eligibility has to arrive with a few batches to spare. */
+      money_cap_static: 30,
+      guess_the_player: 0, served: 0,
       /* How many of each throttled kind have been SERVED, which is what the
        * tier rotation indexes on. Distinct from the gap counters above: those
        * reset to zero on a hit, these only ever go up. */

@@ -135,11 +135,17 @@ console.log("\nthe counters start at zero, not at `already due`");
    * throttles inside the first 24 cards - an awards card, a salary card and a
    * quiz card in the opening stretch, which is the stretch the brief is about. */
   const c = S.newCounters();
-  ck("a fresh session owes nothing",
-     c.awards_voting === 0 && c.money_cap_static === 0 && c.guess_the_player === 0,
-     JSON.stringify(c));
+  ck("awards and Guess the Player owe nothing",
+     c.awards_voting === 0 && c.guess_the_player === 0, JSON.stringify(c));
+  /* Passive salary is the exception, and deliberately so: at a gap of 64 and a
+   * start of zero the first one lands at card 64, outside the fifty-card window
+   * the brief measures, so the family read as 0.0% there. Starting it partway
+   * lands one inside the window and keeps every one after it 64 apart. */
+  ck("passive salary starts partway, so one lands inside the first fifty",
+     c.money_cap_static > 0 && c.money_cap_static < S.QUOTAS.money_cap_static.gap,
+     c.money_cap_static + " of a " + S.QUOTAS.money_cap_static.gap + "-card gap");
   const allow = S.admissible(c);
-  ck("so nothing is admissible on card one",
+  ck("but nothing at all is admissible on card one",
      !allow.awards_voting && !allow.money_cap_static && !allow.guess_the_player,
      JSON.stringify(allow));
 
@@ -207,8 +213,12 @@ console.log("\na quiet news day reads as more history, not as more ballots");
   ck("and awards stay rationed",
      countIf(feed, c => B(c) === "awards_voting") <= 2,
      countIf(feed, c => B(c) === "awards_voting") + " awards cards in 50");
-  ck("and passive salary stays out of the first fifty",
-     countIf(feed, c => B(c) === "money_cap_static") === 0);
+  /* Exactly one, not zero and not several. It read as 0.0% of the first fifty
+   * before the counter was seeded, which looked like the family had been
+   * removed - Jorge asked for 1.5%, which is one card in this window. */
+  ck("and exactly one passive salary card reaches the first fifty",
+     countIf(feed, c => B(c) === "money_cap_static") === 1,
+     countIf(feed, c => B(c) === "money_cap_static") + " found");
 }
 
 console.log("\nthe fallback shares the spare slots out");

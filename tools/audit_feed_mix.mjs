@@ -452,7 +452,7 @@ function shares(agg, title) {
   line("history / records", agg.history, "8-12%");
   line("comparisons / races / data", agg.comparison, "5-8%");
   line("awards / voting", agg.awards, "very limited");
-  line("static salary / cap", agg.money, "~1%");
+  line("static salary / cap", agg.money, "~1.5%");
 }
 
 console.log(`COLD START, FIRST ${COLD} CARDS (the brief's actual target)`);
@@ -482,7 +482,7 @@ const gapLine = (label, arr, target) => {
 
 console.log("\nHOW OFTEN                                  actual   target");
 gapLine("awards / voting", full.gapAwards, "1 per 25-40");
-gapLine("static salary / cap", full.gapMoney, "1 per 100");
+gapLine("static salary / cap", full.gapMoney, "1 per 60-75");
 gapLine("Guess the Player", full.gapGtp, "1 per 20-30");
 gapLine("any playable", full.gapPlayable, "1 per 7-10");
 gapLine("media-heavy", full.gapMedia, "");
@@ -544,8 +544,14 @@ if (cold.win10media > MEDIA_CAP) {
 {
   const m = mean(full.gapAwards);
   if (m != null && m < 25) bad.push(`FULL: awards every ${m.toFixed(1)} cards, target 25-40`);
+  /* The brief said 1 per 100 and that measured 0.0% in the first fifty, which
+   * read as the family having been removed. Jorge asked for 1.5%, which is one
+   * per 67, so the target here moved with the decision rather than flagging it
+   * as a violation for ever. */
   const mm = mean(full.gapMoney);
-  if (mm != null && mm < 100) bad.push(`FULL: static salary every ${mm.toFixed(1)} cards, target 100`);
+  if (mm != null && (mm < 55 || mm > 85)) {
+    bad.push(`FULL: static salary every ${mm.toFixed(1)} cards, target 60-75`);
+  }
   const mg = mean(full.gapGtp);
   if (mg != null && mg < 20) bad.push(`FULL: Guess the Player every ${mg.toFixed(1)} cards, target 20-30`);
 }

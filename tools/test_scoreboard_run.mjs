@@ -126,6 +126,58 @@ console.log("\nmilestones at three, five and ten, and nowhere else");
   eq("as does zero", S.milestoneText(0), "");
 }
 
+console.log("\nevery correct answer from two up says something");
+
+{
+  /* Jorge on the first version: "That does not do much." It only spoke at 3, 5
+   * and 10, so the fourth correct answer in a row got nothing and the run was
+   * invisible while it was building. A streak you cannot see is not a streak. */
+  const { S } = fresh();
+  const lines = [];
+  for (let i = 1; i <= 12; i++) lines.push(answer(S, true).runLine);
+
+  eq("one right still says nothing", lines[0], "");
+  ck("two right says something", lines[1].length > 0, lines[1]);
+  ck("and so does every answer after it",
+     lines.slice(1).every(l => l.length > 0),
+     lines.map((l, i) => (i + 1) + ":" + (l || "-")).join("  "));
+
+  ck("the milestones still say more than a number",
+     lines[2] === "Three in a row." && lines[9] === "Ten in a row.",
+     lines[2] + " / " + lines[9]);
+  ck("the count keeps going past the last milestone",
+     lines[10].indexOf("11 in a row") >= 0, lines[10]);
+  ck("a wrong answer says nothing at all", answer(S, false).runLine === "");
+}
+
+console.log("\n`best yet` waits until there is something to beat");
+
+{
+  /* On a first unbroken run every answer IS a personal best, so saying so on
+   * all of them is true and means nothing. It earns its place after a miss. */
+  const { S } = fresh();
+  const first = [];
+  for (let i = 0; i < 4; i++) first.push(answer(S, true).runLine);
+  ck("a never-broken run does not claim a best",
+     first.every(l => l.indexOf("best yet") < 0),
+     first.join(" | "));
+
+  answer(S, false);
+  const after = [];
+  for (let i = 0; i < 6; i++) after.push(answer(S, true).runLine);
+  ck("but beating the old mark does",
+     after.some(l => l.indexOf("best yet") >= 0),
+     after.join(" | "));
+  /* And not before the old mark is actually passed. */
+  ck("and only once it is actually passed",
+     after[1].indexOf("best yet") < 0, after[1]);
+
+  ck("runText is exported so this is testable",
+     typeof S.runText === "function");
+  eq("it refuses a run of one", S.runText(1, 1, true), "");
+  eq("and a run of zero", S.runText(0, 5, true), "");
+}
+
 console.log("\nthe same card cannot pad the run");
 
 {

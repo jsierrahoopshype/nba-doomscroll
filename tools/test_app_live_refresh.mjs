@@ -197,6 +197,22 @@ console.log("\nthe scheduler is wired to For You and to nothing else");
      !!load && /: drawFrom\(pool, recentlyShown\(\)/.test(load));
 
   const sb = bodyOf("scheduleBatch");
+  /* THE SAMPLE CARDS, AND WHY THIS ASSERTION EARNS ITS PLACE.
+   *
+   * Fourteen placeholder trades are type "trade", which the classification
+   * calls `live`. At boot, before the live fetch resolves, they are the only
+   * live cards in the pool, so the scheduler filled all five live slots with
+   * them and the feed opened on a screen of "SAMPLE TRADE".
+   *
+   * Caught on the live site, fixed, and then LOST: the fix sat on a branch that
+   * was abandoned for one cut from main, and this assertion was lost with it.
+   * The suite went green at 56 suites with the bug back in the feed. It is the
+   * only thing standing between that happening a third time. */
+  ck("For You refuses sample cards outright",
+     !!sb && /pool\.filter\(function \(c\) \{ return !c\.dummy; \}\)/.test(sb),
+     "an invented trade is not current NBA");
+  ck("and the scheduler is given the filtered pool, not the raw one",
+     !!sb && /pool: real,/.test(sb));
   /* THE ENGINE MUST STILL PICK. The scheduler says how many cards of each kind;
    * E.sample decides which. Replacing that with a plain shuffle would throw
    * away the learned weights, the freshness rule and the story spacing - the
