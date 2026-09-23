@@ -98,5 +98,44 @@
       (href ? "&url=" + encodeURIComponent(href) : "");
   }
 
-  root.ShareText = { text: text, composeUrl: composeUrl, MAX: MAX, HANDLE: HANDLE };
+  /* A RUN IS THE ONE THING HERE WORTH BRAGGING ABOUT.
+   *
+   * Every other share posts a card: a question, a comparison, a race. This
+   * posts what the reader did, which is the only output of this feed that is
+   * about them. It is also the cheapest distribution this app has - a streak
+   * badge that can be posted costs one button and needs no image, no canvas and
+   * no third-party script.
+   *
+   * No number is claimed that the run does not support, and nothing about the
+   * reader leaves the browser except the count they chose to post. */
+  function runPost(kind, run, best) {
+    var tag = HANDLE[kind] ? " " + HANDLE[kind] : "";
+    var n = Math.max(0, Math.floor(Number(run) || 0));
+    var b = Math.max(0, Math.floor(Number(best) || 0));
+    if (!n) return ("NBA Doomscroll" + tag).trim();
+    var s = n + " NBA questions right in a row on Doomscroll";
+    /* Only when the best is genuinely better than this run. On a personal best
+     * the run IS the best and saying both is a repeat. */
+    if (b > n) s += " (best: " + b + ")";
+    var suffix = " — HoopsMatic" + tag;
+    if (s.length + suffix.length > MAX) s = n + " in a row on NBA Doomscroll";
+    return (s + suffix).trim();
+  }
+
+  /** The composer URL for a run. Same two-network split as composeUrl: Bluesky
+   *  takes one text field so the link rides inside it, X takes the URL on its
+   *  own parameter and would print it twice if it were in both. */
+  function runComposeUrl(kind, run, best, url) {
+    var body = runPost(kind === "bsky" ? "bsky" : "x", run, best);
+    var href = String(url || "");
+    if (kind === "bsky") {
+      return "https://bsky.app/intent/compose?text=" +
+        encodeURIComponent(body + (href ? "\n\n" + href : ""));
+    }
+    return "https://x.com/intent/post?text=" + encodeURIComponent(body) +
+      (href ? "&url=" + encodeURIComponent(href) : "");
+  }
+
+  root.ShareText = { text: text, composeUrl: composeUrl, MAX: MAX, HANDLE: HANDLE,
+                     runPost: runPost, runComposeUrl: runComposeUrl };
 })(window);
