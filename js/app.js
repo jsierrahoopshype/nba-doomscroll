@@ -86,12 +86,29 @@
    * All-Star sitting in the "medium" tier, still came up often enough to
    * notice. Admission is the only lever with any force behind it.
    *
-   * So only the hard tier plays: 625 cards, every one a player who lasted in
-   * the league without ever making an All-Star team. That is the question
-   * worth asking now that the photograph is shown clear and whole. The 453
-   * easy and medium cards stay in the pool file untouched - add a tier back
-   * here and it returns with the weight given. */
-  var QUIZ_QUALITY = { hard: 1 };
+   * Superseded: all three tiers play now, and the mix is held by the
+   * scheduler's tier rotation rather than by these weights. See the note on
+   * QUIZ_QUALITY itself. */
+  /* ALL THREE TIERS PLAY AGAIN, at the mix §10 asks for: hard 60-65%, medium
+   * 25-30%, easy 10%.
+   *
+   * It was `{ hard: 1 }` - 625 cards, every one a player who lasted in the
+   * league without ever making an All-Star team - because weighting could not
+   * hold a mix on its own. That reasoning was right and is worth keeping in
+   * view: quality_score maps to the engine's 0.7x-1.3x band, so the widest
+   * possible gap between two tiers is 1.65x per card, which is nowhere near
+   * enough to turn 193 easy cards into 10% of the quiz cards served.
+   *
+   * What changed is that the mix is no longer a weighting problem. The
+   * scheduler admits Guess the Player one card at a time (js/schedule.js), so
+   * it can rotate the TIER as it goes and hit the ratio exactly. The weights
+   * here are therefore all 1: they would only fight the rotation.
+   *
+   * The 453 easy and medium cards come back with their pictures veiled until
+   * the card is answered - see .quiz-sil-mask[data-veil] in css/style.css. A
+   * clear photograph of George Mikan is not a question; a clear photograph of
+   * a journeyman is. */
+  var QUIZ_QUALITY = { hard: 1, medium: 1, easy: 1 };
   var byId = {};
   // Ids currently rendered in the feed. Sampling draws without replacement
   // within one batch, but nothing stopped a LATER batch re-drawing a card that
@@ -812,10 +829,33 @@
    * product and the score is a garnish, so a scoreboard that throws - a full
    * quota, a browser blocking site data - must not cost a reader their
    * algorithm update or their reveal. Hence the try, and hence the ordering. */
-  function scoreAnswer(card, correct) {
+  /* §11: one line under the card when an answer reaches 3, 5 or 10 in a row.
+   *
+   * No modal, no toast, nothing that interrupts a scroll - the brief is
+   * explicit about that, and it is right: a feed that stops you to celebrate is
+   * a feed you stop reading. It goes into the card's own result area, next to
+   * "Correct.", and scrolls away with the card.
+   *
+   * cardEl is passed in rather than looked up, because by the time a reader has
+   * answered two cards there are two answered cards on screen and querying for
+   * one would find whichever came first. */
+  function showMilestone(cardEl, n) {
+    if (!cardEl || !n || !root.Scoreboard) return;
+    var text = root.Scoreboard.milestoneText(n);
+    if (!text) return;
+    var res = cardEl.querySelector(".quiz-result");
+    if (!res || res.querySelector(".quiz-run")) return;
+    var el = document.createElement("span");
+    el.className = "quiz-run mono";
+    el.textContent = text;
+    res.appendChild(el);
+  }
+
+  function scoreAnswer(card, correct, cardEl) {
     if (!root.Scoreboard) return;
     try {
-      root.Scoreboard.record(card.id, card.type, correct);
+      var tally = root.Scoreboard.record(card.id, card.type, correct);
+      if (tally && tally.milestone) showMilestone(cardEl, tally.milestone);
       renderScore();
       if (root.DailyFive) {
         var el = document.querySelector('#feed [data-id^="daily-"]');
@@ -1818,7 +1858,7 @@
       correct: correct,
       hints: hintBox ? Number(hintBox.dataset.shown || 0) : 0
     });
-    scoreAnswer(card, correct);
+    scoreAnswer(card, correct, cardEl);
   }
 
   function answerTrivia(cardEl, btn, card) {
@@ -1845,7 +1885,7 @@
       correct: correct,
       hints: hintBox ? Number(hintBox.dataset.shown || 0) : 0
     });
-    scoreAnswer(card, correct);
+    scoreAnswer(card, correct, cardEl);
   }
 
   /* ---------------- share ---------------- */
