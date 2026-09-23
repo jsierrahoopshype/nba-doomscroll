@@ -403,6 +403,61 @@ console.log("\nit is deterministic under a fixed sampler and rng");
   ck("two runs of the same inputs agree", a === b);
 }
 
+/* A POOL THAT IS ALL ONE BUCKET MUST NOT PRODUCE A WALL OF IT.
+ *
+ * WHAT THIS CAUGHT, on the live site, twice. At boot only the eager pools have
+ * arrived and live is still in flight, so the fallback round robin has whatever
+ * that subset holds. Round robin spreads the buckets it HAS and cannot spread
+ * ones that are absent: with a single bucket present it took one card from it
+ * eight times a batch. The reader got eighteen consecutive two-player trivia
+ * cards. Jorge: "Now I'm getting all quiz cards at the top. That's just as bad
+ * as before."
+ *
+ * js/app.js fixes the cause by making the eager set cover the cold plan's
+ * buckets (asserted in tools/test_app_pools.mjs). This asserts the scheduler
+ * survives the situation anyway, because "the pools will be there" is a promise
+ * about fetch timing on someone else's network.
+ *
+ * The contract is NOT that the batch is full. A short batch is the correct
+ * answer here: the sentinel and the per-pool top-up both call loadMore again,
+ * so four mixed cards now and four more when the next pool lands reads as a
+ * feed loading, where eight of one kind reads as the feed the app has. */
+console.log("\na degenerate pool gives a short batch, not a wall");
+
+{
+  /* Everything the cold plan asks for is missing except `game`.
+   *
+   * Asserted on ONE build call rather than through run(). run() keeps asking
+   * until it has the cards it wants, so at the feed level a short batch is
+   * invisible - it just means more calls. The contract is per batch, which is
+   * what the reader sees arrive at once. */
+  const onlyGame = pool({ live: 0, vs: 0, compare: 0, race: 0, otd: 0,
+                          ballot: 0, salary: 0, trivia: 400, quiz: 0 });
+  const batch = S.build({
+    pool: onlyGame, size: 8, position: 0, tail: [], since: S.newCounters(),
+    sample: (list, n) => list.slice(0, n), rng: () => 0.5
+  }).cards;
+
+  ck("the batch is short rather than padded", batch.length < 8,
+     batch.length + " cards for a batch of 8");
+  /* Two from the fallback plus the plan's own game slot is three. */
+  ck("and no more than three of one bucket", batch.length <= 3,
+     batch.length + " game cards");
+  ck("and it still returns something", batch.length > 0, batch.length + " cards");
+  ck("all of which are the only bucket there was",
+     batch.every(c => B(c) === "game"));
+
+  /* THE SAME POOL AFTER THE COLD WINDOW. Past card 48 everything is loaded, so
+   * a cap there would only stop a deep session drawing from the one family it
+   * has not exhausted - which is the 70%-on-this-day bug in reverse. */
+  const deep = S.build({
+    pool: onlyGame, size: 8, position: 400, tail: [], since: S.newCounters(),
+    sample: (list, n) => list.slice(0, n), rng: () => 0.5
+  });
+  ck("but a deep session is allowed to fill from what is left",
+     deep.cards.length === 8, deep.cards.length + " cards at position 400");
+}
+
 console.log(fail ? `\n${fail} failed` : "\n0 failed");
 console.log(fail ? "the For You feed does not follow its own plan"
                  : "the plan, the quotas and the caps all hold");

@@ -545,11 +545,34 @@
      * Live stays at the head of the list: a card that IS current beats any
      * archive card, and on a busy day there is more live material than the
      * plan's five slots. */
+    /* AND A CEILING ON THE ROUND ROBIN WHILE THE POOLS ARE STILL ARRIVING.
+     *
+     * Round robin spreads the buckets it HAS. It cannot spread buckets that
+     * have not loaded, and at boot that is most of them: the archive arrives
+     * over a second or two, live over rather longer. With one bucket present
+     * the loop takes one card from it eight times and the reader gets a wall -
+     * eighteen consecutive two-player trivia cards, in the case Jorge found.
+     *
+     * Inside the cold window each fallback bucket is capped at two per batch.
+     * When that leaves the batch short the batch IS short, deliberately: four
+     * mixed cards now and four more when the next pool lands reads as a feed
+     * loading, while eight of one kind reads as the feed the app has. The
+     * sentinel and the per-pool top-up in js/app.js both call loadMore again,
+     * so nothing is stranded.
+     *
+     * No cap after the cold window. By then everything is loaded, the round
+     * robin has all four buckets, and a cap would only stop a deep session
+     * drawing from the one family it has not exhausted. */
+    var MAX_COLD_FALLBACK_PER_BUCKET = 2;
+    var fbCap = position < COLD_CARDS ? MAX_COLD_FALLBACK_PER_BUCKET : size;
+    var fbCount = {};
     var pass = 0;
     while (picked.length < size && pass < size * plan.fallback.length) {
       var before = picked.length;
       for (var f = 0; f < plan.fallback.length && picked.length < size; f++) {
-        take(byBucket[plan.fallback[f]], 1);
+        var fname = plan.fallback[f];
+        if ((fbCount[fname] || 0) >= fbCap) continue;
+        fbCount[fname] = (fbCount[fname] || 0) + take(byBucket[fname], 1).length;
       }
       if (picked.length === before) break;   /* nothing left anywhere */
       pass++;
