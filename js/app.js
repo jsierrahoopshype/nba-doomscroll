@@ -1119,6 +1119,60 @@
    */
   var VS_TAB_CAPS = { vs: 2 };
 
+  /* ---------------- the For You scheduler ----------------
+   *
+   * For You is the only tab that goes through js/schedule.js, and deliberately
+   * so. Every other tab is a reader asking for one kind of thing: somebody on
+   * Races wants races, and a scheduler that thinned them out would be the app
+   * arguing with the reader. The mix targets in Jorge's brief are targets for
+   * the feed you get when you have not chosen anything.
+   *
+   * An entity filter is exempt for the same reason. Tapping "LeBron James" asks
+   * for every LeBron card; rationing them by bucket would answer a question
+   * nobody asked.
+   *
+   * The counters live here rather than in the scheduler because they belong to
+   * the reader's session, not to a batch: "how many cards since the last awards
+   * card" has to survive across batches, and it is reset when the feed is
+   * genuinely restarted. */
+  var foryouSince = root.DoomSchedule ? DoomSchedule.newCounters() : null;
+
+  function resetSchedule() {
+    if (root.DoomSchedule) foryouSince = DoomSchedule.newCounters();
+  }
+
+  /* The tail of the feed as cards, so the scheduler can arrange the next batch
+   * against what is actually on screen rather than only against itself. Twelve
+   * is DIVERSITY_WINDOW; the media caps need ten. */
+  function feedTail(n) {
+    var els = feedEl.querySelectorAll(".card");
+    var out = [];
+    for (var i = Math.max(0, els.length - n); i < els.length; i++) {
+      var c = byId[els[i].dataset.id];
+      if (c) out.push(c);
+    }
+    return out;
+  }
+
+  function scheduleBatch(pool, avoid) {
+    var res = DoomSchedule.build({
+      pool: pool,
+      size: BATCH,
+      position: feedEl.querySelectorAll(".card").length,
+      tail: feedTail(DIVERSITY_WINDOW),
+      since: foryouSince,
+      avoid: avoid,
+      /* THE ENGINE STILL PICKS. The scheduler says how many cards of each kind;
+       * E.sample decides which ones, so the learned weights, the freshness rule
+       * and the story spacing all still apply inside every bucket. Replacing
+       * that with a plain shuffle would have thrown away the personalisation
+       * this app is built on. */
+      sample: function (list, n, opts) { return E.sample(list, n, opts); }
+    });
+    foryouSince = res.since;
+    return res.cards;
+  }
+
   function drawFrom(pool, avoid, newestFirst, caps) {
     if (!pool.length) return [];
     // Any pool holding more than one card type gets the type-balanced draw.
@@ -1195,7 +1249,7 @@
     /* An empty feed is starting over, whatever phase the last one ended in.
      * Deriving it here rather than resetting a flag at each of the eight places
      * that clear the feed: one of those would have been missed. */
-    if (!feedEl.querySelector(".card")) state.phase = "own";
+    if (!feedEl.querySelector(".card")) { state.phase = "own"; resetSchedule(); }
 
     var batch = [];
     /* own -> spill -> loop is three tries. The bound is what stops an app with
@@ -1212,8 +1266,12 @@
       /* The VS tab's own caps apply only while it is drawing its OWN section.
        * A spilled or looped batch is the whole app, where vs is one type among
        * a dozen and MIXED_CAPS is the right table. */
-      batch = drawFrom(pool, recentlyShown(), own && state.tab === "buzz",
-                       own && state.tab === "vs" ? VS_TAB_CAPS : null);
+      /* For You is scheduled by editorial bucket; every other tab keeps the
+       * type-balanced draw it has always used. See scheduleBatch. */
+      batch = (root.DoomSchedule && state.tab === "foryou" && !state.entity)
+        ? scheduleBatch(pool, recentlyShown())
+        : drawFrom(pool, recentlyShown(), own && state.tab === "buzz",
+                   own && state.tab === "vs" ? VS_TAB_CAPS : null);
       if (!batch.length && !advancePhase()) break;
     }
 
@@ -1256,7 +1314,15 @@
     frag.innerHTML = batch.map(C.render).join("");
     while (frag.firstChild) {
       var node = frag.firstChild;
-      if (node.nodeType === 1) { decorate(node); watchCard(node); rendered[node.dataset.id] = 1; }
+      if (node.nodeType === 1) {
+        decorate(node); watchCard(node); rendered[node.dataset.id] = 1;
+        /* Counted as SERVED, not as drawn. The quotas are about what the reader
+         * is shown, and a card that was drawn into a batch the feed then
+         * truncated was never shown. */
+        if (root.DoomSchedule && foryouSince && byId[node.dataset.id]) {
+          DoomSchedule.countCard(foryouSince, byId[node.dataset.id]);
+        }
+      }
       feedEl.appendChild(node);
     }
     insertDaily();
