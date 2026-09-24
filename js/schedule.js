@@ -260,6 +260,21 @@
   }
 
   function bucketOf(c) { return ED.bucketOf(c); }
+
+  /* How many of the newest live cards the draw may choose from. Eight is a
+   * batch's live slots plus a few spare: room for the engine to space sources
+   * and stories and follow the reader's taste, not enough to reach back to
+   * yesterday while this morning's posts are still unshown. Twelve was tried
+   * first and measured worse on a real index - a post from under an hour ago
+   * could still wait until the second batch. */
+  var LIVE_WINDOW = 8;
+
+  /* When a live card happened. Buzz carries published_at; a Trade Machine card
+   * carries built_at, the moment the trade was saved. NaN for neither. */
+  function liveTime(c) {
+    var p = (c && c.payload) || {};
+    return Date.parse(p.published_at || p.built_at || "");
+  }
   function hasTrait(c, t) { return ED.hasTrait(c, t); }
 
   /** A fresh set of the counters the quotas run on.
@@ -455,6 +470,39 @@
       }
     }
 
+    /* NEWEST NEWS FIRST.
+     *
+     * Jorge, Sept 24 2026: Buzz "shows a lot of older content from 10+ hours
+     * ago ... I would most definitely lean towards showing recent content over
+     * the older stuff."
+     *
+     * The live slots used to be filled by the engine's weighted draw across the
+     * WHOLE live pool - about seventy cards spanning several days - and the
+     * freshness curve only shaded the odds: a ten-hour-old post kept 78% of a new
+     * post's chance, a twenty-hour-old one about half. With seventy candidates
+     * that is plenty for yesterday's posts to beat this hour's, batch after
+     * batch.
+     *
+     * So the draw now sees only the LIVE_WINDOW newest live cards not yet shown.
+     * The engine still chooses among them - personalisation and the story and
+     * source spacing still apply - but it can no longer reach back a day while
+     * something newer is waiting. As the newest are shown the window slides
+     * back in time, so older posts still appear, below the newer ones.
+     *
+     * Cards with no timestamp (the weekly trade trends) are always eligible:
+     * there is nothing to rank them by, and there are only a handful. */
+    var liveNewest = [];
+    if (byBucket.live && byBucket.live.length) {
+      var timed = [], untimed = [];
+      for (var lv = 0; lv < byBucket.live.length; lv++) {
+        var lc = byBucket.live[lv];
+        (isNaN(liveTime(lc)) ? untimed : timed).push(lc);
+      }
+      timed.sort(function (a, b) { return liveTime(b) - liveTime(a); });
+      liveNewest = timed;             /* newest first; see THE TWO NEWEST below */
+      byBucket.live = timed.slice(0, LIVE_WINDOW).concat(untimed);
+    }
+
     var picked = [];
 
     /* THE MEDIA BUDGET, SPENT AT DRAW TIME AND NOT AT ORDER TIME.
@@ -629,7 +677,19 @@
     }
     for (var b2 in want) {
       if (!want.hasOwnProperty(b2)) continue;
-      var got2 = take(byBucket[b2], want[b2]);
+      var got2 = [];
+      /* THE TWO NEWEST ARE NOT LEFT TO CHANCE. The window keeps the draw
+       * recent, but the engine's sampler can still pass over the single newest
+       * post in favour of one a few hours older, and then it waits a batch. The
+       * test that caught it ran a freshness-blind sampler over forty posts an
+       * hour apart and the half-hour-old one missed the first batch. So the
+       * two newest live cards are taken outright, and the sampler fills the
+       * rest of the live slots from the window. */
+      if (b2 === "live" && liveNewest.length && want[b2] > 0) {
+        got2 = take(liveNewest.slice(0, Math.min(2, want[b2])), Math.min(2, want[b2]));
+      }
+      var more2 = take(byBucket[b2], want[b2] - got2.length);
+      got2 = got2.concat(more2);
       if (got2.length < want[b2]) shortfall[b2] = want[b2] - got2.length;
     }
 
@@ -759,6 +819,26 @@
       return c;
     }
 
+    /* NEWEST NEWS HIGHEST, inside the batch as well as across batches.
+     *
+     * The live window decides WHICH news cards are in a batch; this decides
+     * where they sit in it. Without it a post from twenty minutes ago could
+     * land fourth under three from last night, which is the thing Jorge was
+     * looking at. Rank-based rather than hours-based, so it works the same on
+     * a busy evening and a quiet morning.
+     *
+     * Worth up to 2 points: more than the tie-break, less than every spacing
+     * rule below. Two posts from the same outlet in a row still cost 12, so
+     * the newest post does not get to break the source spacing. */
+    var recency = {};
+    var liveTimed = cards.filter(function (c) {
+      return bucketOf(c) === "live" && !isNaN(liveTime(c));
+    }).sort(function (a, b) { return liveTime(b) - liveTime(a); });
+    for (var r = 0; r < liveTimed.length; r++) {
+      recency[liveTimed[r].id] = liveTimed.length > 1
+        ? 2 * (1 - r / (liveTimed.length - 1)) : 2;
+    }
+
     while (left.length) {
       var best = null, bestScore = -Infinity, bestIdx = 0;
       for (var i = 0; i < left.length; i++) {
@@ -768,7 +848,7 @@
 
         /* A live card is what the feed is for, so it wins ties and opens the
          * session: §3 wants the first card current. */
-        if (bucketOf(c) === "live") score += 3;
+        if (bucketOf(c) === "live") score += 3 + (recency[c.id] || 0);
         if (!seq.length && bucketOf(c) === "live") score += 20;
         /* §3 wants the first playable card at index 6-8: far enough in that the
          * session opens on the NBA rather than on a game, close enough that a
