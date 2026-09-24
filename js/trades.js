@@ -253,6 +253,12 @@
         balance_pct: t.balance_pct,
         verdict: verdict(t.balance_pct),
         built_ago: ago(t.ts),
+        /* When it was built, machine-readable. js/schedule.js ranks live cards
+         * newest-first, and without this a trade had no time at all and could
+         * not take its place among the news by when it happened. Deliberately
+         * NOT published_at: the engine's freshness curve reads that field, and
+         * whether a trade should decay like a news post is a separate call. */
+        built_at: isNaN(new Date(t.ts).getTime()) ? null : new Date(t.ts).toISOString(),
         machine_url: t.machine_url
       }
     };

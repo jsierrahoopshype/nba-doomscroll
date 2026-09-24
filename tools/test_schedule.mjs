@@ -58,11 +58,21 @@ if (!S || !ED) { console.log("\n1 failed"); process.exit(1); }
  * tags.players, payload.source. Deliberately generous - hundreds of every
  * bucket - so a shortfall in a result means the scheduler chose not to draw
  * one, never that there was nothing to draw. */
+/* One timestamp for the whole process, not one per card. These cards used to
+ * be stamped with `new Date()` as each was built, which was harmless while
+ * nothing looked at a live card's time. js/schedule.js now sorts the live
+ * bucket newest-first, so a pool whose 60 live cards straddled a millisecond
+ * boundary (about one in twenty-five) came out in a different order from one
+ * that did not, and the determinism check below - which builds two pools -
+ * failed whenever exactly one of them straddled. Pinning it keeps every card
+ * fresh relative to now and makes any two pools identical. */
+const STAMP = new Date().toISOString();
+
 const mk = (type, category, i, extra) => Object.assign({
   id: type + "-" + category + "-" + i,
   type,
   tags: { content_type: type, category, players: ["Player " + i], teams: ["T" + (i % 8)] },
-  payload: { source: "src" + (i % 6), published_at: new Date().toISOString() }
+  payload: { source: "src" + (i % 6), published_at: STAMP }
 }, extra || {});
 
 function pool(opts) {
@@ -340,6 +350,85 @@ console.log("\nBALLOT ODDITY cards: a tenth of what they were, and never zero");
   }
   ck("and never two awards-bucket cards in twelve, across both quotas", worst <= 1,
      "worst twelve-card window: " + worst);
+}
+
+console.log("\nnewest news first");
+
+{
+  /* Jorge, Sept 24 2026: Buzz "shows a lot of older content from 10+ hours
+   * ago ... I would most definitely lean towards showing recent content over
+   * the older stuff." The live slots used to be a weighted draw across the
+   * whole live pool, days deep; now only the newest LIVE_WINDOW unshown cards
+   * are eligible, and inside a batch newer sits higher.
+   *
+   * Measured on the real content-stream index before and after: the first ten
+   * news cards went from a median of 17.8 hours old (oldest 39) to 10.4 (oldest
+   * 12), and the one post under an hour old moved from position 4 to 1. That
+   * morning the index held only two posts under three hours old - the order can
+   * be fixed, the supply cannot. */
+  const H = 3600000, NOW = Date.now();
+  const aged = (i, hours, src) => ({
+    id: "live-" + i, type: "buzz",
+    tags: { content_type: "buzz", category: "", players: ["P" + i], teams: ["T" + (i % 8)] },
+    payload: { source: src || ("src" + (i % 6)), published_at: new Date(NOW - hours * H).toISOString() }
+  });
+  /* Forty posts, one per hour back to forty hours, shuffled so array order
+   * carries no hint of age. */
+  const live = [];
+  for (let i = 0; i < 40; i++) live.push(aged(i, i + 0.5));
+  for (let i = live.length - 1; i > 0; i--) { const j = (i * 7919) % (i + 1); [live[i], live[j]] = [live[j], live[i]]; }
+  const arch = pool({ live: 0 });
+  const shuffle = (l, n) => { const a = l.slice(); for (let i = a.length - 1; i > 0; i--) { const j = (i * 31 + 7) % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
+  const hoursOf = c => (NOW - Date.parse(c.payload.published_at)) / H;
+
+  const src = fs.readFileSync(path.join(REPO, "js", "schedule.js"), "utf8");
+  const W = +((src.match(/var LIVE_WINDOW = (\d+);/) || [])[1] || 0);
+  ck("the window is a named constant", W > 0, "LIVE_WINDOW = " + W);
+
+  /* A sampler that ignores freshness entirely, so this proves the WINDOW does
+   * the work and not the engine's curve. */
+  const b1 = S.build({ pool: live.concat(arch), size: 8, position: 0, tail: [],
+    since: S.newCounters(), sample: shuffle, rng: () => 0.5 }).cards;
+  const news1 = b1.filter(c => B(c) === "live");
+  ck("the first batch's news all comes from the newest window",
+     news1.length > 0 && news1.every(c => hoursOf(c) < W),
+     news1.map(c => hoursOf(c).toFixed(0) + "h").join(" "));
+  ck("and the newest of them sits highest", news1.length > 1 &&
+     news1.every((c, i) => i === 0 || hoursOf(c) >= hoursOf(news1[i - 1]) - 1e-9),
+     news1.map(c => hoursOf(c).toFixed(0) + "h").join(" "));
+
+  /* Older posts are not banned, they wait: once the newest are shown the
+   * window slides back in time. */
+  const feed = [], used = {}, since = S.newCounters();
+  while (feed.length < 120) {
+    const r = S.build({ pool: live.concat(arch).filter(c => !used[c.id]), size: 8,
+      position: feed.length, tail: feed.slice(-12), since, sample: shuffle, rng: () => 0.5 });
+    if (!r.cards.length) break;
+    r.cards.forEach(c => { used[c.id] = 1; feed.push(c); S.countCard(since, c); });
+  }
+  const seq = feed.filter(c => B(c) === "live").map(hoursOf);
+  let inversions = 0;
+  for (let i = 1; i < seq.length; i++) if (seq[i] + W < seq[i - 1]) inversions++;
+  ck("across the session, no post shows up more than a window's worth ahead of its time",
+     inversions === 0, inversions + " out of order by more than " + W + "h");
+  ck("and the old ones still arrive, later", Math.max(...seq) > 24,
+     "oldest shown: " + Math.max(...seq).toFixed(0) + "h");
+
+  /* A live card with no time - the weekly trade trends - has nothing to rank
+   * by, so it must stay eligible rather than silently vanish. */
+  const digest = { id: "digest-1", type: "tradedigest",
+    tags: { content_type: "tradedigest", category: "", players: [], teams: [] }, payload: {} };
+  const withDigest = S.build({ pool: live.concat([digest]).concat(arch), size: 8, position: 16,
+    tail: [], since: S.newCounters(), sample: l => l.filter(c => c.id === "digest-1").concat(l).slice(0, 8),
+    rng: () => 0.5 }).cards;
+  ck("an untimed live card is still eligible", withDigest.some(c => c.id === "digest-1"));
+
+  /* Trades carry built_at, not published_at: the window must read it, or a
+   * trade built five minutes ago would count as having no time at all. */
+  ck("the window reads built_at for trades",
+     /p\.published_at \|\| p\.built_at/.test(src));
+  const trades = fs.readFileSync(path.join(REPO, "js", "trades.js"), "utf8");
+  ck("and trade cards carry it", /built_at: isNaN\(new Date\(t\.ts\)/.test(trades));
 }
 
 console.log("\nthe video rate, and the placement that makes it safe");
