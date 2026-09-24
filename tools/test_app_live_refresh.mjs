@@ -266,6 +266,56 @@ console.log("\nthe feed still ends where it always did");
   ck("setting an entity filter still clears it", !!setEntity && /clearFeed\(\)/.test(setEntity));
 }
 
+/* THE NEWS GATE.
+ *
+ * What For You renders before the live feed lands stays at the top of the page
+ * (live appends below an active feed, which is the section above). Asked what
+ * belongs there, Jorge said: "I'd rather have race animations than trivia." So
+ * the first batch is drawn - a race, because the scheduler holds games back
+ * until the news is in the pool - and then the feed is held at that one card.
+ *
+ * The hold is the part that was measured, not guessed. Without it every small
+ * pool that landed added another card while the feed was under eight, and a
+ * pool-arrival simulation stacked EIGHT race animations before the first news
+ * item. Three ways out, each asserted, because a gate with no way out is a feed
+ * that shows one card for ever. */
+console.log("\nFor You waits for the news after its first card");
+
+{
+  const lm = bodyOf("loadMore");
+  const held = bodyOf("heldForNews");
+  const open = bodyOf("openNewsGate");
+  const settle = bodyOf("newsSettle");
+
+  ck("loadMore checks the gate before anything else",
+     !!lm && /^\{\s*if \(heldForNews\(\)\)/.test(lm));
+  /* Only For You, only unfiltered, and never on an empty feed - otherwise the
+   * very first batch would be held too and the page would open blank. */
+  ck("the gate holds For You only, unfiltered, and never an empty feed",
+     !!held && /state\.tab === "foryou"/.test(held) && /!state\.entity/.test(held) &&
+     /feedEl\.querySelector\("\.card"\)/.test(held));
+  ck("it opens on the first live source that lands with cards",
+     !!settle && /if \(gotCards\) openNewsGate\("live"\)/.test(settle));
+  ck("or once every live source has answered, even with nothing",
+     !!settle && /else if \(!newsPendingSources\) openNewsGate/.test(settle));
+  ck("or on a timer, so a hung fetch cannot strand a reader on one card",
+     /setTimeout\(function \(\) \{ openNewsGate\("timeout"\); \}, NEWS_WAIT_MS\)/.test(CODE));
+  const wait = (CODE.match(/var NEWS_WAIT_MS = (\d+);/) || [])[1];
+  ck("and the timer is a few seconds, not a stall", wait && +wait > 0 && +wait <= 6000,
+     wait + "ms");
+  /* Both branches of swapInLive have to report, or "every source answered"
+   * can never be reached and only the timer would ever open the gate. */
+  const sw = bodyOf("swapInLive");
+  ck("every live source is counted in", !!sw && /newsPendingSources\+\+/.test(sw));
+  ck("and reports back on success and on failure",
+     !!sw && (sw.match(/newsSettle\(/g) || []).length >= 2);
+  /* A live success is followed by absorbLive, which draws the batch. The
+   * other two reasons have nothing after them, so the gate draws one itself. */
+  ck("opening for a reason other than live tops the feed up itself",
+     !!open && /why !== "live"/.test(open) && /loadMore\(\)/.test(open));
+  ck("and clears the waiting line", !!open && /\.feed-wait/.test(open));
+}
+
 console.log(fail ? `\n${fail} failed` : "\n0 failed");
 console.log(fail ? "a live arrival can still throw a reader back to the top"
                  : "live cards arrive below the reader, and rumors stay out");

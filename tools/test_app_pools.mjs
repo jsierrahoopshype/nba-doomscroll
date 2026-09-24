@@ -174,53 +174,59 @@ console.log("\nthe registry knows about every pool on disk");
  * `live` is exempt and cannot be otherwise: buzz and trades exist only in the
  * reader's browser, so no file in data/ can supply them. Its slots fall through
  * to the other three until the fetch lands. */
-console.log("\nthe eager set covers every bucket the cold plan asks for");
+/* WHAT THE COLD PLAN DRAWS BEFORE THE NEWS HAS TO BE IN THE EAGER SET.
+ *
+ * Sept 23 2026 this asserted "every bucket the cold plan names has an eager
+ * pool". Sept 24 two things changed what the plan can draw before a live card
+ * exists, so the invariant changed with them:
+ *
+ *   - js/schedule.js holds `game` back until the news lands. Jorge: "I'd rather
+ *     have race animations than trivia there."
+ *   - every `oddity` card (the BALLOT ODDITY chip) is throttled to one per 140,
+ *     which leaves history_record with no eager source a first screen can use.
+ *
+ * So before live, the plan draws comparison and nothing else, and comparison
+ * must have eager cards that are NOT throttled. Measured on non-dummy cards,
+ * because counting the sample trades is exactly the mistake that once made the
+ * eager set look complete when it was not. And no eager pool may be all
+ * oddities: that is 41KB bought before first paint for cards the first screen
+ * is not allowed to show. */
+console.log("\nthe eager set holds what the cold plan can draw before the news");
 
 {
-  const SCHED = fs.readFileSync(path.join(REPO, "js", "schedule.js"), "utf8");
   const win = {};
   new Function("window", fs.readFileSync(path.join(REPO, "js", "editorial.js"), "utf8"))(win);
   const ED = win.DoomEditorial;
+  const SCHED = fs.readFileSync(path.join(REPO, "js", "schedule.js"), "utf8");
 
   const eager = [...SRC.match(/var EAGER_POOLS = \[([\s\S]*?)\];/)[1]
     .matchAll(/"(data\/[^"]+)"/g)].map(m => m[1]);
 
-  /* The cold plan's slot names, read out of the shipped scheduler. Changing the
-   * plan without changing the eager set fails here, which is the point. */
-  const coldSlots = (/cold:\s*\{\s*slots:\s*\{([^}]*)\}/.exec(SCHED) || [, ""])[1];
-  const want = [...coldSlots.matchAll(/(\w+):\s*\d+/g)].map(m => m[1])
-    .filter(b => b !== "live");
-  ck("the cold plan's slots were found", want.length >= 3, want.join(", "));
+  ck("the scheduler still holds games back before the news",
+     /var gamesHeldBack = position < COLD_CARDS && !liveInPool/.test(SCHED));
+  ck("and oddities are still throttled by type",
+     /ballot_oddity_chip: \{ kind: "type", type: "oddity"/.test(SCHED));
 
-  /* What the eager set actually supplies, dummy cards excluded. */
-  const have = {};
-  let missingFiles = [];
+  const have = {}, missing = [], allOddity = [];
   for (const url of eager) {
     const file = path.join(REPO, url);
-    if (!fs.existsSync(file)) { missingFiles.push(url); continue; }
+    if (!fs.existsSync(file)) { missing.push(url); continue; }
     const raw = JSON.parse(fs.readFileSync(file, "utf8"));
-    const cards = Array.isArray(raw) ? raw : (raw.cards || []);
+    const cards = (Array.isArray(raw) ? raw : (raw.cards || [])).filter(c => !c.dummy);
+    if (cards.length && cards.every(c => ED.typeOf(c) === "oddity")) allOddity.push(url);
     for (const c of cards) {
-      if (c.dummy) continue;                 // never reaches For You
+      if (ED.typeOf(c) === "oddity") continue;       // throttled: not first-screen material
       const b = ED.bucketOf(c);
       have[b] = (have[b] || 0) + 1;
     }
   }
-
-  for (const b of want) {
-    ck(`eager cards exist for ${b}`, (have[b] || 0) > 0,
-       (have[b] || 0) + " cards");
-  }
-  /* A bucket with two cards technically passes the loop above and still gives a
-   * reader the same card twice on the first screen. The cold plan asks for one
-   * per batch over six batches, so six is the real floor. */
-  for (const b of want) {
-    ck(`and enough of them to fill the cold window`, (have[b] || 0) >= 6,
-       b + ": " + (have[b] || 0));
-  }
-  ck("no eager pool is missing from this checkout", missingFiles.length === 0,
-     missingFiles.join(", "));
-  console.log("  --   eager buckets: " +
+  /* Six batches of cold window, one comparison slot each at the least. */
+  ck("comparison has unthrottled eager cards", (have.comparison || 0) >= 6,
+     (have.comparison || 0) + " cards");
+  ck("no eager pool is nothing but throttled oddities", allOddity.length === 0,
+     allOddity.join(", ") || "none");
+  ck("no eager pool is missing from this checkout", missing.length === 0, missing.join(", "));
+  console.log("  --   eager buckets (oddities excluded): " +
     Object.keys(have).sort().map(k => k + " " + have[k]).join(", "));
 }
 

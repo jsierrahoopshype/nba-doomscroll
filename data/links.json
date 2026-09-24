@@ -10,6 +10,13 @@
       "kind": "page"
     },
     {
+      "id": "doomscroll-home",
+      "url": "https://hoopsmatic.com/nba-doomscroll/",
+      "used_by": "index.html <head> canonical and og:url",
+      "kind": "page",
+      "note": "This page's own address on hoopsmatic.com, served by hoopsmatic-worker (PR #22). The trailing slash matters: the page loads js/, css/ and data/ by relative path, and the Worker 301s the bare path here. A redirect to anywhere else means the route has changed and search engines are being told to index a page that is not this one."
+    },
+    {
       "id": "compare-tool",
       "url": "https://hoopsmatic.com/compare?p1=LeBron%20James&p2=Kevin%20Durant",
       "used_by": "js/cards.js tapTarget — vs and compare cards",
