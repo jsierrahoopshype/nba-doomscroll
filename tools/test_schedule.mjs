@@ -58,11 +58,21 @@ if (!S || !ED) { console.log("\n1 failed"); process.exit(1); }
  * tags.players, payload.source. Deliberately generous - hundreds of every
  * bucket - so a shortfall in a result means the scheduler chose not to draw
  * one, never that there was nothing to draw. */
+/* One timestamp for the whole process, not one per card. These cards used to
+ * be stamped with `new Date()` as each was built, which was harmless while
+ * nothing looked at a live card's time. js/schedule.js now sorts the live
+ * bucket newest-first, so a pool whose 60 live cards straddled a millisecond
+ * boundary (about one in twenty-five) came out in a different order from one
+ * that did not, and the determinism check below - which builds two pools -
+ * failed whenever exactly one of them straddled. Pinning it keeps every card
+ * fresh relative to now and makes any two pools identical. */
+const STAMP = new Date().toISOString();
+
 const mk = (type, category, i, extra) => Object.assign({
   id: type + "-" + category + "-" + i,
   type,
   tags: { content_type: type, category, players: ["Player " + i], teams: ["T" + (i % 8)] },
-  payload: { source: "src" + (i % 6), published_at: new Date().toISOString() }
+  payload: { source: "src" + (i % 6), published_at: STAMP }
 }, extra || {});
 
 function pool(opts) {
