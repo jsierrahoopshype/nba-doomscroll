@@ -271,40 +271,75 @@ console.log("\nthe media budget is spent, and capped");
   ck("and none of them sit next to each other", adjacent === 0, adjacent + " adjacent pairs");
 }
 
-console.log("\nballot oddities are sprinkled, not banned and not frequent");
+console.log("\nBALLOT ODDITY cards: a tenth of what they were, and never zero");
 
 {
-  /* Jorge's call in two steps. First: fewer. Measured, the weighted draw was
-   * already serving ZERO in 3,000 cards - oddity-pool.json carries an explicit
-   * quality_score of 0.47-0.94 while the video awards pools carry none and take
-   * the engine's higher default - so "fewer" would have meant none. Then:
-   * "I want some sprinkled here and there. Don't go to 0."
+  /* HISTORY OF THIS RULE, because it has moved three times.
    *
-   * So they are rationed by the awards family rotation rather than excluded:
-   * one in six awards cards, and awards are one per 28-36, which lands a ballot
-   * oddity roughly once every 200 cards. */
-  const q = S.QUOTAS.awards_voting;
-  ck("the awards slot rotates its family", Array.isArray(q.cycle), JSON.stringify(q.cycle));
-  const n = {};
-  for (const k of q.cycle) n[k] = (n[k] || 0) + 1;
-  ck("a ballot oddity is one in six of them", n["oddity|ballot-oddity"] === 1 &&
-     q.cycle.length === 6, JSON.stringify(n));
-  /* NOT ZERO. The whole point of the second instruction. */
-  ck("which is neither zero nor frequent", n["oddity|ballot-oddity"] > 0);
-  /* The rest of the rotation is the animated awards families, which is also
-   * where some of the extra video comes from. */
-  ck("the other five slots are the video families",
-     q.cycle.filter(k => k === "race|ballot" || k === "lean|media-lean").length === 5,
-     JSON.stringify(q.cycle));
-  ck("and cycleOf keys on type|category, not on the bucket",
-     q.cycleOf({ type: "oddity", tags: { content_type: "oddity", category: "ballot-oddity" } })
-       === "oddity|ballot-oddity");
+   * First Jorge asked for fewer, and the weighted draw was already serving zero
+   * in 3,000 cards. Then: "I want some sprinkled here and there. Don't go to 0",
+   * which put one ballot-oddity slot in the awards family rotation. Then, Sept
+   * 24 2026: "I see too many of these Ballot Oddities. Cut to 10 percent of what
+   * it is now."
+   *
+   * The third one looked contradictory until it was measured properly. Four
+   * families render under the BALLOT ODDITY chip - ballot oddities proper,
+   * award-history droughts, career oddities and records - and only the first
+   * was ever rationed. The audit hid the rest by counting 1,069 on-this-day
+   * cards the app drops on load, so history_record looked like on-this-day when
+   * in a reader's browser it was nearly all career oddities. Real shares: 9.1%
+   * of the first fifty, 6.9% of a session, half the first screen at boot.
+   *
+   * So there is one quota for the chip, keyed on type, ahead of every other. */
+  const Q = S.QUOTAS;
+  const keys = Object.keys(Q);
+  ck("the chip has its own quota", !!Q.ballot_oddity_chip, keys.join(", "));
+  ck("keyed on the card type, which is what decides the chip",
+     Q.ballot_oddity_chip && Q.ballot_oddity_chip.kind === "type" &&
+     Q.ballot_oddity_chip.type === "oddity");
+  /* First on purpose: a card is routed to the FIRST quota it matches, and half
+   * these cards are in the awards bucket. Second, and those would still go
+   * through the awards cycle at the old rate. */
+  ck("and it is listed first, ahead of the awards quota", keys[0] === "ballot_oddity_chip",
+     "order: " + keys.join(", "));
+  ck("the awards rotation no longer asks for one",
+     !Q.awards_voting.cycle.some(k => /^oddity\|/.test(k)), JSON.stringify(Q.awards_voting.cycle));
+  ck("and the rest of that rotation is still the video families",
+     Q.awards_voting.cycle.every(k => k === "race|ballot" || k === "lean|media-lean"));
 
-  /* A ballot RACE is awards-voting too. Rationing by bucket would have taken
-   * the video with it, which is the opposite of what was asked for. */
-  ck("a ballot race is a different family in the same bucket",
-     q.cycleOf({ type: "race", tags: { content_type: "race", category: "ballot" } })
-       === "race|ballot");
+  /* BEHAVIOUR, on a pool that holds all four families in both buckets, and
+   * enough of everything else that the plan never starves. */
+  const fam = [];
+  for (let i = 0; i < 60; i++) fam.push(mk("oddity", "ballot-oddity", i));
+  for (let i = 0; i < 60; i++) fam.push(mk("oddity", "career", i));
+  for (let i = 0; i < 20; i++) fam.push(mk("oddity", "record", i));
+  for (let i = 0; i < 60; i++) fam.push(mk("oddity", "award-history", i));
+  const big = pool({ live: 60, vs: 800, compare: 800, race: 400, otd: 400,
+                     trivia: 800, quiz: 400, ballot: 200, salary: 200 }).concat(fam);
+  const feed = run(1400, { pool: big });
+  const odd = feed.filter(c => ED.typeOf(c) === "oddity");
+  const firstAt = feed.findIndex(c => ED.typeOf(c) === "oddity");
+
+  ck("none in the opening fifty", firstAt < 0 || firstAt >= 50,
+     "first at card " + firstAt);
+  /* NOT ZERO. The instruction before this one still stands. */
+  ck("but not gone either", odd.length > 0, odd.length + " in " + feed.length);
+  /* A tenth of 6.9% is about one in 145. */
+  const per = feed.length / Math.max(1, odd.length);
+  ck("about one per 140 cards", per >= 120 && per <= 200,
+     "one per " + per.toFixed(0));
+
+  /* THE BUG THE AUDIT CAUGHT ON THE FIRST RUN. Two quotas, each obeying its own
+   * gap, together broke the awards rule: an awards-bucket oddity landed a few
+   * cards after an awards card. `respects` is what stops it. */
+  let worst = 0;
+  for (let i = 0; i < feed.length; i++) {
+    let n = 0;
+    for (let j = i; j < Math.min(feed.length, i + 12); j++) if (B(feed[j]) === "awards_voting") n++;
+    if (n > worst) worst = n;
+  }
+  ck("and never two awards-bucket cards in twelve, across both quotas", worst <= 1,
+     "worst twelve-card window: " + worst);
 }
 
 console.log("\nthe video rate, and the placement that makes it safe");
@@ -470,21 +505,39 @@ console.log("\na degenerate pool gives a short batch, not a wall");
   ck("both still lead with live", /^\s*"live"/.test(coldFb) && /^\s*"live"/.test(steadyFb),
      "a card that IS current beats any archive card");
 
-  /* And the numbers Jorge is actually judging: at boot, with the eager pools
-   * and no live, one card in four is playable rather than one in two. */
+  /* NO GAMES BEFORE THE NEWS. Jorge, on what the first screen should show
+   * while live is loading: "I'd rather have race animations than trivia
+   * there." While the pool holds no live card, inside the cold window, the
+   * game slot goes to comparison. */
   const bootish = pool({ live: 0, vs: 0, compare: 0, quiz: 0, salary: 0,
                          race: 220, otd: 64, trivia: 300, ballot: 160 });
-  const bootFeed = run(16, { pool: bootish });
-  const playable = countIf(bootFeed, c => B(c) === "game");
-  ck("a live-less boot feed is about a quarter playable",
-     playable / bootFeed.length <= 0.3,
-     Math.round(100 * playable / bootFeed.length) + "% of " + bootFeed.length);
-  /* Two quizzes in a row is what "a bunch of trivia questions" looks like. */
-  let adjacent = 0;
-  for (let i = 1; i < bootFeed.length; i++) {
-    if (B(bootFeed[i]) === "game" && B(bootFeed[i - 1]) === "game") adjacent++;
-  }
-  ck("and never puts two of them together", adjacent === 0, adjacent + " adjacent pairs");
+  const first = S.build({ pool: bootish, size: 8, position: 0, tail: [],
+    since: S.newCounters(), sample: (list, n) => list.slice(0, n), rng: () => 0.5 }).cards;
+  ck("before any live card, the first batch carries no games",
+     first.length > 0 && first.every(c => B(c) !== "game"),
+     first.map(c => ED.typeOf(c)).join(", "));
+  /* The slot games gave up goes to comparison, and races are the comparison
+   * pool that is there at boot. Whether a history card sorts ahead of it is
+   * the ordering pass's business, not this rule's. */
+  ck("and the slot games gave up goes to a race", first.some(c => ED.typeOf(c) === "race"),
+     first.map(c => ED.typeOf(c)).join(", "));
+
+  /* The moment one live card exists, the plan is back to one game in eight.
+   * A rule that kept games out after the news landed would be a ban. */
+  const withLive = bootish.concat(pool({ live: 40, vs: 0, compare: 0, race: 0, otd: 0,
+                                         trivia: 0, quiz: 0, ballot: 0, salary: 0 }));
+  const withNews = S.build({ pool: withLive, size: 8, position: 8, tail: [],
+    since: S.newCounters(), sample: (list, n) => list.slice(0, n), rng: () => 0.5 }).cards;
+  ck("and games return once the news is in the pool",
+     withNews.some(c => B(c) === "game"), withNews.map(c => ED.typeOf(c)).join(", "));
+
+  /* Past the cold window the hold lifts even with no live at all: by card 48
+   * the news has either arrived or is not coming, and a long session with no
+   * games would be a ban by another route. */
+  const late = S.build({ pool: bootish, size: 8, position: 400, tail: [],
+    since: S.newCounters(), sample: (list, n) => list.slice(0, n), rng: () => 0.5 }).cards;
+  ck("and the hold lifts after the cold window", late.some(c => B(c) === "game"),
+     late.map(c => ED.typeOf(c)).join(", "));
 
   /* THE SAME POOL AFTER THE COLD WINDOW. Past card 48 everything is loaded, so
    * a cap there would only stop a deep session drawing from the one family it

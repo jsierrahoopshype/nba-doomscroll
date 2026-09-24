@@ -131,7 +131,25 @@
 
   /* ---------------- boot ---------------- */
 
-  /* THE EAGER SET IS THE FIRST SCREEN, SO IT HAS TO MATCH THE COLD PLAN.
+  /* THE EAGER SET IS THE FIRST SCREEN BEFORE THE NEWS, SO IT HAS TO MATCH
+   * WHAT THE COLD PLAN DRAWS THEN.
+   *
+   * SEPT 24 2026 REVISION, read this first. Two pools left this list: record
+   * and career. Every card in both is type `oddity`, which renders under a
+   * BALLOT ODDITY chip, and Jorge asked for those cut to a tenth ("I see too
+   * many of these Ballot Oddities"). js/schedule.js now throttles every oddity
+   * card to one per 140, so loading them before the first paint bought nothing
+   * the first screen could use. They still load with History, and For You gets
+   * them from there.
+   *
+   * What the cold plan draws before any live card exists is now one thing:
+   * comparison. js/schedule.js holds games back until the news lands (Jorge:
+   * "I'd rather have race animations than trivia there") and history_record
+   * has no eager source that is not an oddity. So the invariant in
+   * tools/test_app_pools.mjs is now "comparison has unthrottled eager cards",
+   * and race-pool is what satisfies it.
+   *
+   * The history of how the list got here, kept because it is the reasoning:
    *
    * This list used to be dummy-cards, quiz, trivia and ballot: chosen for size,
    * to cover "every tab's first screen". Read against the scheduler it was the
@@ -161,8 +179,6 @@
    * fetch lands, which is what absorbLive is for. */
   var EAGER_POOLS = [
     "data/dummy-cards.json",   /* the Trades tab's own first screen        17KB */
-    "data/record-pool.json",   /* history_record                            6KB */
-    "data/career-pool.json",   /* history_record                           35KB */
     "data/race-pool.json",     /* comparison, and every animation         169KB */
     "data/trivia-pool.json",   /* game, and the smaller of the two        125KB */
     "data/ballot-pool.json"    /* awards_voting, and the Quiz tab          86KB */
@@ -573,7 +589,12 @@
 
     function swapInLive(loader, type) {
       if (!loader) return;
+      newsPendingSources++;
       loader.load().then(function (live) {
+        /* Settled either way: a source that returned nothing counts towards
+         * "every source has answered" just as a success does. Opened before
+         * absorbLive below, so the loadMore it makes is not held by the gate. */
+        newsSettle(!!(live && live.length));
         // js/rumors.js is deliberately fail-soft and resolves with an empty
         // array rather than rejecting, so an empty result is the failure signal
         // — not just a rejected promise.
@@ -602,6 +623,7 @@
         else { state.exhausted = false; renderSummary(); }
       }).catch(function (e) {
         console.warn("[doomscroll] live " + type + " failed:", e.message);
+        newsSettle(false);
         liveFailed[type] = true;
         /* RUMORS_ON, same reason as the empty-result branch above. */
         if (type === "rumor") dropInventedRumors();
@@ -632,6 +654,9 @@
     if (RUMORS_ON) swapInLive(root.LiveRumors, "rumor");
     swapInLive(root.DoomTrades, "trade");
     swapInLive(root.LiveBuzz, "buzz");
+    /* The gate's backstop: a live source that neither resolves nor rejects
+     * must not hold For You at one card. See NEWS_WAIT_MS. */
+    setTimeout(function () { openNewsGate("timeout"); }, NEWS_WAIT_MS);
 
     // A shared link can point straight at a lazy tab's card, so ask for that
     // tab's pool before waiting on the current one.
@@ -1533,7 +1558,70 @@
     return true;
   }
 
+  /* THE NEWS GATE: ONE CARD, THEN WAIT FOR THE NEWS.
+   *
+   * Whatever For You renders before the live feed lands stays at the top of
+   * the page, because live cards append below an active feed rather than
+   * clearing it (§17). Before the news arrives the only archive cards to hand
+   * are races and trivia, and Jorge, asked which, said: "I'd rather have race
+   * animations than trivia there."
+   *
+   * So the first batch renders as usual - js/schedule.js holds games back while
+   * the pool has no live card, so it is a race - and then the feed does NOT
+   * keep topping itself up from the archive. It used to: every small pool that
+   * landed added one more card while the feed was under eight, and measured
+   * that stacked eight race animations before the first news item. The gate
+   * holds For You at what it has until one of:
+   *
+   *   - a live source lands with cards (absorbLive then draws a live-led batch)
+   *   - every live source has answered, successfully or not
+   *   - NEWS_WAIT_MS passes, so a hung fetch cannot strand a reader on one card
+   *
+   * Every other tab, and For You behind an entity filter, is untouched: there
+   * the reader has asked for something specific and the news is not the point.
+   * NEWS_WAIT_MS = 0 switches the gate off entirely. */
+  var NEWS_WAIT_MS = 4000;
+  var newsGateOpen = NEWS_WAIT_MS <= 0;
+  var newsPendingSources = 0;
+
+  function newsSettle(gotCards) {
+    newsPendingSources = Math.max(0, newsPendingSources - 1);
+    if (gotCards) openNewsGate("live");
+    else if (!newsPendingSources) openNewsGate("all sources answered");
+  }
+
+  function openNewsGate(why) {
+    if (newsGateOpen) return;
+    newsGateOpen = true;
+    var wait = feedEl.querySelector(".feed-wait");
+    if (wait) wait.parentNode.removeChild(wait);
+    console.info("[doomscroll] news gate open: " + why);
+    /* A live success is followed by absorbLive, which draws its own batch.
+     * The other two reasons have nothing following them, so top up here. */
+    if (why !== "live" && state.tab === "foryou" &&
+        feedEl.querySelectorAll(".card").length < BATCH) {
+      state.exhausted = false;
+      loadMore();
+    }
+  }
+
+  function heldForNews() {
+    return !newsGateOpen && state.tab === "foryou" && !state.entity &&
+           !!feedEl.querySelector(".card");
+  }
+
   function loadMore() {
+    if (heldForNews()) {
+      /* One quiet line under the card, so a feed of one does not read as a
+       * feed that has finished. Removed the moment the gate opens. */
+      if (!feedEl.querySelector(".feed-wait")) {
+        var w = document.createElement("div");
+        w.className = "feed-msg feed-wait";
+        w.textContent = "Loading today’s NBA…";
+        feedEl.appendChild(w);
+      }
+      return;
+    }
     if (state.loading || state.exhausted) return;
     state.loading = true;
     /* An empty feed is starting over, whatever phase the last one ended in.

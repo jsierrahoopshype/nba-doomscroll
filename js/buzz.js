@@ -701,9 +701,25 @@
     });
   }
 
+  /* An account Jorge has muted, matched three ways because each can be missing
+   * on its own: the handle in the post URL (always there for Bluesky), the
+   * author handle the index carries, and the DID inside the post id, which
+   * survives a handle change. See muted_note in data/buzz-sources.json. */
+  function muted(item, cfg) {
+    var handles = cfg.muted_handles || [], dids = cfg.muted_dids || [];
+    if (!handles.length && !dids.length) return false;
+    var h = [bskyHandle(item.url), item.author && item.author.handle]
+      .filter(Boolean).map(function (x) { return String(x).toLowerCase(); });
+    for (var i = 0; i < h.length; i++) if (handles.indexOf(h[i]) >= 0) return true;
+    var id = "";
+    try { id = decodeURIComponent(String(item.id || "")); } catch (e) { id = String(item.id || ""); }
+    for (var j = 0; j < dids.length; j++) if (id.indexOf(dids[j]) >= 0) return true;
+    return false;
+  }
+
   function build(lists, cfg, map, blocked) {
     var seenId = {}, seenTitle = {}, perSource = {}, cards = [], dropped = 0;
-    var leagueKept = 0;
+    var leagueKept = 0, mutedN = 0;
     var oldest = cfg.max_age_days
       ? Date.now() - cfg.max_age_days * 86400000
       : 0;
@@ -712,6 +728,7 @@
         if (!item || !item.url || !item.title || !item.source) return;
         var src = cfg.sources[item.source];
         if (!src || src.on === false) return;
+        if (muted(item, cfg)) { mutedN++; return; }
         var id = cardId(item);
         if (seenId[id]) return;
         var tk = titleKey(item.title);
@@ -782,6 +799,10 @@
       console.info("[doomscroll] buzz kept " + leagueKept +
         " league-level item(s) that name no player or team");
     }
+    /* Counted apart from `dropped` so the console says the mute is working,
+     * and so the day it reads zero for a week the list can be tidied. */
+    out.muted = mutedN;
+    if (mutedN) console.info("[doomscroll] buzz hid " + mutedN + " post(s) from muted accounts");
     return out;
   }
 
@@ -849,5 +870,5 @@
     });
   }
 
-  root.LiveBuzz = { load: load, base: BASE, leagueTopic: leagueTopic };
+  root.LiveBuzz = { load: load, base: BASE, leagueTopic: leagueTopic, muted: muted };
 })(window);
