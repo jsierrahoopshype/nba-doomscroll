@@ -196,15 +196,47 @@ const pools = fs.readdirSync(path.join(REPO, "data"))
   .filter(f => BOOT ? EAGER.indexOf(f) >= 0 : /-pool\.json$/.test(f))
   .filter(f => !SKIP.some(s => f.indexOf(s) >= 0))
   .sort();
+/* ON THIS DAY MEANS ONE DAY, in the browser and therefore here.
+ *
+ * js/app.js keeps only the on-this-day cards for today's date (or the nearest
+ * date within a week that has any) and drops the rest on load - see
+ * pickOtdDate there. vault-pool.json holds 1,069 of them, about three per
+ * calendar date. This audit used to keep all 1,069, so it measured a
+ * history_record bucket of 1,133 cards that was 94% on-this-day, when the
+ * reader's browser has about 67 in it and nearly all of them are career and
+ * record oddities under a BALLOT ODDITY chip.
+ *
+ * That is how the audit reported ballot oddities at 2.6% of a session while
+ * Jorge was seeing them constantly: it was measuring a feed nobody is served.
+ * The date is the audit's fixed clock, so runs still compare. */
+function mdOf(ms, offsetDays) {
+  const d = new Date(ms + (offsetDays || 0) * 86400000);
+  return String(d.getUTCMonth() + 1).padStart(2, "0") + "-" + String(d.getUTCDate()).padStart(2, "0");
+}
+function pickOtdDate(list) {
+  const have = new Set(list.filter(c => c && c.type === "otd" && c.payload && c.payload.date)
+                           .map(c => c.payload.date));
+  for (let off = 0; off <= 7; off++) {
+    if (have.has(mdOf(NOW, -off))) return mdOf(NOW, -off);
+    if (off && have.has(mdOf(NOW, off))) return mdOf(NOW, off);
+  }
+  return null;
+}
+
 const archive = [];
 for (const f of pools) {
   const j = JSON.parse(fs.readFileSync(path.join(REPO, "data", f), "utf8"));
   const cards = Array.isArray(j) ? j : (j.cards || []);
+  const otdDate = pickOtdDate(cards);
   for (const c of cards) {
     /* THE SAMPLE CARDS ARE NOT IN FOR YOU, so an audit that counts them is
      * measuring a feed nobody is served. Only reachable in --boot mode, which
      * is the only mode that loads dummy-cards.json at all. */
     if (c && c.dummy) continue;
+    /* Mirrors addCards in js/app.js: other dates' on-this-day cards never
+     * reach the reader. */
+    if (c && c.type === "otd" && c.payload && c.payload.date && otdDate &&
+        c.payload.date !== otdDate) continue;
     archive.push(c);
   }
 }
@@ -363,6 +395,12 @@ function runSession(E, S, pool, wanted, rnd) {
       /* Counted as served, exactly as js/app.js counts it in the render loop. */
       if (S && since) S.countCard(since, c);
     }
+    /* --boot MEASURES ONE BATCH, because a browser shows one. After the first
+     * batch js/app.js holds For You until the news lands (the news gate), so
+     * the eager pools never get asked for a second batch. Drawing more here
+     * would be measuring a screen nobody sees - it did exactly that at first
+     * and reported eight stacked race animations. */
+    if (BOOT) break;
   }
   return feed;
 }
@@ -387,8 +425,8 @@ console.log(`  cold-start window: first ${COLD} cards, which is what §1 targets
 console.log(`  clock:        ${new Date(NOW).toISOString()} (fixed, so reports compare)`);
 console.log(`  seeds:        ${SEED0}, engine Math.random shadowed per run`);
 if (BOOT) {
-  console.log(`  BOOT MODE:    only the ${EAGER.length} eager pools, dummies excluded - the first`);
-  console.log(`                second of a cold load, before the lazy pools and live land.`);
+  console.log(`  BOOT MODE:    only the ${EAGER.length} eager pools, dummies excluded, ONE batch - the`);
+  console.log(`                first screen of a cold load, which the news gate then holds.`);
 }
 if (!LIVE_SUPPLY) {
   console.log(`  NOTE:         --live 0, so the §1 SHARE targets are not judged: with no live`);
@@ -416,6 +454,8 @@ function summarize(list) {
   const agg = {
     buckets: {}, types: {}, sources: {},
     live: 0, playable: 0, gtp: 0, history: 0, comparison: 0, awards: 0, money: 0,
+    /* every card under the BALLOT ODDITY chip, whichever bucket it is in */
+    oddity: 0,
     mediaHeavy: 0, autoplay: 0, total: 0,
     gapAwards: [], gapMoney: [], gapGtp: [], gapPlayable: [], gapMedia: [],
     firstPlayable: [], firstLive: [],
@@ -443,6 +483,7 @@ function summarize(list) {
       }
       if (hasTrait(c, "playable")) agg.playable++;
       if (hasTrait(c, "guess_the_player")) agg.gtp++;
+      if (t === "oddity") agg.oddity++;
       if (b === "history_record") agg.history++;
       if (b === "comparison") agg.comparison++;
       if (b === "awards_voting") { agg.awards++; awards++; }
@@ -622,13 +663,17 @@ if (LIVE_SHARES_MEANINGFUL) {
  * but the thing the boot window exists to catch does: one bucket taking over
  * the first screen. Half the first screen being quiz cards is what Jorge saw
  * twice, and it passed every check this file had. */
+/* The boot rules are Jorge's, Sept 24 2026: before the news lands, race
+ * animations rather than trivia, and ballot oddities cut to a tenth. The first
+ * screen therefore carries no games and no oddities at all, and has at least
+ * one comparison - which at boot means a race. History is no longer required:
+ * its only eager source was the oddity pools, and those are throttled. */
 if (BOOT) {
-  const share = b => pct(cold[b], cold.total);
-  if (share("playable") > 30) {
-    bad.push(`BOOT: playable is ${share("playable").toFixed(1)}% of the first screen, max 30% before live arrives`);
+  if (cold.playable > 0) {
+    bad.push(`BOOT: ${cold.playable} playable card(s) on the first screen, want none before the news`);
   }
-  if (cold.history === 0) bad.push(`BOOT: no history cards at all in the eager set`);
-  if (cold.comparison === 0) bad.push(`BOOT: no comparison cards at all in the eager set`);
+  if (cold.comparison === 0) bad.push(`BOOT: no comparison (race) on the first screen`);
+  if (cold.oddity > 0) bad.push(`BOOT: ${cold.oddity} BALLOT ODDITY card(s) on the first screen, want none`);
 }
 if (cold.awards / cold.runs > 2) bad.push(`COLD: ${(cold.awards / cold.runs).toFixed(1)} awards cards per ${COLD}, want 1-2`);
 if (cold.money / cold.runs > 1) bad.push(`COLD: ${(cold.money / cold.runs).toFixed(1)} static salary cards per ${COLD}, want 0-1`);

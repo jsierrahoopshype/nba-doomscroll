@@ -115,6 +115,41 @@
    * both, and the window check stays as the thing that would catch a future
    * change to the gap rather than as belt and braces. */
   var QUOTAS = {
+    /* EVERY CARD UNDER A "BALLOT ODDITY" CHIP, WHICHEVER POOL IT CAME FROM.
+     *
+     * Four families render with that one chip, because js/cards.js labels by
+     * type and all four are type `oddity`: ballot oddities proper (oddity-pool,
+     * vault-pool), award-history droughts, career oddities ("Jerry West drew an
+     * MVP vote in 1972-73...") and records that stood. Two of those are in the
+     * awards bucket and two in history_record, so neither bucket's rules could
+     * see them as one thing - and the reader does, because the chip is the same.
+     *
+     * Jorge, Sept 24 2026: "I see too many of these Ballot Oddities. Cut to 10
+     * percent of what it is now." Measured against what a browser actually
+     * serves (the audit had been counting 1,069 on-this-day cards the app drops
+     * on load, which hid this), they were 9.1% of the first fifty cards, 6.9%
+     * of a session and HALF of the first screen before live lands - the career
+     * and record pools became eager in Stage 6 and history_record got the boot
+     * fallback slots in Stage 7, so that half is my doing.
+     *
+     * One per 140 cards is about a tenth of 6.9%. The first lands around card
+     * 140, so the opening fifty carries none - which is a tenth of 9.1% rounded
+     * to the nearest whole card. He also said, the last time these were cut,
+     * "don't go to 0": one in 140 is sprinkled, not gone.
+     *
+     * LISTED FIRST ON PURPOSE. isThrottled routes a card to the first quota it
+     * matches, so this has to come before awards_voting or the oddity-pool cards
+     * would keep going through the awards cycle at the old rate. The History tab
+     * does not use this scheduler and still shows all of them. */
+    /* `respects`: half these cards are also in the awards bucket, and the awards
+     * rule is never two in twelve. Without this, an oddity admitted here could
+     * land three cards after an awards card admitted by the awards quota - two
+     * quotas, each obeying its own gap, together breaking a rule neither owns.
+     * The audit caught exactly that on the first run. While an awards card is
+     * inside its window, this quota draws only from the non-awards families
+     * (career oddities, records). */
+    ballot_oddity_chip: { kind: "type", type: "oddity", gap: 140, window: 140,
+                          respects: "awards_voting" },
     awards_voting: {
       kind: "bucket", gap: 28, window: 12,
       /* WHICH KIND OF AWARDS CARD, IN TURN.
@@ -133,8 +168,11 @@
        * ballot oddity lands roughly once every 200 cards. The other five slots
        * are the animated awards families, which is also where "more video"
        * comes from. */
+      /* The oddity slot that used to sit fourth is gone: every `oddity` card
+       * now routes to ballot_oddity_chip above and can never reach this cycle,
+       * so asking for one here would only ever fall through to another family. */
       cycle: ["race|ballot", "lean|media-lean", "race|ballot",
-              "oddity|ballot-oddity", "lean|media-lean", "race|ballot"],
+              "lean|media-lean", "race|ballot"],
       cycleOf: function (card) {
         return ED.typeOf(card) + "|" + ED.categoryOf(card);
       }
@@ -252,7 +290,10 @@
       /* How many of each throttled kind have been SERVED, which is what the
        * tier rotation indexes on. Distinct from the gap counters above: those
        * reset to zero on a hit, these only ever go up. */
-      seen: { awards_voting: 0, money_cap_static: 0, guess_the_player: 0 }
+      /* Starts at zero like the others: a cold start is not a backlog, and
+       * the first oddity arriving around card 140 is the point. */
+      ballot_oddity_chip: 0,
+      seen: { ballot_oddity_chip: 0, awards_voting: 0, money_cap_static: 0, guess_the_player: 0 }
     };
   }
 
@@ -260,7 +301,7 @@
   function countCard(since, card) {
     for (var k in QUOTAS) {
       if (!QUOTAS.hasOwnProperty(k)) continue;
-      var hit = QUOTAS[k].kind === "trait" ? hasTrait(card, k) : bucketOf(card) === k;
+      var hit = matchesKind(card, k);
       since[k] = hit ? 0 : (since[k] === Infinity ? Infinity : since[k] + 1);
       if (hit) {
         if (!since.seen) since.seen = {};
@@ -281,8 +322,14 @@
     return out;
   }
 
+  /* Three kinds of quota: a whole bucket, an editorial trait, or a card type.
+   * `type` exists for the BALLOT ODDITY chip, which is one thing to a reader and
+   * two different buckets to the classification. */
   function matchesKind(card, kind) {
-    return QUOTAS[kind].kind === "trait" ? hasTrait(card, kind) : bucketOf(card) === kind;
+    var q = QUOTAS[kind];
+    if (q.kind === "trait") return hasTrait(card, kind);
+    if (q.kind === "type") return ED.typeOf(card) === q.type;
+    return bucketOf(card) === kind;
   }
 
   /* A card is available to the ordinary plan only if it is not something the
@@ -356,6 +403,35 @@
                 comparison: plan.slots.comparison };
       slots[donor] = Math.max(0, slots[donor] - 1);
     }
+    /* NO GAMES BEFORE THE NEWS.
+     *
+     * Jorge, Sept 24 2026, asked what the first screen should show while the
+     * live feed is still loading: "I'd rather have race animations than trivia
+     * there." Whatever renders first stays at the top - live cards append below
+     * an active feed rather than clearing it - so this is the whole opening
+     * screen, not a flash.
+     *
+     * So while the pool holds no live card at all and we are inside the cold
+     * window, the plan's game slot moves to comparison. Races are the eager
+     * comparison pool, so that is what fills it. The moment one live card is in
+     * the pool the plan is back to its normal one game in eight.
+     *
+     * The one exception is a batch that would otherwise be empty - see the end
+     * of build(). An empty batch reads to js/app.js as the end of the feed, and
+     * a quiz beats "You have seen everything" on a first visit. */
+    var liveInPool = false;
+    for (var li = 0; li < pool.length; li++) {
+      if (bucketOf(pool[li]) === "live") { liveInPool = true; break; }
+    }
+    var gamesHeldBack = position < COLD_CARDS && !liveInPool && (slots.game || 0) > 0;
+    if (gamesHeldBack) {
+      var s2 = {};
+      for (var sk in slots) if (slots.hasOwnProperty(sk)) s2[sk] = slots[sk];
+      s2.comparison = (s2.comparison || 0) + s2.game;
+      s2.game = 0;
+      slots = s2;
+    }
+
     var allow = admissible(since);
 
     /* Buckets first, throttled kinds second, so a card that is both (a ballot
@@ -516,6 +592,16 @@
        * mix. Preferred, not required: an empty tier must not cost the slot. */
       var pool2 = throttled[k2] || [];
       var q = QUOTAS[k2];
+      /* Another quota's window, honoured for the cards that fall in its
+       * bucket - see `respects` on ballot_oddity_chip. */
+      if (q.respects && QUOTAS[q.respects]) {
+        var guard = QUOTAS[q.respects].window || QUOTAS[q.respects].gap;
+        var sinceOther = since[q.respects];
+        if (sinceOther !== Infinity && sinceOther < guard) {
+          var other = q.respects;
+          pool2 = pool2.filter(function (c) { return bucketOf(c) !== other; });
+        }
+      }
       if (q.cycle && pool2.length) {
         var n = (since.seen && since.seen[k2]) || 0;
         var wanted = q.cycle[n % q.cycle.length];
@@ -610,10 +696,21 @@
     if (picked.length < size) {
       var rest = [];
       for (var b3 in byBucket) {
-        if (byBucket.hasOwnProperty(b3) && !want[b3]) rest = rest.concat(byBucket[b3]);
+        if (!byBucket.hasOwnProperty(b3) || want[b3]) continue;
+        /* `game` has a want of 0 while it is held back, which this loop used to
+         * read as "not in the plan, so fair game" - the exact leak that would
+         * put the trivia straight back on the first screen. */
+        if (gamesHeldBack && b3 === "game") continue;
+        rest = rest.concat(byBucket[b3]);
       }
       take(rest, size - picked.length);
     }
+
+    /* The exception to NO GAMES BEFORE THE NEWS: never hand back an empty
+     * batch for want of a game. js/app.js reads empty as "this section is
+     * finished" and moves the feed on, which on a first visit would mean a
+     * reader told they had seen everything before they had seen anything. */
+    if (!picked.length && gamesHeldBack) take(byBucket.game || [], 1);
 
     return {
       cards: order(picked.slice(0, size), tail, rng),
