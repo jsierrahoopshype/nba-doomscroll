@@ -69,8 +69,15 @@ check("unparseable date is not a demotion",
   E.freshness({ payload: { published_at: "not a date" } }) === 1);
 check("monotonically decreasing",
   pts.every((h, i) => i === 0 || at(h) <= at(pts[i - 1]) + 1e-9));
-check("under 6h stays high", at(3) > 0.85, "3h=" + at(3).toFixed(3));
-check("yesterday is roughly half", at(24) > 0.35 && at(24) < 0.55, "24h=" + at(24).toFixed(3));
+/* STEEPENED SEPT 24 2026. Jorge: Buzz "shows a lot of older content from 10+
+ * hours ago ... I would most definitely lean towards showing recent content
+ * over the older stuff." These used to read "under 6h stays high (>0.85)" and
+ * "yesterday is roughly half" - the old curve, under which a day-old post kept
+ * half a new one's chance. The new intent: the last couple of hours stay near
+ * full weight, twelve hours is a clear demotion, a day is marginal. */
+check("the last few hours stay high", at(3) > 0.8, "3h=" + at(3).toFixed(3));
+check("ten hours is already well down", at(10) < 0.5, "10h=" + at(10).toFixed(3));
+check("yesterday is marginal", at(24) > 0.1 && at(24) < 0.2, "24h=" + at(24).toFixed(3));
 check("three days is much lower", at(72) < 0.2, "72h=" + at(72).toFixed(3));
 check("a week is rare but reachable", at(168) > 0 && at(168) < 0.06, "168h=" + at(168).toFixed(3));
 check("past the last anchor holds the floor", at(400) === at(168));

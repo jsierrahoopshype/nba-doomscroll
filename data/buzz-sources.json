@@ -29,12 +29,12 @@
   "require_entity_note": "An item must carry at least one player or team tag. This is the single most effective quality filter: the accounts Content Stream follows post about their own lives and other sports between NBA posts, and 29 of 100 items in a sample carried no NBA entity at all — baseball chatter, podcast plugs and personal jokes. Set false on a source to let its untagged items through.",
   "max_age_days": 7,
   "freshness": {
-    "anchors": [[0, 1.0], [6, 0.85], [24, 0.45], [72, 0.12], [168, 0.03]],
+    "anchors": [[0, 1.0], [2, 0.9], [6, 0.6], [12, 0.35], [24, 0.15], [72, 0.05], [168, 0.03]],
     "floor": 0.03,
     "trending_boost": 1.7,
-    "trending_ceiling": 0.65
+    "trending_ceiling": 0.35
   },
-  "freshness_note": "How hard the For You feed demotes an ageing Buzz card. Pairs of [hours old, multiplier], interpolated between, so there is no cliff at a band edge. The Buzz TAB is unaffected: it sorts newest-first and never consults this. Archive cards carry no publication time and are never touched — a 2016 award race is as interesting today as yesterday. trending_boost lifts a badged post; trending_ceiling caps the result at roughly what a twelve-hour-old post scores unaided, so a week-old trending item reads as 'yesterday' at best and never as breaking. Delete the whole block to fall back to the engine's built-in curve.",
+  "freshness_note": "How hard the For You feed demotes an ageing Buzz card. Pairs of [hours old, multiplier], interpolated between, so there is no cliff at a band edge. The Buzz TAB is unaffected: it sorts newest-first and never consults this. Archive cards carry no publication time and are never touched — a 2016 award race is as interesting today as yesterday. trending_boost lifts a badged post; trending_ceiling caps the result at roughly what a twelve-hour-old post scores unaided, so a week-old trending item reads as 'yesterday' at best and never as breaking. Delete the whole block to fall back to the engine's built-in curve. Steepened Sept 24 2026 at Jorge's request (Buzz was showing too much from 10+ hours ago): a 12-hour-old post now scores 0.35 of a new one, a day-old post 0.15. trending_ceiling moved from 0.65 to 0.35 with it, so the cap still means what this note says: a stale trending item reads as about twelve hours old at best. js/schedule.js also limits For You's news slots to the eight newest unshown live cards, which does most of the work; this curve decides among those eight.",
   "dedupe": {
     "on": true,
     "min_overlap": 0.6,
