@@ -2,12 +2,13 @@
   "note": "Editorial config for the Buzz tab. Sources come from nba-content-stream's published feed; this file decides which of them reach a reader, how they are labelled, and whether their body text is rendered. Edit this file rather than js/buzz.js.",
   "excerpt_note": "excerpt:false means the item's body_excerpt is NOT rendered. google-news repeats the headline plus the outlet name, which adds nothing. youtube descriptions carry sportsbook affiliate links and promo codes, which must never render on a HoopsHype-adjacent page.",
   "sources": {
-    "bluesky":     { "on": true,  "label": "Bluesky",  "excerpt": true,  "cta": "View on Bluesky", "max": 40 },
+    "bluesky":     { "on": true,  "label": "Bluesky",  "excerpt": true,  "cta": "View on Bluesky", "max": 150, "max_per_author": 8 },
     "reddit":      { "on": true,  "label": "r/NBA",    "excerpt": true,  "cta": "Open thread",     "max": 20, "excerpt_chars": 700 },
     "google-news": { "on": false, "label": "News",     "excerpt": false, "cta": "Read the story",  "max": 32, "drop_truncated": true, "outlet_allow": [] },
     "youtube":     { "on": true,  "label": "YouTube",  "excerpt": false, "cta": "Watch",           "max": 10, "autoplay": true },
     "substack":    { "on": true,  "label": "Substack", "excerpt": true,  "cta": "Read the post",   "max": 10, "excerpt_chars": 500 }
   },
+  "bluesky_cap_note": "Bluesky max raised from 40 to 150 on Sept 29 2026, at Jorge's call, so For You has enough news to taper through a long scroll without repeating anything. max_per_author (8) keeps a few prolific accounts from taking most of it. Lower max to go back.",
   "muted_note": "Bluesky accounts never shown in Buzz, matched on the handle in the post URL, the author handle and the DID in the post id. The account is also removed from nba-content-stream's poll list (data/sources/bluesky_overrides.json there), which stops NEW posts; this list is what hides the ones already published, which stay in the index for up to max_age_days. Jorge, Sept 24 2026: remove Alejandro Gaitan, he does not want to see that content.",
   "muted_handles": ["alejandroggo.com"],
   "muted_dids": ["did:plc:eensm34x6vktvhoffhe2e35f"],

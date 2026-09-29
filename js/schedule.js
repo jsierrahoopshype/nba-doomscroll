@@ -99,7 +99,10 @@
     },
     steady: {
       slots: { live: 5, game: 1, history_record: 1, comparison: 1 },
-      fallback: ["live", "history_record", "game", "comparison", "comparison"]
+      /* One comparison entry, not two. With two, a feed past the end of Buzz
+       * went roughly half comparisons; Jorge, Sept 29 2026, wants history,
+       * games and comparisons in even thirds once the news is paced out. */
+      fallback: ["live", "history_record", "game", "comparison"]
     }
   };
 
@@ -285,6 +288,56 @@
   var TRADE_FAMILY = { trade: 1, tradetrend: 1, tradedigest: 1, traderank: 1 };
   var LIVE_TRADES_PER_BATCH = 2;
   function isTradeFamily(c) { return !!TRADE_FAMILY[ED.typeOf(c)]; }
+
+  /* PACING: MAKE THE NEWS LAST, NEVER REPEAT IT, AND TAPER IT.
+   *
+   * Jorge, Sept 29 2026: "Any content should be there just once." Buzz is a
+   * fixed set per page load, so at the cold-start rate (five or six live in
+   * eight) it is gone by card ~150 and the feed below has no news at all. The
+   * recycle that briefly kept it going repeated posts, and was taken out.
+   *
+   * Then, on an even spread to card 500: "I think this should be more subtle
+   * ... more Buzz heavy at the beginning and less at the end." So past the
+   * cold window each batch takes a FIXED FRACTION of whatever unseen news is
+   * left: size / PACE_TAU of it. That is exponential decay - every stretch of
+   * PACE_TAU cards serves about 63% of what remained when it started - so
+   * cards 48-150 carry the most, 150-250 fewer, 250-350 fewer again, and the
+   * tail thins out without a cliff. Trades follow the same curve, never above
+   * LIVE_TRADES_PER_BATCH. The first 48 cards are not touched.
+   *
+   * Fractional rates (0.6 news cards per batch, say) are spread with a
+   * golden-ratio dither on the batch number, so they average out exactly
+   * without a random draw - the audit gets the same feed twice. */
+  /* TWO CEILINGS, AND THE LOWER ONE WINS.
+   *
+   *   The SCHEDULE: a target share that starts at PACE_SHARE[kind] just past
+   *   the cold window and halves roughly every 175 cards (PACE_DECAY). News
+   *   runs about 45% at card 50, 30% at 150, 20% at 250, 13% at 350, 9% at
+   *   450. This is what a big news day gets.
+   *
+   *   The SUPPLY: never more than size / PACE_TAU of what is left, per batch.
+   *   On a thin day this is the lower one, so the news stretches out instead
+   *   of the schedule spending it all by card 200.
+   *
+   * Measured against the real scheduler: 70 unseen posts read 40 / 14 / 8 /
+   * 3 per hundred cards; 190 read about 56 / 33 / 23 / 14 / 11. */
+  var PACE_TAU = 160;
+  var PACE_DECAY = 250;
+  var PACE_SHARE = { news: 0.5, trades: 0.12 };
+  var PACE_MAX_NEWS = 5;
+  function dither(rate, batchIndex) {
+    if (rate <= 0) return 0;
+    var phase = (batchIndex * 0.6180339887498949) % 1;
+    return Math.floor(rate + phase);
+  }
+  function pacedCount(available, position, size, cap, kind) {
+    if (!available) return 0;
+    var bySchedule = size * PACE_SHARE[kind] *
+                     Math.exp(-Math.max(0, position - COLD_CARDS) / PACE_DECAY);
+    var bySupply = available * size / PACE_TAU;
+    return Math.min(cap, available,
+                    dither(Math.min(bySchedule, bySupply), Math.floor(position / size)));
+  }
 
   /* When a live card happened. Buzz carries published_at; a Trade Machine card
    * carries built_at, the moment the trade was saved. NaN for neither. */
@@ -511,15 +564,38 @@
     /* The trade cap, applied before anything draws from live, so neither the
      * newest-first pass, the plan nor the fallback can exceed it. The engine
      * still chooses WHICH trades. */
+    var paced = position >= COLD_CARDS;
     if (byBucket.live && byBucket.live.length) {
       var tradesIn = [], notTrades = [];
       for (var tq = 0; tq < byBucket.live.length; tq++) {
         (isTradeFamily(byBucket.live[tq]) ? tradesIn : notTrades).push(byBucket.live[tq]);
       }
-      if (tradesIn.length > LIVE_TRADES_PER_BATCH) {
-        tradesIn = sample(tradesIn, LIVE_TRADES_PER_BATCH, { avoid: o.avoid }) || [];
+      var tradeCap = paced
+        ? pacedCount(tradesIn.length, position, size, LIVE_TRADES_PER_BATCH, "trades")
+        : LIVE_TRADES_PER_BATCH;
+      if (tradesIn.length > tradeCap) {
+        tradesIn = tradeCap ? (sample(tradesIn, tradeCap, { avoid: o.avoid }) || []) : [];
+      }
+      if (paced) {
+        /* The rationed news: the newest unseen posts, exactly as many as the
+         * pace allows. Restricting the candidates (not just the plan) is what
+         * stops the fallback's `live` entry topping it up past the pace. */
+        var newsCap = pacedCount(notTrades.length, position, size, PACE_MAX_NEWS, "news");
+        notTrades = notTrades.slice().sort(function (a, b) {
+          var ta = liveTime(a), tb = liveTime(b);
+          return (isNaN(tb) ? -Infinity : tb) - (isNaN(ta) ? -Infinity : ta);
+        }).slice(0, newsCap);
+        var s3 = {};
+        for (var sk3 in slots) if (slots.hasOwnProperty(sk3)) s3[sk3] = slots[sk3];
+        s3.live = notTrades.length + tradesIn.length;
+        slots = s3;
       }
       byBucket.live = notTrades.concat(tradesIn);
+    } else if (paced) {
+      var s4 = {};
+      for (var sk4 in slots) if (slots.hasOwnProperty(sk4)) s4[sk4] = slots[sk4];
+      s4.live = 0;
+      slots = s4;
     }
 
     var liveNewest = [];
@@ -992,6 +1068,7 @@
     isThrottled: isThrottled,
     build: build,
     order: order,
-    LIVE_TRADES_PER_BATCH: LIVE_TRADES_PER_BATCH
+    LIVE_TRADES_PER_BATCH: LIVE_TRADES_PER_BATCH,
+    PACE_TAU: PACE_TAU
   };
 })(typeof window !== "undefined" ? window : this);

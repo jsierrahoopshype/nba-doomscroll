@@ -780,12 +780,23 @@
      * they could have had. */
     var kept = dedupeEvents(cards, cfg);
 
+    /* PER-AUTHOR CEILING. With Bluesky's cap raised from 40 to 150 (Sept 29
+     * 2026), a handful of prolific accounts would otherwise take most of it -
+     * in the index that day one reporter alone had 33 tagged posts. A source
+     * without max_per_author is uncapped per author, as before. Cards arrive
+     * trending-first and then newest, so the posts kept are an author's best. */
+    var perAuthor = {};
     var out = [];
     kept.forEach(function (card) {
       var s = card.payload.source;
       var src = cfg.sources[s] || {};
       var used = perSource[s] || 0;
       if (src.max && used >= src.max) return;
+      if (src.max_per_author && card.payload.author) {
+        var ak = s + "|" + String(card.payload.author).toLowerCase();
+        if ((perAuthor[ak] || 0) >= src.max_per_author) return;
+        perAuthor[ak] = (perAuthor[ak] || 0) + 1;
+      }
       perSource[s] = used + 1;
       out.push(card);
     });
