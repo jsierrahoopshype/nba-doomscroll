@@ -269,6 +269,23 @@
    * could still wait until the second batch. */
   var LIVE_WINDOW = 8;
 
+  /* AT MOST TWO TRADE-FAMILY CARDS PER BATCH OF EIGHT.
+   *
+   * Buzz and the Trade Machine cards share the `live` bucket, and nothing told
+   * them apart. Buzz supply is finite (a hundred-odd posts), so once it was
+   * used up every live slot - five of eight - went to community trades, and
+   * the feed past card ~100 read as trades and comparisons only. Jorge, Sept
+   * 29 2026: "Once you scroll past a certain point, the Buzz content
+   * disappears and everything becomes fake trades or comparisons."
+   *
+   * Two is about the trade family's natural share of live at the top of the
+   * feed (roughly a quarter of live supply), so the opening screens are not
+   * changed by this; it only stops trades absorbing slots Buzz can no longer
+   * fill. Buzz itself is kept supplied by the recycle in js/app.js. */
+  var TRADE_FAMILY = { trade: 1, tradetrend: 1, tradedigest: 1, traderank: 1 };
+  var LIVE_TRADES_PER_BATCH = 2;
+  function isTradeFamily(c) { return !!TRADE_FAMILY[ED.typeOf(c)]; }
+
   /* When a live card happened. Buzz carries published_at; a Trade Machine card
    * carries built_at, the moment the trade was saved. NaN for neither. */
   function liveTime(c) {
@@ -491,6 +508,20 @@
      *
      * Cards with no timestamp (the weekly trade trends) are always eligible:
      * there is nothing to rank them by, and there are only a handful. */
+    /* The trade cap, applied before anything draws from live, so neither the
+     * newest-first pass, the plan nor the fallback can exceed it. The engine
+     * still chooses WHICH trades. */
+    if (byBucket.live && byBucket.live.length) {
+      var tradesIn = [], notTrades = [];
+      for (var tq = 0; tq < byBucket.live.length; tq++) {
+        (isTradeFamily(byBucket.live[tq]) ? tradesIn : notTrades).push(byBucket.live[tq]);
+      }
+      if (tradesIn.length > LIVE_TRADES_PER_BATCH) {
+        tradesIn = sample(tradesIn, LIVE_TRADES_PER_BATCH, { avoid: o.avoid }) || [];
+      }
+      byBucket.live = notTrades.concat(tradesIn);
+    }
+
     var liveNewest = [];
     if (byBucket.live && byBucket.live.length) {
       var timed = [], untimed = [];
@@ -960,6 +991,7 @@
     admissible: admissible,
     isThrottled: isThrottled,
     build: build,
-    order: order
+    order: order,
+    LIVE_TRADES_PER_BATCH: LIVE_TRADES_PER_BATCH
   };
 })(typeof window !== "undefined" ? window : this);

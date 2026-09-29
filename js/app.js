@@ -115,6 +115,11 @@
   // is already on screen — invisible with a 2,000-card pool, glaring with the
   // handful of live trades. Cleared whenever the feed is cleared.
   var rendered = {};
+  /* Per-bucket recycling (see recycleForBuckets): when each card was last put
+   * on screen, as a running count of cards served, and that count. Reset with
+   * `rendered` in clearFeed, because a cleared feed is a new session. */
+  var shownAt = {};
+  var servedTotal = 0;
   /* entity: { kind: "player"|"team", value: "LeBron James" } or null.
    *
    * An entity filter deliberately CROSSES tabs rather than narrowing the
@@ -1302,6 +1307,8 @@
     if (root.YtVideo) YtVideo.releaseAll(feedEl);
     feedEl.innerHTML = "";
     rendered = {};
+    shownAt = {};
+    servedTotal = 0;
   }
 
   /* ---------------- feed ---------------- */
@@ -1447,6 +1454,70 @@
     return out;
   }
 
+  /* ---------------- per-bucket recycling ----------------
+   *
+   * THE MIX HAS TO HOLD AT ANY DEPTH. Jorge, Sept 29 2026: "Once you scroll
+   * past a certain point, the Buzz content disappears and everything becomes
+   * fake trades or comparisons ... The proportion of content should stay
+   * similar no matter how far down you scroll."
+   *
+   * The cause: For You only ever drew cards not yet on screen, and only went
+   * round again (advancePhase -> loop) once the WHOLE app was used up. Buzz is
+   * a hundred-odd posts against thousands of archive cards, so it ran dry
+   * around card 100 and could not come back until the reader had scrolled
+   * through every comparison in the pool, which nobody does. Its five live
+   * slots then went to trades, and to comparisons once trades ran out too.
+   *
+   * So each bucket now goes round on its own. When a bucket has fewer unseen
+   * cards than one batch, the cards of that bucket shown LONGEST AGO are put
+   * back in the pool - never one of the last RECYCLE_MIN_GAP cards, and never
+   * more than RECYCLE_TAKE of them, so a bucket cycles through all of its
+   * cards before any one comes back twice. Big buckets never reach this;
+   * in practice it is what keeps Buzz in the feed.
+   *
+   * The price is honest: past the point Buzz runs out, Buzz cards are
+   * repeats. The alternative is Buzz vanishing, which is the bug. Only in the
+   * `own` phase: the loop phase already has every card back. */
+  var RECYCLE_MIN_GAP = 40;
+  var RECYCLE_TAKE = BATCH * 2;
+  /* Live is split in two for this, because Buzz and trades share the bucket
+   * and a pool still holding a dozen unseen trades would otherwise count as a
+   * healthy live bucket while Buzz sat at zero. */
+  var TRADE_TYPES = { trade: 1, tradetrend: 1, tradedigest: 1, traderank: 1 };
+  function recycleGroup(ED, c) {
+    var b = ED.bucketOf(c);
+    if (b !== "live") return b;
+    return TRADE_TYPES[ED.typeOf(c)] ? "live:trades" : "live:news";
+  }
+  function recycleForBuckets(pool) {
+    var ED = root.DoomEditorial;
+    if (!ED || state.phase !== "own") return pool;
+    var unseen = {};
+    for (var i = 0; i < pool.length; i++) {
+      var b = recycleGroup(ED, pool[i]);
+      unseen[b] = (unseen[b] || 0) + 1;
+    }
+    var back = {};
+    var seenIds = {};
+    for (var j = 0; j < allCards.length; j++) {
+      var c = allCards[j];
+      if (c.dummy || !rendered[c.id] || seenIds[c.id] || !shownAt[c.id]) continue;
+      if (servedTotal - shownAt[c.id] < RECYCLE_MIN_GAP) continue;
+      var bk = recycleGroup(ED, c);
+      if ((unseen[bk] || 0) >= BATCH) continue;
+      if (!usableCard(c)) continue;
+      seenIds[c.id] = 1;
+      (back[bk] = back[bk] || []).push(c);
+    }
+    var extra = [];
+    for (var k in back) {
+      if (!back.hasOwnProperty(k)) continue;
+      back[k].sort(function (a, b) { return shownAt[a.id] - shownAt[b.id]; });
+      extra = extra.concat(back[k].slice(0, RECYCLE_TAKE));
+    }
+    return extra.length ? pool.concat(extra) : pool;
+  }
+
   function scheduleBatch(pool, avoid) {
     /* NO SAMPLE CARDS IN FOR YOU.
      *
@@ -1469,7 +1540,7 @@
      * with it - so the suite passed at 56 with the bug back in the feed and
      * Jorge found it on the live site for the second time. The assertion in
      * tools/test_app_live_refresh.mjs is what stops that happening again. */
-    var real = pool.filter(function (c) { return !c.dummy; });
+    var real = recycleForBuckets(pool.filter(function (c) { return !c.dummy; }));
     var res = DoomSchedule.build({
       pool: real,
       size: BATCH,
@@ -1694,6 +1765,7 @@
       var node = frag.firstChild;
       if (node.nodeType === 1) {
         decorate(node); watchCard(node); rendered[node.dataset.id] = 1;
+        shownAt[node.dataset.id] = ++servedTotal;
         /* Counted as SERVED, not as drawn. The quotas are about what the reader
          * is shown, and a card that was drawn into a batch the feed then
          * truncated was never shown. */
