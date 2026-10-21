@@ -75,7 +75,7 @@ const POOLS = [
   "data/compare-pool.json", "data/lean-pool.json", "data/dummy-cards.json",
   /* Optional pools, built by the local-source builders. Absent is normal and
    * the loop above skips them with a note rather than failing. */
-  "data/oddity-pool.json", "data/salary-pool.json", "data/frivolities-pool.json"
+  "data/oddity-pool.json", "data/salary-pool.json"
 ];
 
 let detailCount = 0;

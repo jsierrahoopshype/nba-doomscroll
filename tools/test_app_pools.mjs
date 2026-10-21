@@ -274,8 +274,7 @@ console.log("\nOPTIONAL_POOLS is derived from the same list");
    * optional, or a fresh checkout shows "could not load the card pools". */
   const BUILT_ELSEWHERE = ["data/oddity-pool.json", "data/salary-pool.json",
     "data/capcall-pool.json", "data/careermap-pool.json", "data/dreamteam-pool.json",
-    "data/award-history-pool.json", "data/record-pool.json", "data/career-pool.json",
-    "data/frivolities-pool.json"];
+    "data/award-history-pool.json", "data/record-pool.json", "data/career-pool.json"];
   const notOptional = BUILT_ELSEWHERE.filter(u => OPTIONAL.indexOf(u) < 0);
   ck("every pool built from data outside this repo is optional",
      notOptional.length === 0, notOptional.join(", "));

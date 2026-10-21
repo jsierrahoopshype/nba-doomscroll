@@ -2,9 +2,9 @@
  *
  * The engine already knows how to space a feed out: js/engine.js demotes a card
  * whose `story_key` was just shown (0.06x), one from the same `story_family`
- * (0.45x), and weights by `quality_score`. Only the oddity, salary and
- * frivolities builders emit any of that, so five card types out of nine were
- * weighted at parity and spaced by their player tags alone.
+ * (0.45x), and weights by `quality_score`. Only the oddity and salary
+ * builders emit any of that, so five card types out of nine were weighted at
+ * parity and spaced by their player tags alone.
  *
  * WHY THIS RUNS IN THE BROWSER RATHER THAN IN THE BUILDERS
  *
@@ -227,8 +227,8 @@
     }
   }
 
-  /* Fills in what a card is missing. Never overwrites: the oddity, salary and
-   * frivolities builders compute better keys than anything derivable here,
+  /* Fills in what a card is missing. Never overwrites: the oddity and salary
+   * builders compute better keys than anything derivable here,
    * and a null from derive() means "no honest signal", which must not be
    * written as a number. */
   function annotate(card) {
