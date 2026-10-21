@@ -118,41 +118,6 @@ which is the path that has to say "not a real user build".
 
 `preview.html` is gitignored. Regenerate it, don't commit it.
 
-## Frivolities trivia
-
-`tools/build_frivolities.mjs` builds a quiz pool from the HoopsHype archive's
-Frivolities tag. It runs where the archive is; the pool it writes is optional
-and its absence is a normal state, not an error.
-
-    node tools/build_frivolities.mjs --local <hoopshype-rumors>            # dry run
-    node tools/build_frivolities.mjs --local <hoopshype-rumors> --sample   # read a few
-    node tools/build_frivolities.mjs --local <hoopshype-rumors> --write    # ship it
-
-Nothing is written without `--write`, because the pool contains archive
-excerpts and whether those belong in a public repo is an editorial and rights
-decision rather than a build one.
-
-Every question hides something the record already contains and asks the reader
-to name it, so nothing is invented:
-
-| family | hides |
-| --- | --- |
-| `who-is-this` | the subject's name, blanked out of their own story |
-| `which-team` | the team |
-| `which-outlet` | who reported it |
-| `what-year` | when it happened |
-
-The guards matter more than the families. A card is refused if two players in
-the options share a surname (the answer is redacted, so both would fit), if any
-option's surname is still visible in the excerpt, if the answer appears
-anywhere the reader can see before answering, if the item names more than one
-player, if a year is written into a `what-year` excerpt, or if the editorial
-blocklist matches. The source link is rendered but hidden until the question is
-answered, because a HoopsHype URL usually contains the player's name.
-
-`data/frivolities-pool.json` is listed in `OPTIONAL_POOLS`, so a checkout
-without it logs one line and carries on.
-
 ## Media coordination
 
 `js/media.js` decides which single thing on screen is allowed to move. The four

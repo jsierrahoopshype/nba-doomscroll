@@ -59,17 +59,6 @@ image.
   call, not an unfinished feature.
 - **Reddit playback** still needs a playable URL the Content Stream index does
   not carry, and the standing decision against scraping it holds (see below).
-- **Frivolities: the builder is written, the pool is Jorge's to make.** Run
-  `node tools/build_frivolities.mjs` for a dry run (it finds the archive
-  itself), `--sample` to read three finished cards, `--write` to ship. The
-  first real dry run found a subject-naming bug, now fixed and covered by
-  `tools/test_frivolities_naming.mjs` — re-run `--sample` and read three more
-  before writing anything. It refuses to
-  write by default because the pool carries archive excerpts. Tested against a
-  synthetic archive only; the real distributions (how many outlets, how many
-  distinct players per era) will differ and some thresholds may want moving.
-  Two that are most likely to need it: `MIN_ERA_POOL` (12 distractors before an
-  era can be used) and `MAX_PER_SUBJECT` (6).
 - **Quality and repetition control: coverage is done, tuning is not.**
   `js/story.js` now derives `story_key`, `story_family` and, where an honest
   signal exists, `quality_score` for every card type at load time — see Done.
@@ -233,37 +222,6 @@ backend, which breaks the no-server promise the whole thing rests on.
   `build_salary.mjs` carry their own `url` and are fine; the older cap-share
   cards fall back to this one.
 
-- **Frivolities `which-team` blanks whatever team the text names, which is not
-  always the subject's.** A card asks "Which team was this?" over "in the 4th
-  quarter of their game against the █████" — the blank is the OPPONENT, and
-  answering means recalling one specific broadcast. The question wording covers
-  both readings, and the excerpt usually disambiguates ("against the ..."), so
-  these are hard rather than broken. Making them consistently fair means either
-  wording the question from the sentence around the blank, or only accepting
-  blanks that follow "with the" / "for the". Worth measuring before choosing.
-- **Archive text loses paragraph breaks upstream.** "for some odd reasonIn the
-  4th quarter" — a lowercase letter straight against a capital, with no
-  punctuation between. Sentence-punctuation seams are repaired at build time
-  now; this one is not, because NBA names share the shape (McGee, DeRozan,
-  LaMelo) and breaking a name to tidy a sentence is the worse trade. The real
-  fix is in whatever strips the HTML in the archive pipeline.
-
-- **`who-is-this` distractors do not know who played with whom.** They are
-  drawn from the same era, which is better than random and not as good as it
-  could be: a teammate is a harder and fairer distractor than a stranger from
-  the other conference. The career-team index that now filters `which-team`
-  distractors (see Done) has the data to do this too — same file, same load.
-
-- **The Frivolities `which-outlet` family can point at the wrong outlet.** A
-  dry-run sample asked which outlet reported a Stephen Jackson story whose text
-  says "in a lengthy sit-down interview with Grantland's Bill Simmons"; the
-  answer was San Antonio Express-News, the blog that wrote it up, and Grantland
-  was not even an option. Defensible but unfair: the excerpt names an outlet
-  that is not the answer. The fix is to reject an item whose text names any
-  outlet other than the answer, which needs an outlet vocabulary the builder
-  does not currently have. Not fixed with the naming bug because it is a
-  different guard and wants measuring against the real archive first.
-
 - **Check one apostrophe name on a Teammates link.** The slug rule turns
   "Shaquille O'Neal" into `shaquille-o-neal`. If the tool expects
   `shaquille-oneal` instead, those pairings link to nothing — one card is
@@ -334,9 +292,7 @@ Kept short so the list above stays the point.
   `tools/test_link_identity.mjs` proves the comparison catches a link going
   wrong, and caught the tool skipping null fields — which had silently disabled
   the redirect check, the one case the whole thing was built for.
-- YouTube autoplay is ON, at Jorge's call. Frivolities `which-outlet` is out,
-  also his call: the excerpt could name an outlet that was not the answer, and
-  rejecting those needs an outlet vocabulary the builder does not have.
+- YouTube autoplay is ON, at Jorge's call.
 
 - The weekly top 25 most-traded players, one card each (`traderank`). Built
   client-side from the weekly digest's `topPlayers`, so no Worker change: 24
@@ -352,9 +308,9 @@ Kept short so the list above stays the point.
   gap between tiers is 1.65x per card, which is why a clear photograph of
   Gordon Hayward still came up often enough to notice. The 453 easy and medium
   cards stay in the pool file; one line in app.js brings a tier back.
-- `build_salary.mjs` and `build_frivolities.mjs` find their own sources
-  (`tools/lib/find.mjs`). Both pools sat unbuilt for weeks purely because
-  nobody had the paths to hand. Every candidate is listed, newest used, and
+- `build_salary.mjs` finds its own sources (`tools/lib/find.mjs`). The pool
+  sat unbuilt for weeks purely because nobody had the paths to hand. Every
+  candidate is listed, newest used, and
   `--local` still overrides — because this machine has two nba-player-data
   checkouts and picking one in silence is how the 92-vs-99 player bug happened.
 
@@ -467,12 +423,6 @@ Kept short so the list above stays the point.
   cards, and a sampler that demotes what the last twelve cards already showed.
   Exploration was bypassing the penalty entirely, which is why the first
   measurement showed no improvement
-- Frivolities trivia builder: archive-grounded questions that hide something
-  the record already contains rather than inventing anything, with guards
-  against same-surname options, answers visible in the excerpt or the header,
-  items naming two players, and years written into a "what year" question. The
-  card renders through the ballot renderer with an evidence block and a source
-  link that stays hidden until the question is answered
 - One media coordinator (`js/media.js`) decides what moves. The canvas players
   and `bsky-video.js` each ran their own observer and neither knew the other
   existed, so a race and a Bluesky clip could animate together. Now: one item at

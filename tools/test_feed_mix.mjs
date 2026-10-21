@@ -236,20 +236,9 @@ console.log("\nno tab may have all of its types capped");
      (vsBody.match(/\w+\s*:/g) || []).length + " capped");
 }
 
-console.log("\nfrivolities are off, without anything being deleted");
+console.log("\nthe quiz tab has cards before any fetch");
 
 {
-  const tabPools = /TAB_POOLS\s*=\s*\{([\s\S]*?)\n  \};/.exec(APP);
-  /* Comments stripped first: the block carries a note explaining how to switch
-     the pool back on, and that note names the file. Counting it would make this
-     check fail on its own documentation. */
-  const body = (tabPools ? tabPools[1] : "").replace(/\/\*[\s\S]*?\*\//g, "");
-  const listed = (body.match(/frivolities-pool\.json/g) || []).length;
-  ck("no tab draws from the frivolities pool", listed === 0, listed + " references");
-  ck("the pool file is still on disk",
-     fs.existsSync(path.join(REPO, "data", "frivolities-pool.json")));
-  ck("and its builder is too, so it can be switched back on",
-     fs.existsSync(path.join(REPO, "tools", "build_frivolities.mjs")));
   /* The Quiz tab still has cards on its first screen without waiting for a
    * fetch. trivia and ballot are eager; quiz-pool moved to the registry in
    * Sept 2026 and arrives with the tab, so the eager pair is what has to hold

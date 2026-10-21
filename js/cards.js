@@ -87,10 +87,6 @@
     trivia: { chip: "TRIVIA",  cls: "t-vs",    tab: "quiz" },
     quiz:   { chip: "QUIZ",    cls: "t-quiz",  tab: "quiz" },
     ballot: { chip: "BALLOT",  cls: "t-quiz",  tab: "quiz" },
-    /* Archive-grounded oddities. Its own chip because it is a different
-     * promise from a ballot question: this one is a true story with the
-     * interesting part removed, and it carries a link to the reporting. */
-    friv:   { chip: "FRIVOLITIES", cls: "t-rumor", tab: "quiz" },
     salary: { chip: "SALARY",  cls: "t-vault", tab: "vault" },
     /* Ranked salary cards - a payroll's top five, earnings by country - are the
      * same subject as a salary card but a different shape, so they get their
@@ -808,38 +804,15 @@
       '<div class="quiz-result" hidden></div>';
   }
 
-  /* Also renders Frivolities cards: same four-option mechanic, plus an evidence
-   * block and a source link.
-   *
-   * `body` is the archive excerpt the question is asked about, with the answer
-   * redacted out of it. It is the whole point of those cards - the reader is
-   * meant to reason from the story, not guess from four names - so it sits
-   * above the options rather than in the reveal.
-   *
-   * The source link is rendered but hidden until the card is answered: the URL
-   * usually contains the player's name, so showing it up front would answer
-   * "which player is this about?" for anyone who reads a status bar. */
   function renderBallot(c) {
     var p = c.payload;
     var opts = p.options.map(function (o, i) {
       return '<button class="quiz-opt" data-action="ballot" data-pick="' + i + '">' + esc(o) + '</button>';
     }).join("");
-    /* Only `season`, never `source_date`. The date string carries the year, and
-     * on a "what year was this?" card the header was printing the answer two
-     * lines above the options. The date is still shown - next to the source,
-     * after answering, where it is context rather than a giveaway. */
     return '<div class="quiz-diff mono">' + esc(p.season || "") + '</div>' +
       '<div class="trivia-q">' + esc(p.question) + '</div>' +
-      (p.body ? '<blockquote class="friv-body">' + esc(p.body) + '</blockquote>' : "") +
       '<div class="quiz-opts" data-answer-idx="' + escAttr(p.answer_idx) + '">' + opts + '</div>' +
-      '<div class="quiz-result" hidden></div>' +
-      (p.source_url
-        ? '<div class="friv-source" hidden><a href="' + escAttr(p.source_url) +
-          '" target="_blank" rel="noopener">Read the original item</a>' +
-          (p.source_outlet ? '<span class="friv-meta"> &middot; ' + esc(p.source_outlet) + '</span>' : '') +
-          (p.source_date ? '<span class="friv-meta"> &middot; ' + esc(p.source_date) + '</span>' : '') +
-          '</div>'
-        : "");
+      '<div class="quiz-result" hidden></div>';
   }
 
   /* Four team badges, one of which the named player never wore.
@@ -1298,7 +1271,7 @@
   var RENDERERS = {
     trade: renderTrade, rumor: renderRumor, vs: renderVs, trivia: renderTrivia,
     daily: renderDaily, game: renderGame,
-    quiz: renderQuiz, ballot: renderBallot, friv: renderBallot, salary: renderSalary,
+    quiz: renderQuiz, ballot: renderBallot, salary: renderSalary,
     salaryrank: renderSalaryRank, otd: renderOtd,
     race: renderRace, oddity: renderOddity, buzz: renderBuzz, capcall: renderTrivia,
     tradetrend: renderTradeTrend, tradedigest: renderTradeDigest,

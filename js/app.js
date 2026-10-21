@@ -272,16 +272,7 @@
 
     /* ---- off, and left in the registry rather than deleted ----
      *
-     * FRIVOLITIES ARE OFF. Jorge's call, Sept 2026: the cards were weak. The
-     * pool file, its builder and its tests are all left exactly where they are.
-     * Turning them back on is putting a tab in `tabs` and dropping the
-     * `foryou: false`.
-     *
-     * It is built from the HoopsHype archive by a script run on a machine that
-     * has it (tools/build_frivolities.mjs), and the archive is not public, so a
-     * checkout without the file is a normal state.
-     *
-     * THE GAME CARDS ARE OFF TOO. Jorge's call, Sept 2026, on seeing two of
+     * THE GAME CARDS ARE OFF. Jorge's call, Sept 2026, on seeing two of
      * them at the top of For You: "I don't want cards promoting the games. I
      * want the game in the stream (or a lite version of it) if possible. If
      * not, shelve them from the stream."
@@ -290,7 +281,6 @@
      * the feed has real playable cards a few rows below them, which is what
      * makes the contrast obvious. data/games.json, its test and its entries in
      * data/links.json are untouched. */
-    { url: "data/frivolities-pool.json", tabs: [], foryou: false, optional: true },
     { url: "data/games.json",            tabs: [], foryou: false, optional: true }
   ];
 
@@ -431,7 +421,7 @@
       .catch(function (e) {
         if (!OPTIONAL_POOLS[url]) throw e;
         console.info("[doomscroll] optional pool absent: " + url +
-          " (build it with tools/build_frivolities.mjs)");
+          " (its builder has not been run)");
         return [];
       });
   }
@@ -448,7 +438,7 @@
     if (/^(vs|mates|compare)-/.test(id)) return TAB_POOLS.vs;
     if (/^lean-/.test(id)) return TAB_POOLS.vault;
     if (/^(salary|oddity|otd)-/.test(id)) return TAB_POOLS.vault;
-    if (/^(friv|capcall|careermap|dreamteam)-/.test(id)) return TAB_POOLS.quiz;
+    if (/^(capcall|careermap|dreamteam)-/.test(id)) return TAB_POOLS.quiz;
     return [];
   }
 
@@ -2185,11 +2175,6 @@
     var detail = card.payload.detail;
     res.innerHTML = '<span>' + (correct ? "Correct." : "Nope.") + '</span>' +
       (detail ? '<span class="quiz-detail">' + esc(detail) + '</span>' : "");
-    /* The source appears only now. Before answering it is hidden, because a
-     * HoopsHype URL usually contains the player's name and would give away a
-     * "which player is this about?" card to anyone reading a status bar. */
-    var src = cardEl.querySelector(".friv-source");
-    if (src) src.hidden = false;
     res.className = "quiz-result " + (correct ? "good" : "bad");
     var hintBox = cardEl.querySelector(".quiz-hints");
     E.quizAnswered(card, {
