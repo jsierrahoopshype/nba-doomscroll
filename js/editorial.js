@@ -95,9 +95,6 @@
      * money_cap_static: Jorge's brief is explicit that a playable salary game is
      * a game that happens to be about money, not a salary database card. ---- */
     "quiz|guess-the-player":     T("game", "playable", "guess_the_player", "database_generated"),
-    /* content_type is `trivia`, raw type is `friv`, and typeOf prefers
-     * content_type. Keyed on what typeOf actually returns. */
-    "trivia|frivolities":        T("game", "playable", "database_generated"),
     "trivia|trivia":             T("game", "playable", "database_generated"),
     "careermap|game":            T("game", "playable", "database_generated"),
     "dreamteam|game":            T("game", "playable", "database_generated"),
@@ -182,7 +179,6 @@
     capcall: T("game", "playable", "money_related"),
     careermap: T("game", "playable"),
     dreamteam: T("game", "playable"),
-    friv: T("game", "playable"),
     trivia: T("game", "playable")
   };
 

@@ -782,18 +782,6 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
   color:var(--text-secondary); text-transform:uppercase; letter-spacing:.06em;
 }
 
-/* The archive excerpt a Frivolities question is asked about. Set apart from
-   the question itself because it is evidence, not phrasing: the reader is
-   meant to reason from it. */
-.friv-body{
-  margin:.15rem 0 .7rem; padding:.55rem .7rem;
-  border-left:3px solid var(--t-rumor); background:var(--surface-hover);
-  border-radius:0 8px 8px 0; font-size:.85rem; line-height:1.5;
-}
-.friv-source{ margin-top:.55rem; font-size:.72rem }
-.friv-source a{ color:var(--accent) }
-.friv-meta{ color:var(--text-secondary); font-family:'JetBrains Mono',monospace; font-size:.68rem }
-
 /* Ranked salary cards: a payroll's top five, earnings by country. Numbers are
    tabular so the column of money lines up. */
 .sr-list{ display:flex; flex-direction:column; gap:.4rem; margin:.5rem 0 .2rem }

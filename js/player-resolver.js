@@ -33,9 +33,9 @@
    * day" all match a surname while saying nothing about anybody. For a name on
    * this list the FULL name has to appear.
    *
-   * Carried over from tools/build_frivolities.mjs, which learned it the hard
-   * way. The length filter it used to rely on said "Ball, Bol collide too
-   * easily" and then tested >= 4, which let "ball" straight through. */
+   * Learned the hard way: the length filter this list replaced said "Ball,
+   * Bol collide too easily" and then tested >= 4, which let "ball" straight
+   * through. */
   var WORD_SURNAMES = [
     "ball", "banks", "bell", "best", "bird", "black", "brooks", "brown",
     "cook", "cross", "day", "east", "fields", "ford", "gold", "green", "hill",
