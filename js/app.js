@@ -2,8 +2,7 @@
  * Tabs, infinite feed, interactions, onboarding, profile panel, share links.
  * VS / Quiz / Trivia / Ballot come from tools/build_data.mjs; the Vault pools
  * (cap-share salaries, ballot oddities, on this day) from tools/build_vault.mjs.
- * Rumors and trades load live in the reader's browser (js/rumors.js,
- * js/trades.js);
+ * Trades load live in the reader's browser (js/trades.js);
  * falling back to sample cards when those endpoints are not reachable.
  */
 (function (root) {
@@ -13,12 +12,15 @@
   var C = window.DoomCards;
   var esc = C.esc;
 
-  /* RUMORS ARE OFF. Jorge's call, Sept 2026, §4 of the feed-mix brief:
-   * "Remove Rumors entirely from For You and live-serving logic."
+  /* RUMORS ARE REMOVED (Oct 2026). The Rumors tab and the live load are gone,
+   * and js/rumors.js no longer fetches anything (it keeps only the editorial
+   * blocklist Buzz uses), so the page makes no calls to the rumors API.
+   * Setting this flag to true does NOT bring them back any more; what it still
+   * does is keep rumor cards (the ten samples in data/dummy-cards.json) out of
+   * every pool at addCards.
    *
-   * One flag, not a deletion. js/rumors.js, the ten sample cards in
-   * data/dummy-cards.json, the tab's blurb and its empty state are all left
-   * exactly where they are, so turning rumors back on is setting this to true.
+   * Before that, Sept 2026, §4 of the feed-mix brief: "Remove Rumors entirely
+   * from For You and live-serving logic", done with this one flag:
    *
    * It governs four things, each marked RUMORS_ON below: the tab is not
    * offered, LiveRumors is never asked to load, rumor cards are refused at
@@ -37,13 +39,11 @@
     { key: "foryou", label: "For You" },
     { key: "buzz", label: "Buzz" },
     { key: "trades", label: "Trades" },
-    /* RUMORS_ON */
-    { key: "rumors", label: "Rumors" },
     { key: "vs", label: "VS" },
     { key: "quiz", label: "Quiz" },
     { key: "vault", label: "History" },
     { key: "races", label: "Races" }
-  ].filter(function (t) { return RUMORS_ON || t.key !== "rumors"; });
+  ];
   var BATCH = 8;
   // Share of every mixed batch reserved for live Content Stream items.
   /* HOW MUCH OF A MIXED BATCH IS BUZZ.
@@ -640,8 +640,6 @@
       dropRenderedSamples("rumor");
       absorbLive();
     }
-    /* RUMORS_ON */
-    if (RUMORS_ON) swapInLive(root.LiveRumors, "rumor");
     swapInLive(root.DoomTrades, "trade");
     swapInLive(root.LiveBuzz, "buzz");
     /* The gate's backstop: a live source that neither resolves nor rejects

@@ -131,23 +131,26 @@ console.log("\n§17: a sample card is removed without taking the feed with it");
      /delete rendered\[/.test(dropSamples));
 }
 
-console.log("\n§4: rumors are off, in all four places");
+console.log("\n§4: rumors are removed (Oct 2026); rumor cards still refused");
 
 {
   ck("the flag exists and is off",
      /var RUMORS_ON\s*=\s*false\s*;/.test(CODE),
      (CODE.match(/var RUMORS_ON\s*=\s*[^;]+;/) || [""])[0]);
 
-  /* 1. The tab is not offered. */
-  ck("the Rumors tab is filtered out of TABS",
-     /\.filter\(function \(t\) \{ return RUMORS_ON \|\| t\.key !== "rumors"; \}\)/.test(CODE));
+  /* 1. There is no Rumors tab at all. */
+  ck("TABS has no rumors entry",
+     !/key: "rumors"/.test(CODE));
 
-  /* 2. Nothing is fetched. A bare swapInLive(root.LiveRumors, ...) would put
-   *    live rumors back in the feed without touching any other line. */
-  ck("LiveRumors is only loaded behind the flag",
-     /if \(RUMORS_ON\) swapInLive\(root\.LiveRumors, "rumor"\)/.test(CODE));
-  ck("and is loaded nowhere else",
-     (CODE.match(/swapInLive\(root\.LiveRumors/g) || []).length === 1);
+  /* 2. Nothing is fetched: the live load is gone from the app, and
+   *    js/rumors.js has no API address left to call. */
+  ck("LiveRumors is never loaded",
+     !/swapInLive\(root\.LiveRumors/.test(CODE));
+  const RUMORS_JS = fs.readFileSync(path.join(REPO, "js", "rumors.js"), "utf8");
+  ck("js/rumors.js calls no rumors API",
+     !/workers\.dev|\/api\/rumors/.test(RUMORS_JS));
+  ck("js/rumors.js still offers the Buzz blocklist",
+     /editorialFilter: editorialFilter/.test(RUMORS_JS));
 
   /* 3. THE ONE THAT MATTERED FOR FOR YOU. poolForTab("foryou") returns
    *    allCards without consulting c.tab, so a rumor card that reaches allCards
@@ -161,18 +164,17 @@ console.log("\n§4: rumors are off, in all four places");
   ck("and says so rather than dropping them silently",
      !!add && /rumorsDropped/.test(add));
 
-  /* 4. The sample rumors are still on disk and still refused, which is the
-   *    point: nothing was deleted. */
+  /* 4. The sample rumors are still on disk and still refused. */
   const dummy = JSON.parse(fs.readFileSync(path.join(REPO, "data", "dummy-cards.json"), "utf8"));
   const rumors = (dummy.cards || []).filter(c => c.type === "rumor");
   ck("the sample rumor cards are untouched on disk", rumors.length > 0,
      rumors.length + " cards, all marked dummy: " + rumors.every(c => c.dummy));
-  ck("js/rumors.js is untouched too",
+  ck("js/rumors.js is still there (the Buzz blocklist)",
      fs.existsSync(path.join(REPO, "js", "rumors.js")));
 
-  /* Turning them back on has to be one edit, or the flag is decoration. */
+  /* The rumor sites left in app.js are still marked. */
   const flagged = (SRC.match(/RUMORS_ON/g) || []).length;
-  ck("every rumor site is marked RUMORS_ON", flagged >= 8, flagged + " mentions");
+  ck("every rumor site left is marked RUMORS_ON", flagged >= 6, flagged + " mentions");
 }
 
 console.log("\nthe scheduler is wired to For You and to nothing else");
