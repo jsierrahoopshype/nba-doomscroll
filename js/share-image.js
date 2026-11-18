@@ -3,9 +3,9 @@
  * Renders any feed card to a 1080x1350 PNG in the site's own palette, with
  * HoopsMatic branding, for downloading or handing to the native share sheet.
  *
- * Cross-origin note: headshots and logos live on jsierrahoopshype.github.io.
- * While the feed is served from that same origin nothing special is needed,
- * but once it moves to hoopsmatic.com those images become cross-origin and a
+ * Cross-origin note: headshots and logos are served from hoopsmatic.com/img/
+ * (same-origin on the live site; the route also sends ACAO: *). A copy of the
+ * feed opened from any other origin would see them cross-origin, and a
  * tainted canvas would make toBlob() throw. Images are therefore requested
  * with crossOrigin="anonymous" and any that fail are simply skipped — the card
  * still renders, just without that face.

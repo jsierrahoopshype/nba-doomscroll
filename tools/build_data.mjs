@@ -32,7 +32,12 @@ import * as Png from "./lib/png.mjs";
 const PAGES_PLAYER_DATA = "https://jsierrahoopshype.github.io/nba-player-data/";
 const PAGES_HEADSHOTS = "https://jsierrahoopshype.github.io/nba-headshots/";
 const PAGES_MVT = "https://jsierrahoopshype.github.io/media-vote-tracker/";
-const HEADSHOT_BASE = PAGES_HEADSHOTS + "players/headshots/face/";
+/* Image URLs baked into card payloads are served same-origin by hoopsmatic.com
+ * (the worker's /img/nba-headshots/ route). PAGES_HEADSHOTS stays for the
+ * build-time metadata fetch, and SILHOUETTE stays on Pages because the worker
+ * does not serve fallbacks/. */
+const HM_HEADSHOTS = "https://hoopsmatic.com/img/nba-headshots/";
+const HEADSHOT_BASE = HM_HEADSHOTS + "players/headshots/face/";
 const SILHOUETTE = PAGES_HEADSHOTS + "fallbacks/player_silhouette.svg";
 
 /* deterministic PRNG so weekly rebuilds shuffle but runs are reproducible */

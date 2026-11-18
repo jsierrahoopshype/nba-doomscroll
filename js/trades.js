@@ -61,8 +61,8 @@
    * exist. Every trade, trend, digest and rank card, and every ?loop= deep
    * link, is built from this one string. */
   var MACHINE_URL = "https://hoopsmatic.com/";
-  var LOGO_BASE = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/";
-  var HEADSHOT_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/";
+  var LOGO_BASE = "https://hoopsmatic.com/img/nba-headshots/teams/logos/current/svg/";
+  var HEADSHOT_BASE = "https://hoopsmatic.com/img/nba-headshots/players/headshots/face/";
 
   // Same tolerance the video generator uses: TRADE_QUALITY_TOLERANCE = 0.15.
   var MIN_BALANCE_PCT = 85;

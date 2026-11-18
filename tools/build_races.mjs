@@ -55,8 +55,8 @@ const REPO = path.join(__dirname, "..");
 const OUT = path.join(REPO, "data", "races");
 const OUT_R = path.join(OUT, "r");
 
-const HEADSHOT_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/";
-const LOGO_BASE = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/";
+const HEADSHOT_BASE = "https://hoopsmatic.com/img/nba-headshots/players/headshots/face/";
+const LOGO_BASE = "https://hoopsmatic.com/img/nba-headshots/teams/logos/current/svg/";
 
 /* FIVE PATHS WAS FOUR TOO MANY.
  *

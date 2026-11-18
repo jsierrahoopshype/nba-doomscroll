@@ -43,8 +43,8 @@ import { buildFaceIndex, reportFaceIndex } from "./lib/faces.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, "..");
 
-const HEADSHOT_BASE = "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/";
-const LOGO_BASE = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/";
+const HEADSHOT_BASE = "https://hoopsmatic.com/img/nba-headshots/players/headshots/face/";
+const LOGO_BASE = "https://hoopsmatic.com/img/nba-headshots/teams/logos/current/svg/";
 const SILHOUETTE = "https://jsierrahoopshype.github.io/nba-headshots/fallbacks/player_silhouette.svg";
 
 let seed = 20260822;
