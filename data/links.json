@@ -185,7 +185,7 @@
     },
     {
       "id": "headshot-face",
-      "url": "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/",
+      "url": "https://hoopsmatic.com/img/nba-headshots/players/headshots/face/",
       "used_by": "js/trades.js HEADSHOT_BASE",
       "kind": "image",
       "sample_from": {
@@ -210,7 +210,7 @@
     },
     {
       "id": "team-logo",
-      "url": "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/lal.svg",
+      "url": "https://hoopsmatic.com/img/nba-headshots/teams/logos/current/svg/lal.svg",
       "used_by": "js/trades.js LOGO_BASE",
       "kind": "image",
       "note": "Lowercase. js/trades.js does LOGO_BASE + abbr.toLowerCase() + '.svg'; the registry had LAL.svg and reported a 404 that was the registry's own fault."

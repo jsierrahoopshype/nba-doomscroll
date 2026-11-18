@@ -2392,7 +2392,7 @@
 
   var TEAM_LIST = ["ATL","BOS","BKN","CHA","CHI","CLE","DAL","DEN","DET","GSW","HOU","IND","LAC","LAL","MEM","MIA","MIL","MIN","NOP","NYK","OKC","ORL","PHI","PHX","POR","SAC","SAS","TOR","UTA","WAS"];
   var ERA_LIST = ["1960s","1970s","1980s","1990s","2000s","2010s","2020s"];
-  var LOGO = "https://jsierrahoopshype.github.io/nba-headshots/teams/logos/current/svg/";
+  var LOGO = "https://hoopsmatic.com/img/nba-headshots/teams/logos/current/svg/";
 
   /* Asked first, and before teams. A team and an era narrow WHICH cards you
    * see; what kind of card you want is the bigger lever on whether the feed is

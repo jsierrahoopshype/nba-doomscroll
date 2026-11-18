@@ -135,7 +135,7 @@ export function alphaBox(file, y0Frac, y1Frac) {
 }
 
 export const HEADSHOT_BASE =
-  "https://jsierrahoopshype.github.io/nba-headshots/players/headshots/face/";
+  "https://hoopsmatic.com/img/nba-headshots/players/headshots/face/";
 export const SILHOUETTE =
   "https://jsierrahoopshype.github.io/nba-headshots/fallbacks/player_silhouette.svg";
 
