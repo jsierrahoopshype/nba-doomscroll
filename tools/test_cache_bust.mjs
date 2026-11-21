@@ -77,16 +77,14 @@ const missing = assets.filter(u => !fs.existsSync(path.join(REPO, u.split("?")[0
 ck("no asset points at a file that is not there", missing.length === 0,
    missing.join(", "));
 
-console.log("\njs/app.js reports it at boot");
+console.log("\njs/app.js stays quiet about it on load");
 
+/* Nov 2026: the boot line was removed with the other routine console output
+ * (only real failures log now). The build stays readable in view-source via
+ * the meta above, which is what this suite already pins. */
 const APP = fs.readFileSync(path.join(REPO, "js", "app.js"), "utf8");
-ck("app.js reads the build meta",
-   /meta\[name="doomscroll-build"\]/.test(APP));
-ck("and prints it once, at boot",
-   /console\.info\("\[doomscroll\] build "/.test(APP));
-/* A console call that throws must not cost a reader the feed. */
-ck("inside a try, like every other optional thing here",
-   /try \{[\s\S]{0,400}doomscroll-build[\s\S]{0,400}\} catch/.test(APP));
+ck("app.js does not print the build on load",
+   !/console\.(info|log|debug)\("\[doomscroll\] build "/.test(APP));
 
 console.log(fail ? `\n${fail} failed` : "\n0 failed");
 console.log(fail ? "a deploy could serve two builds at once, and nobody would see it"

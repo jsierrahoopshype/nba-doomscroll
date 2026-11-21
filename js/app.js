@@ -354,9 +354,6 @@
       if (dup) delete byId[c.id];
       return !dup;
     });
-    if (before !== allCards.length) {
-      console.info("[doomscroll] dropped " + (before - allCards.length) + " ballot questions already covered by a Vault card");
-    }
   }
 
   function addCards(list) {
@@ -400,17 +397,6 @@
       byId[c.id] = c;
       allCards.push(c);
     });
-    /* Said out loud rather than dropped quietly: a tier filter that silently
-     * removes a third of a pool is exactly the kind of thing that gets
-     * forgotten and then puzzled over six months later. */
-    if (quizDropped) {
-      console.info("[doomscroll] quiz: " + quizDropped +
-        " cards held back (tiers outside " + Object.keys(QUIZ_QUALITY).join(", ") + ")");
-    }
-    if (rumorsDropped) {
-      console.info("[doomscroll] rumors are off: " + rumorsDropped +
-        " card(s) held back (set RUMORS_ON to turn them back on)");
-    }
   }
 
   function fetchPool(url) {
@@ -420,8 +406,6 @@
     }).then(function (d) { return d.cards || []; })
       .catch(function (e) {
         if (!OPTIONAL_POOLS[url]) throw e;
-        console.info("[doomscroll] optional pool absent: " + url +
-          " (its builder has not been run)");
         return [];
       });
   }
@@ -493,17 +477,9 @@
   })).then(function (lists) {
     lists.forEach(addCards);
     if (!allCards.length) throw new Error("no cards loaded");
-    /* WHICH BUILD IS THIS? Printed once, at boot, so the question can be
-     * answered by opening the console instead of by shipping another fix and
-     * waiting to hear whether it arrived. See the BUILD comment in index.html:
-     * three fixes were reported as "not fixed" from the live site with no way
-     * to tell a stale cache from a bad fix. */
-    try {
-      var buildMeta = document.querySelector('meta[name="doomscroll-build"]');
-      console.info("[doomscroll] build " +
-        ((buildMeta && buildMeta.content) || "unknown") +
-        " · " + allCards.length + " cards from " + EAGER_POOLS.length + " eager pools");
-    } catch (e) { /* a console that throws is not worth a broken boot */ }
+    /* WHICH BUILD IS THIS? No longer printed to the console on load: read
+     * <meta name="doomscroll-build"> in view-source (see the BUILD comment
+     * in index.html) to tell a stale cache from a bad fix. */
     E.startSession();
     renderTabs();
     var pinned = handleShareLink();   // may miss: VS/Vault pools load later
@@ -633,8 +609,6 @@
         return true;
       });
       if (before === allCards.length) return;
-      console.info("[doomscroll] rumors unavailable — " + (before - allCards.length) +
-        " placeholder cards dropped rather than shown");
       /* A fake rumor is the one thing that must leave the screen even mid-read:
        * §17 protects a reader's position, not a fabricated NBA report. */
       dropRenderedSamples("rumor");
@@ -1583,7 +1557,6 @@
     newsGateOpen = true;
     var wait = feedEl.querySelector(".feed-wait");
     if (wait) wait.parentNode.removeChild(wait);
-    console.info("[doomscroll] news gate open: " + why);
     /* A live success is followed by absorbLive, which draws its own batch.
      * The other two reasons have nothing following them, so top up here. */
     if (why !== "live" && state.tab === "foryou" &&

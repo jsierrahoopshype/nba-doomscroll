@@ -84,8 +84,8 @@ console.log("\nthe mute runs inside build, before anything else is spent on the 
 
 const SRC = fs.readFileSync(path.join(REPO, "js/buzz.js"), "utf8");
 ck("build() checks it", /if \(muted\(item, cfg\)\) \{ mutedN\+\+; return; \}/.test(SRC));
-ck("and reports the count to the console",
-   /buzz hid " \+ mutedN \+ " post\(s\) from muted accounts/.test(SRC));
+ck("and counts what it hid on the result (no console line on load)",
+   /out\.muted = mutedN;/.test(SRC));
 
 console.log(fail ? `\n${fail} failed` : "\n0 failed");
 console.log(fail ? "a muted account can still reach the feed"

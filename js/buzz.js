@@ -249,10 +249,6 @@
       resolverIndex = root.PlayerResolve.buildIndex(Object.values((map && map.players) || {}));
     }
     var out = root.PlayerResolve.resolve(text, names, resolverIndex);
-    if (out.rejected.length && root.console && console.debug) {
-      console.debug("[doomscroll] buzz dropped " + out.rejected.length + " player tag(s): " +
-        out.rejected.map(function (r) { return r.name + " (" + r.why + ")"; }).join("; "));
-    }
     return out.players;
   }
 
@@ -502,15 +498,7 @@
       uris.push(u);
     });
     if (!uris.length) {
-      if (complete) {
-        console.info("[doomscroll] bluesky: " + complete + " posts came whole from the index, " +
-          "no appview call");
-      }
       return Promise.resolve(cards);
-    }
-    if (complete) {
-      console.info("[doomscroll] bluesky: " + complete + " posts came whole from the index, " +
-        uris.length + " older ones still need the appview");
     }
 
     var chunks = [];
@@ -551,7 +539,6 @@
           got++;
         });
       });
-      console.info("[doomscroll] bluesky enriched " + got + "/" + uris.length + " posts");
       return cards;
     });
   }
@@ -696,7 +683,6 @@
           }
         }
       });
-      console.info("[doomscroll] reddit: " + got + "/" + wanted + " full bodies from RSS");
       return cards;
     });
   }
@@ -806,14 +792,9 @@
      * exemption nobody can tune. If this number is ever large, the weak list
      * is too loose. */
     out.leagueTopics = leagueKept;
-    if (leagueKept) {
-      console.info("[doomscroll] buzz kept " + leagueKept +
-        " league-level item(s) that name no player or team");
-    }
-    /* Counted apart from `dropped` so the console says the mute is working,
-     * and so the day it reads zero for a week the list can be tidied. */
+    /* Counted apart from `dropped` so the day it reads zero for a week the
+     * mute list can be tidied. */
     out.muted = mutedN;
-    if (mutedN) console.info("[doomscroll] buzz hid " + mutedN + " post(s) from muted accounts");
     return out;
   }
 
@@ -855,10 +836,6 @@
         root.YtVideo.setAutoplay(!!((cfg.sources || {}).youtube || {}).autoplay);
       }
       var cards = build(lists, cfg, map, blocked);
-      console.info("[doomscroll] buzz: " + cards.length + " cards from " +
-        lists.reduce(function (n, l) { return n + (l.items || []).length; }, 0) +
-        " items (" + (cards.filtered || 0) + " filtered out, " +
-        (cards.deduped || 0) + " merged as duplicates)");
       // Both enrichments are optional and independent, so they run together
       // and either one failing leaves the other's work in place.
       return Promise.all([
