@@ -1094,13 +1094,22 @@ a.rumor-src:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; 
   box-shadow:0 8px 30px rgba(0,0,0,.10);
 }
 @media(min-width:640px){ .modal-card{ border-radius:14px } }
-.modal-card h2{ font-size:1.15rem; font-weight:700; letter-spacing:-.02em; margin-bottom:.2rem }
-.modal-card .lede{ color:var(--text-secondary); font-size:.82rem; margin-bottom:.9rem; line-height:1.45 }
-.modal-card h3{
+.modal-card h2,.tune h2{ font-size:1.15rem; font-weight:700; letter-spacing:-.02em; margin-bottom:.2rem }
+.modal-card .lede,.tune .lede{ color:var(--text-secondary); font-size:.82rem; margin-bottom:.9rem; line-height:1.45 }
+.modal-card h3,.tune h3{
   font-family:'JetBrains Mono',monospace; font-size:.62rem; font-weight:600;
   letter-spacing:.08em; text-transform:uppercase; color:var(--text-secondary);
   margin:1rem 0 .45rem;
 }
+
+/* Tune your feed, inline above the feed on a first visit (it used to be a
+   modal). Same surface, border and radius as a feed .card; not a .card itself,
+   so nothing that walks the feed's cards ever sees it. */
+.tune{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:.9rem .9rem 1rem; margin-bottom:.6rem; min-width:0;
+}
+.tune[hidden]{ display:none }
 
 .ob-teams{ display:grid; grid-template-columns:repeat(6,1fr); gap:.35rem }
 @media(max-width:420px){ .ob-teams{ grid-template-columns:repeat(5,1fr) } }
