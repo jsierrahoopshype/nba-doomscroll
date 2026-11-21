@@ -2456,8 +2456,9 @@
     obPicked = [];
     renderObPicked();
     wireObPlayers();
+    /* Inline at the top of the feed, not a modal: no body scroll lock, no
+     * backdrop, no focus moved. The feed loads underneath as usual. */
     m.hidden = false;
-    document.body.classList.add("modal-open");
   }
 
   document.getElementById("onboard").addEventListener("click", function (ev) {
@@ -2479,7 +2480,6 @@
 
   function closeOnboarding(reseed) {
     document.getElementById("onboard").hidden = true;
-    document.body.classList.remove("modal-open");
     if (reseed) { feedEl.innerHTML = ""; state.exhausted = false; loadMore(); }
   }
 
@@ -2592,14 +2592,15 @@
     }
   }
 
-  /* Escape closes whichever sheet is open. */
+  /* Escape closes whichever sheet is open. The Tune your feed block is not a
+   * sheet any more (it sits inline in the page), so Escape leaves it alone:
+   * only its own Done and Skip collapse it. */
   document.addEventListener("keydown", function (ev) {
     if (ev.key !== "Escape") return;
-    ["shareSheet", "panel", "onboard"].some(function (id) {
+    ["shareSheet", "panel"].some(function (id) {
       var el = document.getElementById(id);
       if (el.hidden) return false;
-      if (id === "onboard") { E.skipOnboarding(); closeOnboarding(false); }
-      else { el.hidden = true; document.body.classList.remove("modal-open"); }
+      el.hidden = true; document.body.classList.remove("modal-open");
       return true;
     });
   });

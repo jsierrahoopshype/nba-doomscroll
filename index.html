@@ -26,7 +26,7 @@
      View-source shows this meta, so the question "is this the new code?" is
      answerable in ten seconds instead of by another round of guessing (the
      console no longer prints it on load). -->
-<meta name="doomscroll-build" content="20261121a">
+<meta name="doomscroll-build" content="20261121b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Jost:wght@500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
@@ -34,7 +34,7 @@
 <link rel="icon" href="https://hoopsmatic.com/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="https://hoopsmatic.com/favicon-96.png" type="image/png" sizes="96x96">
 <link rel="apple-touch-icon" href="https://hoopsmatic.com/apple-touch-icon.png">
-<link rel="stylesheet" href="css/styles.css?v=20261121a">
+<link rel="stylesheet" href="css/styles.css?v=20261121b">
 </head>
 <body>
 <div class="container">
@@ -67,19 +67,14 @@
     <span class="run-chip" id="runChip" hidden></span>
   </div>
 
-  <main class="feed" id="feed" aria-live="polite"></main>
-  <div class="sentinel" id="sentinel"></div>
-
-  <div class="foot">
-    Anything wrong? Email us at <a href="mailto:hoopsmatic@hoopsmatic.com">hoopsmatic@hoopsmatic.com</a><br>
-    For any other inquiry, contact us at <a href="mailto:ads@hoopsmatic.com">ads@hoopsmatic.com</a>
-  </div>
-</div>
-
-<!-- onboarding -->
-<div class="modal" id="onboard" hidden role="dialog" aria-modal="true">
-  <div class="modal-card">
-    <h2>Tune your feed</h2>
+  <!-- TUNE YOUR FEED, inline (November 21, 2026). It was a full-screen modal
+       on the first visit; HoopsMatic has no pop-ups, so the same choices sit
+       here, at the top of the feed, with the page scrollable underneath. Shown
+       while E.needsOnboarding() (first visit, or after "Delete all data");
+       Done or Skip collapses it and marks the profile onboarded, so a returning
+       visitor never sees it. js/app.js: showOnboarding / closeOnboarding. -->
+  <section class="tune" id="onboard" hidden aria-labelledby="tuneTitle">
+    <h2 id="tuneTitle">Tune your feed</h2>
     <p class="lede">Pick a few things you care about. This only seeds the
       starting mix — everything you like, save or skip keeps re-tuning it.
       All of it stays on this device.</p>
@@ -97,9 +92,17 @@
       <div class="ob-player-picked" id="obPlayerPicked"></div>
     </div>
     <div class="modal-actions">
-      <button class="btn" data-ob="skip" type="button">Skip, surprise me</button>
-      <button class="btn primary" data-ob="start" type="button">Start scrolling</button>
+      <button class="btn" data-ob="skip" type="button">Skip</button>
+      <button class="btn primary" data-ob="start" type="button">Done</button>
     </div>
+  </section>
+
+  <main class="feed" id="feed" aria-live="polite"></main>
+  <div class="sentinel" id="sentinel"></div>
+
+  <div class="foot">
+    Anything wrong? Email us at <a href="mailto:hoopsmatic@hoopsmatic.com">hoopsmatic@hoopsmatic.com</a><br>
+    For any other inquiry, contact us at <a href="mailto:ads@hoopsmatic.com">ads@hoopsmatic.com</a>
   </div>
 </div>
 
@@ -151,31 +154,31 @@
 
 <div class="toast" id="toast" role="status"></div>
 
-<script src="js/scoreboard.js?v=20261121a"></script>
-<script src="js/daily-five.js?v=20261121a"></script>
-<script src="js/pacing.js?v=20261121a"></script>
-<script src="js/media.js?v=20261121a"></script>
-<script src="js/story.js?v=20261121a"></script>
-<script src="js/editorial.js?v=20261121a"></script>
-<script src="js/engine.js?v=20261121a"></script>
+<script src="js/scoreboard.js?v=20261121b"></script>
+<script src="js/daily-five.js?v=20261121b"></script>
+<script src="js/pacing.js?v=20261121b"></script>
+<script src="js/media.js?v=20261121b"></script>
+<script src="js/story.js?v=20261121b"></script>
+<script src="js/editorial.js?v=20261121b"></script>
+<script src="js/engine.js?v=20261121b"></script>
 <!-- The For You scheduler. Needs js/editorial.js above it and is read by
      js/app.js below, so the order of these three matters. -->
-<script src="js/schedule.js?v=20261121a"></script>
-<script src="js/share-text.js?v=20261121a"></script>
-<script src="js/cards.js?v=20261121a"></script>
-<script src="js/vs-score.js?v=20261121a"></script>
-<script src="js/race-player.js?v=20261121a"></script>
-<script src="js/mates-player.js?v=20261121a"></script>
-<script src="js/compare-player.js?v=20261121a"></script>
-<script src="js/lean-player.js?v=20261121a"></script>
-<script src="js/share-image.js?v=20261121a"></script>
-<script src="js/live-vs.js?v=20261121a"></script>
-<script src="js/rumors.js?v=20261121a"></script>
-<script src="js/player-resolver.js?v=20261121a"></script>
-<script src="js/buzz.js?v=20261121a"></script>
-<script src="js/bsky-video.js?v=20261121a"></script>
-<script src="js/yt-video.js?v=20261121a"></script>
-<script src="js/trades.js?v=20261121a"></script>
-<script src="js/app.js?v=20261121a"></script>
+<script src="js/schedule.js?v=20261121b"></script>
+<script src="js/share-text.js?v=20261121b"></script>
+<script src="js/cards.js?v=20261121b"></script>
+<script src="js/vs-score.js?v=20261121b"></script>
+<script src="js/race-player.js?v=20261121b"></script>
+<script src="js/mates-player.js?v=20261121b"></script>
+<script src="js/compare-player.js?v=20261121b"></script>
+<script src="js/lean-player.js?v=20261121b"></script>
+<script src="js/share-image.js?v=20261121b"></script>
+<script src="js/live-vs.js?v=20261121b"></script>
+<script src="js/rumors.js?v=20261121b"></script>
+<script src="js/player-resolver.js?v=20261121b"></script>
+<script src="js/buzz.js?v=20261121b"></script>
+<script src="js/bsky-video.js?v=20261121b"></script>
+<script src="js/yt-video.js?v=20261121b"></script>
+<script src="js/trades.js?v=20261121b"></script>
+<script src="js/app.js?v=20261121b"></script>
 </body>
 </html>
