@@ -593,14 +593,10 @@
          * hand back a different window and these numbers would be labelled as
          * a week on a card that says "the last 7 days". */
         if (+j.days !== MOVERS_DAYS) {
-          console.info("[doomscroll] movers returned a " + j.days + "-day window, not " +
-            MOVERS_DAYS + "; falling back to the sampled rank detail");
           return null;
         }
         var by = {};
         j.players.forEach(function (p) { if (p && p.player) by[p.player] = p; });
-        console.info("[doomscroll] movers: " + j.players.length + " players over " +
-          (j.totalTrades || 0).toLocaleString() + " trades in the last " + j.days + " days");
         return { by: by, list: j.players, days: j.days, totalTrades: j.totalTrades || 0 };
       })
       .catch(function (e) {
@@ -786,16 +782,6 @@
         (deals || []).length + " trades";
       enriched++;
     });
-    if (full) {
-      console.info("[doomscroll] rank detail: " + full + " cards from the Worker over the full " +
-        MOVERS_DAYS + " days" + (enriched ? "; " + enriched + " from the local sample" : "") +
-        (thin ? "; " + thin + " with neither" : ""));
-    } else if (enriched || thin) {
-      console.info("[doomscroll] rank detail: " + enriched + " of " + (enriched + thin) +
-        " cards had " + RANK_DETAIL_MIN + "+ builds in the newest " + (deals || []).length +
-        " deals" + (thin ? "; " + thin + " too thin to say where he went" : "") +
-        " (tune RANK_DETAIL_MIN in js/trades.js against this)");
-    }
     return cards;
   }
 
@@ -824,10 +810,6 @@
           if (c && c.type === "traderank") { dropped++; return false; }
           return true;
         }).concat(built);
-        console.info("[doomscroll] weekly top " + (built.length + (hero ? 1 : 0)) +
-          " built from the movers endpoint" +
-          (dropped ? " (replacing " + dropped + " thinner cards from the digest)" : "") +
-          (hero ? "; no. 1 stays on the digest card" : "; no digest card, so no. 1 is a rank card"));
         return dcs;
       }
     }
@@ -848,16 +830,10 @@
       .then(function (j) {
         var days = declaredDays(j);
         if (days !== 7) {
-          console.info("[doomscroll] no weekly digest: the endpoint did not declare a 7-day window" +
-            " (add days=7 support and echo `days` in the payload to light this up)");
           return null;
         }
         var top = digestCard(j && j.digest, { key: "week", chip: "WEEKLY DIGEST", label: "the last 7 days" });
         var ranks = weeklyRankCards(j && j.digest);
-        if (ranks.length) {
-          console.info("[doomscroll] weekly top " + (ranks.length + (top ? 1 : 0)) +
-            " most-traded players");
-        }
         return [top].concat(ranks);
       })
       .catch(function (e) {
@@ -943,10 +919,6 @@
       var trends = buildTrends(deals, spanOf(tsSeen));
       if (trends) cards.unshift(trends);
 
-      console.info("[doomscroll] trades: " + cards.length + " cards from " + stats.total +
-        " logged deals (" + stats.dup + " duplicates, " + stats.multi +
-        " multi-team, " + stats.unbalanced + " failed the balance filter)" +
-        (trends ? "; trends over " + deals.length + " deals" : "; too few deals for a trends card"));
       return Promise.all([digest, movers]).then(function (parts) {
         // The log is only known here, so the rank cards are settled now.
         var dcs = chooseRankCards(parts[0], parts[1], deals);
