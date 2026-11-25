@@ -15,23 +15,17 @@
   }
   function escAttr(s) { return esc(s); }
 
-  /* No photograph draws initials, not the generic silhouette.
+  /* No photograph draws nothing at all: no initials circle, no silhouette
+   * (Jorge, November 25, 2026: the same rule on every HoopsMatic section). The
+   * name next to it already says who this is.
    *
-   * The VS, quiz and trivia pools are now built only from players who have one,
-   * so nothing there reaches this branch. Trade and History cards can: a trade
-   * card is whatever a reader traded, and a 1950s salary record is nobody the
-   * NBA's CDN ever photographed. A grey outline of nobody is worse than useless
-   * on those — two initials at least say who this is — which is the same call
-   * the Teammates scoreboard already makes below.
+   * The VS, quiz and trivia pools are built only from players who have one,
+   * so nothing there reaches this branch. Trade and History cards can.
    *
    * The onerror path keeps the silhouette: an image that was supposed to load
-   * and did not is a different thing from a player with no photograph, and
-   * swapping in initials there would quietly hide a broken source. */
+   * and did not is a broken source, not a player with no photograph. */
   function face(src, alt, cls) {
-    if (!src || src === SILHOUETTE) {
-      return '<span class="' + (cls || "face") + ' mt-ini" title="' + escAttr(alt || "") + '">' +
-        esc(initials(alt)) + '</span>';
-    }
+    if (!src || src === SILHOUETTE) return "";
     return '<img class="' + (cls || "face") + '" loading="lazy" src="' + escAttr(src) +
       '" alt="' + escAttr(alt || "") + '" onerror="this.onerror=null;this.src=\'' + SILHOUETTE + '\'">';
   }
